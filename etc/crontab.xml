@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+    <group id="klevu">
+        <job name="klevu_indexing_discover_attributes"
+             instance="Klevu\Indexing\Cron\DiscoverAttributes"
+             method="execute">
+            <schedule>52 1 * * *</schedule>
+        </job>
+        <job name="klevu_indexing_discover_entities"
+             instance="Klevu\Indexing\Cron\DiscoverEntities"
+             method="execute">
+            <schedule>0 2 * * *</schedule>
+        </job>
+        <job name="klevu_indexing_sync_attributes"
+             instance="Klevu\Indexing\Cron\SyncAttributes"
+             method="execute">
+            <schedule>12,42 * * * *</schedule>
+        </job>
+        <job name="klevu_indexing_sync_entities"
+             instance="Klevu\Indexing\Cron\SyncEntities"
+             method="execute">
+            <schedule>16,46 * * * *</schedule>
+        </job>
+    </group>
+</config>

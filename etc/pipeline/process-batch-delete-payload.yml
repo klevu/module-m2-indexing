@@ -1,0 +1,25 @@
+stages:
+  chunk:
+    pipeline: Stage\Transform
+    args:
+      transformation: Unique|Chunk(100)
+  iterate:
+    pipeline: Pipeline\Iterate
+    stages:
+      sendBatchDeleteRequest:
+        stages:
+          send:
+            pipeline: Stage\Indexing\SendBatchDeleteRequest
+            args:
+              jsApiKey: $auth::getForCurrentStore().js_api_key
+              restAuthKey: $auth::getForCurrentStore().rest_auth_key
+          registerResult:
+            pipeline: Stage\RegisterContext
+            args:
+              contextKey: "processBatchResult"
+      updateRecordsAction:
+        pipeline: Indexing\Stage\UpdateIndexingEntityRecord
+        args:
+          action: $currentAction::
+          entityType: $currentEntityType::
+          apiKey: $auth::getForCurrentStore().js_api_key

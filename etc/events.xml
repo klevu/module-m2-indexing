@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details. -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+
+    <event name="klevu_integrate_api_keys_after">
+        <observer name="Klevu_Indexing_discoverAttributesAfterIntegration"
+                  instance="Klevu\Indexing\Observer\DiscoverAttributesAfterIntegrationObserver"/>
+        <observer name="Klevu_Indexing_discoverEntitiesAfterIntegration"
+            instance="Klevu\Indexing\Observer\DiscoverEntitiesAfterIntegrationObserver"/>
+    </event>
+
+    <event name="klevu_remove_api_keys_after">
+        <observer name="Klevu_Indexing_discoverAttributesAfterIntegrationRemoval"
+                  instance="Klevu\Indexing\Observer\DiscoverAttributesAfterIntegrationRemovalObserver"/>
+        <observer name="Klevu_Indexing_discoverEntitiesAfterIntegrationRemoval"
+            instance="Klevu\Indexing\Observer\DiscoverEntitiesAfterIntegrationRemovalObserver"/>
+    </event>
+
+    <event name="klevu_indexing_entity_update">
+        <observer name="Klevu_Indexing_entityUpdate"
+            instance="Klevu\Indexing\Observer\UpdateEntitiesObserver"/>
+    </event>
+
+    <event name="klevu_indexing_attribute_update">
+        <observer name="Klevu_Indexing_attributeUpdate"
+                  instance="Klevu\Indexing\Observer\UpdateAttributesObserver"/>
+    </event>
+
+</config>

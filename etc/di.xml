@@ -1,0 +1,433 @@
+<?xml version="1.0"?>
+
+<!-- Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details. -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <preference for="Klevu\IndexingApi\Api\Data\IndexingAttributeInterface"
+                type="\Klevu\Indexing\Model\IndexingAttribute"/>
+
+    <preference for="Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface"
+                type="\Klevu\Indexing\Model\IndexingAttributeRepository"/>
+
+    <preference for="Klevu\IndexingApi\Api\Data\IndexingEntityInterface"
+                type="\Klevu\Indexing\Model\IndexingEntity"/>
+
+    <preference for="Klevu\IndexingApi\Api\Data\IndexerResultInterface"
+                type="Klevu\Indexing\Model\IndexerResult"/>
+
+    <preference for="Klevu\IndexingApi\Api\Data\SyncResultInterface"
+                type="Klevu\Indexing\Model\SyncResult"/>
+
+    <preference for="Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface"
+                type="\Klevu\Indexing\Model\IndexingEntityRepository"/>
+
+    <preference for="Klevu\IndexingApi\Model\EntityIndexingDeleteRecordInterface"
+                type="Klevu\Indexing\Model\EntityIndexingDeleteRecord"/>
+
+    <preference for="Klevu\IndexingApi\Model\MagentoAttributeInterface"
+                type="Klevu\Indexing\Model\MagentoAttribute"/>
+
+    <preference for="Klevu\IndexingApi\Model\MagentoEntityInterface"
+                type="Klevu\Indexing\Model\MagentoEntity"/>
+
+    <preference for="Klevu\IndexingApi\Model\Update\AttributeInterface"
+                type="Klevu\Indexing\Model\Update\Attribute"/>
+
+    <preference for="Klevu\IndexingApi\Model\Update\EntityInterface"
+                type="Klevu\Indexing\Model\Update\Entity"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\AddIndexingAttributesActionInterface"
+                type="Klevu\Indexing\Service\Action\AddIndexingAttributesAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\AddIndexingEntitiesActionInterface"
+                type="Klevu\Indexing\Service\Action\AddIndexingEntitiesAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\ParseFilepathActionInterface"
+                type="Klevu\Indexing\Service\Action\ParseFilepath"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingAttributesToBeIndexableActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingAttributesToBeIndexableAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingAttributesToDeleteActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingAttributesToDeleteAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingAttributesToUpdateActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingAttributesToUpdateAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToBeIndexableActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToBeIndexableAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToDeleteActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToDeleteAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToUpdateActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToUpdateAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\UpdateIndexingEntitiesActionsActionInterface"
+                type="Klevu\Indexing\Service\Action\UpdateIndexingEntitiesActionsAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\AttributeDiscoveryOrchestratorServiceInterface"
+                type="Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\AttributeSyncOrchestratorServiceInterface"
+                type="Klevu\Indexing\Service\AttributeSyncOrchestratorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\AttributeUpdateOrchestratorServiceInterface"
+                type="Klevu\Indexing\Service\AttributeUpdateOrchestratorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface"
+                type="Klevu\Indexing\Service\EntityDiscoveryOrchestratorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\EntityIndexingDeleteRecordCreatorServiceInterface"
+                type="Klevu\Indexing\Service\EntityIndexingDeleteRecordCreatorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\EntitySyncOrchestratorServiceInterface"
+                type="Klevu\Indexing\Service\EntitySyncOrchestratorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\EntityUpdateOrchestratorServiceInterface"
+                type="Klevu\Indexing\Service\EntityUpdateOrchestratorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterAttributesToAddServiceInterface"
+                type="Klevu\Indexing\Service\FilterAttributesToAddService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterAttributesToDeleteServiceInterface"
+                type="Klevu\Indexing\Service\FilterAttributesToDeleteService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterAttributesToSetToIndexableServiceInterface"
+                type="Klevu\Indexing\Service\FilterAttributesToSetToIndexableService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterAttributesToUpdateServiceInterface"
+                type="Klevu\Indexing\Service\FilterAttributesToUpdateService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterEntitiesToAddServiceInterface"
+                type="Klevu\Indexing\Service\FilterEntitiesToAddService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterEntitiesToDeleteServiceInterface"
+                type="Klevu\Indexing\Service\FilterEntitiesToDeleteService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterEntitiesToSetToIndexableServiceInterface"
+                type="Klevu\Indexing\Service\FilterEntitiesToSetToIndexableService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterEntitiesToUpdateServiceInterface"
+                type="Klevu\Indexing\Service\FilterEntitiesToUpdateService"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\AccountCredentialsProviderInterface"
+                type="Klevu\Indexing\Service\Provider\AccountCredentialsProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\AttributeSyncProviderInterface"
+                type="Klevu\Indexing\Service\Provider\AttributeSyncProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface"
+                type="Klevu\Indexing\Service\Provider\IndexingAttributeProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface"
+                type="Klevu\Indexing\Service\Provider\IndexingEntityProvider"/>
+
+    <type name="Klevu\Indexing\Model\IndexingAttributeRepository">
+        <arguments>
+            <argument name="indexingAttributeValidator"
+                      xsi:type="object">Klevu\Indexing\Validator\IndexingAttributeValidator</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Model\IndexingEntityRepository">
+        <arguments>
+            <argument name="indexingEntityValidator"
+                      xsi:type="object">Klevu\Indexing\Validator\IndexingEntityValidator</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\EntityDiscoveryOrchestratorService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Provider\LogFileNameProvider"
+                 type="Klevu\Logger\Service\Provider\LogFileNameProvider">
+        <arguments>
+            <argument name="baseFileName" xsi:type="string">indexing.log</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Klevu\Indexing\Service\IsLoggingEnabledService"
+                 type="Klevu\Logger\Service\IsLoggingEnabledService">
+        <arguments>
+            <argument name="minLogLevelConfigPath"
+                      xsi:type="string">klevu_frontend/developer/log_level_indexing</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Klevu\Indexing\Logger\Handler\LogIfConfigured"
+                 type="Klevu\Logger\Handler\LogIfConfigured">
+        <arguments>
+            <argument name="logFileNameProvider"
+                      xsi:type="object">Klevu\Indexing\Service\Provider\LogFileNameProvider</argument>
+            <argument name="loggingEnabledService"
+                      xsi:type="object">Klevu\Indexing\Service\IsLoggingEnabledService</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Klevu\Indexing\Logger\Logger"
+                 type="Klevu\Logger\Logger\Logger"> <!-- Virtual type defined in module-m2-logger/etc/di.xml -->
+        <arguments>
+            <argument name="handlers" xsi:type="array">
+                <item name="klevu_indexing_logger"
+                      xsi:type="object">Klevu\Indexing\Logger\Handler\LogIfConfigured</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Service\Determiner\IsIndexableDeterminer">
+        <arguments>
+            <argument name="isLoggingEnabledService"
+                      xsi:type="object">Klevu\Indexing\Service\IsLoggingEnabledService</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Determiner\IsAttributeIndexableDeterminer">
+        <arguments>
+            <argument name="isLoggingEnabledService"
+                      xsi:type="object">Klevu\Indexing\Service\IsLoggingEnabledService</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\AddIndexingAttributesAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\AddIndexingEntitiesAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingAttributesToDeleteAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingAttributesToUpdateAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToBeIndexableAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToDeleteAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToUpdateAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Indexing\AttributesService"
+                 type="Klevu\PhpSDK\Service\Indexing\AttributesService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="baseUrlsProvider"
+                      xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Service\Action\Sdk\Attribute\AddAction">
+        <arguments>
+            <argument name="attributesService"
+                      xsi:type="object">Klevu\Indexing\Service\Indexing\AttributesService</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\Sdk\Attribute\DeleteAction">
+        <arguments>
+            <argument name="attributesService"
+                      xsi:type="object">Klevu\Indexing\Service\Indexing\AttributesService</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\Sdk\Attribute\UpdateAction">
+        <arguments>
+            <argument name="attributesService"
+                      xsi:type="object">Klevu\Indexing\Service\Indexing\AttributesService</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <!-- Pipelines -->
+    <type name="Klevu\PlatformPipelines\ObjectManager\Container">
+        <arguments>
+            <argument name="preferences" xsi:type="array">
+                <item name="Klevu\PhpSDK\Api\BatchServiceInterface"
+                      xsi:type="string">Klevu\Indexing\Service\Indexing\BatchService</item>
+                <item name="Klevu\PhpSDK\Service\Indexing\BatchService"
+                      xsi:type="string">Klevu\Indexing\Service\Indexing\BatchService</item>
+                <item name="Klevu\PhpSDK\Api\BatchDeleteServiceInterface"
+                      xsi:type="string">Klevu\Indexing\Service\Indexing\Batch\DeleteService</item>
+                <item name="Klevu\PhpSDK\Service\Indexing\Batch\DeleteService"
+                      xsi:type="string">Klevu\Indexing\Service\Indexing\Batch\DeleteService</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Pipeline\Indexing\Stage\Log">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\EntityIndexerService">
+        <arguments>
+            <argument name="pipelineContextProviders" xsi:type="array">
+                <item name="auth"
+                      xsi:type="object">Klevu\PlatformPipelines\Service\Provider\PipelineContext\AuthProvider</item>
+                <item name="store"
+                      xsi:type="object">Klevu\PlatformPipelines\Service\Provider\PipelineContext\StoreProvider</item>
+            </argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Indexing\BatchService"
+                 type="Klevu\PhpSDK\Service\Indexing\BatchService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="baseUrlsProvider"
+                      xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Klevu\Indexing\Service\Indexing\Batch\DeleteService"
+                 type="Klevu\PhpSDK\Service\Indexing\Batch\DeleteService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="baseUrlsProvider"
+                      xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\PlatformPipelines\ObjectManager\PipelineFqcnProvider">
+        <arguments>
+            <argument name="namespaces" xsi:type="array">
+                <item name="\Klevu\Indexing\Pipeline\"
+                      xsi:type="const">Klevu\Pipelines\ObjectManager\ObjectManagerInterface::PRIORITY_NAMESPACE_SORT_ORDER</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\PlatformPipelines\ObjectManager\TransformerManager">
+        <arguments>
+            <argument name="namespaces" xsi:type="array">
+                <item name="\Klevu\Indexing\Transformer"
+                      xsi:type="const">Klevu\Pipelines\ObjectManager\ObjectManagerInterface::PRIORITY_NAMESPACE_SORT_ORDER</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- Cron -->
+    <type name="Klevu\Indexing\Cron\DiscoverAttributes">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Cron\DiscoverEntities">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Cron\SyncAttributes">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Cron\SyncEntities">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <!-- Console -->
+    <type name="Klevu\Indexing\Console\Command\DiscoverAttributesCommand">
+        <arguments>
+            <argument name="discoveryOrchestratorService"
+                      xsi:type="object">Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService\Proxy</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Console\Command\DiscoverEntitiesCommand">
+        <arguments>
+            <argument name="discoveryOrchestratorService"
+                      xsi:type="object">Klevu\Indexing\Service\EntityDiscoveryOrchestratorService\Proxy</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Console\Command\SyncAttributesCommand">
+        <arguments>
+            <argument name="syncOrchestratorService"
+                      xsi:type="object">Klevu\Indexing\Service\AttributeSyncOrchestratorService\Proxy</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Console\Command\SyncEntitiesCommand">
+        <arguments>
+            <argument name="syncOrchestratorService"
+                      xsi:type="object">Klevu\Indexing\Service\EntitySyncOrchestratorService\Proxy</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Console\Command\UpdateAttributesCommand">
+        <arguments>
+            <argument name="discoveryOrchestratorService"
+                      xsi:type="object">Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService\Proxy</argument>
+        </arguments>
+    </type>
+    <type name="Klevu\Indexing\Console\Command\UpdateEntitiesCommand">
+        <arguments>
+            <argument name="discoveryOrchestratorService"
+                      xsi:type="object">Klevu\Indexing\Service\EntityDiscoveryOrchestratorService\Proxy</argument>
+        </arguments>
+    </type>
+    <type name="Magento\Framework\Console\CommandList">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="klevu_indexing_discover_attributes"
+                      xsi:type="object">Klevu\Indexing\Console\Command\DiscoverAttributesCommand\Proxy</item>
+                <item name="klevu_indexing_discover_entities"
+                      xsi:type="object">Klevu\Indexing\Console\Command\DiscoverEntitiesCommand\Proxy</item>
+                <item name="klevu_indexing_sync_attributes"
+                      xsi:type="object">Klevu\Indexing\Console\Command\SyncAttributesCommand\Proxy</item>
+                <item name="klevu_indexing_sync_entities"
+                      xsi:type="object">Klevu\Indexing\Console\Command\SyncEntitiesCommand\Proxy</item>
+                <item name="klevu_indexing_update_attributes"
+                      xsi:type="object">Klevu\Indexing\Console\Command\UpdateAttributesCommand\Proxy</item>
+                <item name="klevu_indexing_update_entities"
+                      xsi:type="object">Klevu\Indexing\Console\Command\UpdateEntitiesCommand\Proxy</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Configuration\Service\Provider\Sdk\UserAgent\PlatformUserAgentProvider">
+        <arguments>
+            <argument name="systemInformationProviders" xsi:type="array">
+                <item name="klevu-m2-indexing" xsi:type="object">Klevu\Indexing\Service\Provider\Sdk\UserAgent\SystemInformation\IndexingProvider</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

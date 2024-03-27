@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+
+<!--
+/**
+ * Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details.
+ */
+-->
+
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="klevu_indexing_entity" resource="default" engine="innodb" comment="Klevu Entity Indexing">
+        <column xsi:type="int"
+                name="entity_id"
+                unsigned="true"
+                nullable="false"
+                identity="true"
+                comment="Primary Key"/>
+        <column xsi:type="varchar"
+                name="target_entity_type"
+                length="63"
+                nullable="false"
+                comment="Entity type, eg KLEVU_PRODUCT, ACME_BLOG"/>
+        <column xsi:type="int"
+                name="target_id"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                comment="Target ID"/>
+        <column xsi:type="int"
+                name="target_parent_id"
+                unsigned="true"
+                nullable="true"
+                identity="false"
+                comment="Target Parent ID"/>
+        <column xsi:type="varchar"
+                name="api_key"
+                length="31"
+                nullable="false"
+                comment="Klevu JS API Key"/>
+        <column xsi:type="varchar"
+                name="next_action"
+                length="6"
+                nullable="false"
+                default=""
+                comment="Next Action"/>
+        <column xsi:type="timestamp"
+                name="lock_timestamp"
+                nullable="true"
+                comment="Record locked for processing at"/>
+        <column xsi:type="varchar"
+                name="last_action"
+                length="6"
+                nullable="false"
+                default=""
+                comment="Last Action"/>
+        <column xsi:type="timestamp"
+                name="last_action_timestamp"
+                nullable="true"
+                comment="Last action completed processing at"/>
+        <column xsi:type="tinyint"
+                name="is_indexable"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                default="1"
+                comment="Is record indexable"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="UNQ_TARGET_ENTITY_TYPE_TARGET_ID_API_KEY">
+            <column name="target_entity_type"/>
+            <column name="target_id"/>
+            <column name="target_parent_id"/>
+            <column name="api_key"/>
+        </constraint>
+    </table>
+
+    <table name="klevu_indexing_attribute" resource="default" engine="innodb" comment="Klevu Attribute Indexing">
+        <column xsi:type="int"
+                name="entity_id"
+                unsigned="true"
+                nullable="false"
+                identity="true"
+                comment="Primary Key"/>
+        <column xsi:type="varchar"
+                name="target_attribute_type"
+                length="63"
+                nullable="false"
+                comment="Entity type, eg KLEVU_PRODUCT, ACME_BLOG"/>
+        <column xsi:type="int"
+                name="target_id"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                comment="Target ID"/>
+        <column xsi:type="varchar"
+                name="target_code"
+                length="60"
+                nullable="false"
+                comment="Target Code"/>
+        <column xsi:type="varchar"
+                name="api_key"
+                length="31"
+                nullable="false"
+                comment="Klevu JS API Key"/>
+        <column xsi:type="varchar"
+                name="next_action"
+                length="6"
+                nullable="false"
+                default=""
+                comment="Next Action"/>
+        <column xsi:type="timestamp"
+                name="lock_timestamp"
+                nullable="true"
+                comment="Record locked for processing at"/>
+        <column xsi:type="varchar"
+                name="last_action"
+                length="6"
+                nullable="false"
+                default=""
+                comment="Last Action"/>
+        <column xsi:type="timestamp"
+                name="last_action_timestamp"
+                nullable="true"
+                comment="Last action completed processing at"/>
+        <column xsi:type="tinyint"
+                name="is_indexable"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                default="1"
+                comment="Is record indexable"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="UNQ_TARGET_ATTRIBUTE_TYPE_TARGET_ID_API_KEY">
+            <column name="target_attribute_type"/>
+            <column name="target_id"/>
+            <column name="api_key"/>
+        </constraint>
+    </table>
+</schema>

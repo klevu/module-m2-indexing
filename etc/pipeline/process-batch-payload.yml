@@ -1,0 +1,34 @@
+stages:
+  chunk:
+    pipeline: Stage\Transform
+    args:
+      transformation: Chunk(100)
+  iterate:
+    pipeline: Pipeline\Iterate
+    stages:
+      log:
+        pipeline: Indexing\Stage\Log
+        args:
+          message: "Chunked payload"
+          level: debug
+      toRecordIterator:
+        pipeline: Stage\Transform
+        args:
+          transformation: Indexing\ToRecordIterator
+      sendBatchRequest:
+        stages:
+          send:
+            pipeline: Stage\Indexing\SendBatchRequest
+            args:
+              jsApiKey: $auth::getForCurrentStore().js_api_key
+              restAuthKey: $auth::getForCurrentStore().rest_auth_key
+          registerResult:
+            pipeline: Stage\RegisterContext
+            args:
+              contextKey: "processBatchResult"
+      updateRecordsAction:
+        pipeline: Indexing\Stage\UpdateIndexingEntityRecord
+        args:
+          action: $currentAction::
+          entityType: $currentEntityType::
+          apiKey: $auth::getForCurrentStore().js_api_key

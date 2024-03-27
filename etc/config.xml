@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details. -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <klevu>
+            <indexing>
+                <log_level>200</log_level> <!-- Logger::INFO -->
+                <exclude_record_types_from_sync/>
+            </indexing>
+        </klevu>
+    </default>
+</config>

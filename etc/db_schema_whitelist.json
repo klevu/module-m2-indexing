@@ -1,0 +1,39 @@
+{
+    "klevu_indexing_entity": {
+        "column": {
+            "entity_id": true,
+            "target_entity_type": true,
+            "target_id": true,
+            "target_parent_id": true,
+            "api_key": true,
+            "next_action": true,
+            "lock_timestamp": true,
+            "last_action": true,
+            "last_action_timestamp": true,
+            "is_indexable": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "KLEVU_INDEXING_ENTITY_TARGET_ENTITY_TYPE_TARGET_ID_API_KEY": true,
+            "UNQ_A7DED415B4035D67D51EFA8B9CDBBFCC": true
+        }
+    },
+    "klevu_indexing_attribute": {
+        "column": {
+            "entity_id": true,
+            "target_attribute_type": true,
+            "target_id": true,
+            "target_code": true,
+            "api_key": true,
+            "next_action": true,
+            "lock_timestamp": true,
+            "last_action": true,
+            "last_action_timestamp": true,
+            "is_indexable": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "KLEVU_INDEXING_ATTRIBUTE_TARGET_ATTRIBUTE_TYPE_TARGET_ID_API_KEY": true
+        }
+    }
+}
