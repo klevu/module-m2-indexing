@@ -21,6 +21,7 @@ use Klevu\TestFixtures\Store\StoreTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
+use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -37,6 +38,11 @@ class SetIndexingAttributesToUpdateActionTest extends TestCase
     use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
+
+    /**
+     * @var ObjectManagerInterface|null
+     */
+    private ?ObjectManagerInterface $objectManager = null; // @phpstan-ignore-line
 
     /**
      * @return void

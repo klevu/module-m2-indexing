@@ -248,6 +248,8 @@
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
             <argument name="baseUrlsProvider"
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
+            <argument name="userAgentProvider"
+                      xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\UserAgentProvider</argument>
         </arguments>
     </virtualType>
 
@@ -315,6 +317,8 @@
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
             <argument name="baseUrlsProvider"
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
+            <argument name="userAgentProvider"
+                      xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\UserAgentProvider</argument>
         </arguments>
     </virtualType>
 
@@ -324,6 +328,8 @@
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
             <argument name="baseUrlsProvider"
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
+            <argument name="userAgentProvider"
+                      xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\UserAgentProvider</argument>
         </arguments>
     </virtualType>
 

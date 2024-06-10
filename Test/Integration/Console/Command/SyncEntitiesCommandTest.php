@@ -75,7 +75,6 @@ class SyncEntitiesCommandTest extends TestCase
     public function testExecute_forNonExistentApiKey(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
 
         $syncEntitiesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -106,7 +105,6 @@ class SyncEntitiesCommandTest extends TestCase
     public function testExecute_forNonExistentAttributeType(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
 
         $syncEntitiesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(

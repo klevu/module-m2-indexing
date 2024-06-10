@@ -13,10 +13,9 @@ use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\AttributeIndexingDeleteRecordCreatorServiceInterface;
 use Klevu\IndexingApi\Service\AttributeIndexingRecordCreatorServiceInterface;
-use Klevu\IndexingApi\Service\Provider\AttributeProviderInterface;
+use Klevu\IndexingApi\Service\Provider\AttributeProviderProviderInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\AttributeIndexingRecordProviderInterface;
-use Magento\Eav\Api\Data\AttributeInterface;
 use Psr\Log\LoggerInterface;
 
 class AttributeIndexingRecordProvider implements AttributeIndexingRecordProviderInterface
@@ -26,9 +25,9 @@ class AttributeIndexingRecordProvider implements AttributeIndexingRecordProvider
      */
     private readonly IndexingAttributeProviderInterface $indexingAttributeProvider;
     /**
-     * @var AttributeProviderInterface
+     * @var AttributeProviderProviderInterface
      */
-    private readonly AttributeProviderInterface $attributeProvider;
+    private readonly AttributeProviderProviderInterface $attributeProvidersProvider;
     /**
      * @var AttributeIndexingRecordCreatorServiceInterface
      */
@@ -52,7 +51,7 @@ class AttributeIndexingRecordProvider implements AttributeIndexingRecordProvider
 
     /**
      * @param IndexingAttributeProviderInterface $indexingAttributeProvider
-     * @param AttributeProviderInterface $attributeProvider
+     * @param AttributeProviderProviderInterface $attributeProvidersProvider
      * @param AttributeIndexingRecordCreatorServiceInterface $indexingRecordCreatorService
      * @param AttributeIndexingDeleteRecordCreatorServiceInterface $indexingDeleteRecordCreatorService
      * @param LoggerInterface $logger
@@ -61,7 +60,7 @@ class AttributeIndexingRecordProvider implements AttributeIndexingRecordProvider
      */
     public function __construct(
         IndexingAttributeProviderInterface $indexingAttributeProvider,
-        AttributeProviderInterface $attributeProvider,
+        AttributeProviderProviderInterface $attributeProvidersProvider,
         AttributeIndexingRecordCreatorServiceInterface $indexingRecordCreatorService,
         AttributeIndexingDeleteRecordCreatorServiceInterface $indexingDeleteRecordCreatorService,
         LoggerInterface $logger,
@@ -69,7 +68,7 @@ class AttributeIndexingRecordProvider implements AttributeIndexingRecordProvider
         string $entityType,
     ) {
         $this->indexingAttributeProvider = $indexingAttributeProvider;
-        $this->attributeProvider = $attributeProvider;
+        $this->attributeProvidersProvider = $attributeProvidersProvider;
         $this->indexingRecordCreatorService = $indexingRecordCreatorService;
         $this->indexingDeleteRecordCreatorService = $indexingDeleteRecordCreatorService;
         $this->logger = $logger;
@@ -108,23 +107,25 @@ class AttributeIndexingRecordProvider implements AttributeIndexingRecordProvider
     private function syncAttributes(string $apiKey): \Generator
     {
         $attributeIds = $this->getAttributeIdsToSync($apiKey);
-        /** @var AttributeInterface[] $attributes */
-        $attributes = $attributeIds
-            ? $this->attributeProvider->get(
-                attributeIds: $attributeIds,
-            )
-            : [];
-        foreach ($attributes as $attribute) {
-            try {
-                yield $this->indexingRecordCreatorService->execute($attribute, $apiKey);
-            } catch (AttributeMappingMissingException $exception) {
-                $this->logger->error(
-                    message: 'Method: {method}, Error: {message}',
-                    context: [
-                        'method' => __METHOD__,
-                        'message' => $exception->getMessage(),
-                    ],
-                );
+        $attributeProviders = $this->attributeProvidersProvider->get();
+        foreach ($attributeProviders as $attributeProvider) {
+            $attributes = $attributeIds
+                ? $attributeProvider->get(
+                    attributeIds: $attributeIds,
+                )
+                : [];
+            foreach ($attributes as $attribute) {
+                try {
+                    yield $this->indexingRecordCreatorService->execute($attribute, $apiKey);
+                } catch (AttributeMappingMissingException $exception) {
+                    $this->logger->error(
+                        message: 'Method: {method}, Error: {message}',
+                        context: [
+                            'method' => __METHOD__,
+                            'message' => $exception->getMessage(),
+                        ],
+                    );
+                }
             }
         }
     }

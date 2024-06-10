@@ -24,6 +24,7 @@ use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -39,6 +40,11 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
     use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
+
+    /**
+     * @var ObjectManagerInterface|null
+     */
+    private ?ObjectManagerInterface $objectManager = null; // @phpstan-ignore-line
 
     /**
      * @return void
