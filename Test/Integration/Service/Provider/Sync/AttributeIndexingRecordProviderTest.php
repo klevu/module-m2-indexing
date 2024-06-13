@@ -11,7 +11,7 @@ namespace Klevu\Indexing\Test\Integration\Service\Provider\Sync;
 use Klevu\Indexing\Service\Provider\Sync\AttributeIndexingRecordProvider;
 use Klevu\IndexingApi\Service\AttributeIndexingDeleteRecordCreatorServiceInterface;
 use Klevu\IndexingApi\Service\AttributeIndexingRecordCreatorServiceInterface;
-use Klevu\IndexingApi\Service\Provider\AttributeProviderInterface;
+use Klevu\IndexingApi\Service\Provider\AttributeProviderProviderInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\AttributeIndexingRecordProviderInterface;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
@@ -40,7 +40,7 @@ class AttributeIndexingRecordProviderTest extends TestCase
         $mockIndexingAttributeProvider = $this->getMockBuilder(IndexingAttributeProviderInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockAttributeProvider = $this->getMockBuilder(AttributeProviderInterface::class)
+        $mockAttributeProviderProvider = $this->getMockBuilder(AttributeProviderProviderInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
         $mockIndexingRecordCreatorService = $this->getMockBuilder(AttributeIndexingRecordCreatorServiceInterface::class)
@@ -54,7 +54,7 @@ class AttributeIndexingRecordProviderTest extends TestCase
         $this->interfaceFqcn = AttributeIndexingRecordProviderInterface::class;
         $this->constructorArgumentDefaults = [
             'indexingAttributeProvider' => $mockIndexingAttributeProvider,
-            'attributeProvider' => $mockAttributeProvider,
+            'attributeProvidersProvider' => $mockAttributeProviderProvider,
             'indexingRecordCreatorService' => $mockIndexingRecordCreatorService,
             'indexingDeleteRecordCreatorService' => $mockIndexingDeleteRecordCreatorService,
             'action' => 'Add',

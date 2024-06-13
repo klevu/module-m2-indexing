@@ -134,6 +134,7 @@ class AttributeDiscoveryOrchestratorService implements AttributeDiscoveryOrchest
     ): DiscoveryResultInterface {
         $this->validateDiscoveryProviders();
         $providers = $this->filterDiscoveryProviders($attributeType);
+        $magentoAttributesByApiKeys = [];
         foreach ($providers as $discoveryProvider) {
             try {
                 $magentoAttributesByApiKey = $discoveryProvider->getData(
@@ -146,6 +147,13 @@ class AttributeDiscoveryOrchestratorService implements AttributeDiscoveryOrchest
                 continue;
             }
             $type = $discoveryProvider->getAttributeType();
+            $magentoAttributesByApiKeys[$type] = array_merge(
+                $magentoAttributesByApiKeys[$type] ?? [],
+                $magentoAttributesByApiKey,
+            );
+        }
+
+        foreach ($magentoAttributesByApiKeys as $type => $magentoAttributesByApiKey) {
             // add any missing attributes to klevu_indexing_attribute
             $this->addMissingAttributesToIndexAttributesTable(
                 type: $type,

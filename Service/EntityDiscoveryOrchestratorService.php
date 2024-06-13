@@ -133,12 +133,12 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
     public function execute(
         ?string $entityType = null,
         ?array $apiKeys = [],
-        ?array $entityIds = [],
+        ?array $entityIds = null,
     ): DiscoveryResultInterface {
         $discoveryProviders = $this->getDiscoveryProviders($entityType);
         foreach ($discoveryProviders as $discoveryProvider) {
             try {
-                $magentoEntitiesByApiKey = $discoveryProvider->getData(apiKeys: $apiKeys, entityIds: $entityIds);
+                $magentoEntitiesByApiKey = $discoveryProvider->getData(apiKeys: $apiKeys, entityIds: $entityIds ?? []);
             } catch (LocalizedException $exception) {
                 $this->messages[] = $exception->getMessage();
                 $this->success = false;
@@ -155,19 +155,19 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
             $this->setNonIndexableEntitiesToBeIndexable(
                 type: $type,
                 magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
-                entityIds: $entityIds,
+                entityIds: $entityIds ?? [],
             );
             // set next action to update for any entities that require an update
             $this->setEntitiesToUpdate(
                 type: $type,
-                entityIds: $entityIds,
                 apiKeys: array_keys($magentoEntitiesByApiKey),
+                entityIds: $entityIds,
             );
             // set entities that are no longer indexable to next action delete
             $this->setNonIndexableEntitiesToDelete(
                 type: $type,
                 magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
-                entityIds: $entityIds,
+                entityIds: $entityIds ?? [],
             );
         }
 
@@ -287,17 +287,17 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
 
     /**
      * @param string $type
-     * @param int[] $entityIds
      * @param string[] $apiKeys
+     * @param int[] $entityIds
      *
      * @return void
      */
     private function setEntitiesToUpdate(
         string $type,
-        array $entityIds,
         array $apiKeys,
+        ?array $entityIds = null,
     ): void {
-        if (!$entityIds) {
+        if (null === $entityIds) {
             return;
         }
         $klevuEntityIds = $this->filterEntitiesToUpdateService->execute(

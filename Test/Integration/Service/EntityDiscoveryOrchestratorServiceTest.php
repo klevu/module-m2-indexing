@@ -437,6 +437,124 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $this->assertCount(expectedCount: 0, haystack: $messages, message: 'Message Count');
     }
 
+    public function testExecute_SetExistingEntitiesToUpdate_WhenEntityIdsEmptyArray(): void
+    {
+        $apiKey = 'klevu-api-key';
+        $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
+            ->getMock();
+        $mockProvider->expects($this->exactly(2))
+            ->method('getEntityType')
+            ->willReturn('KLEVU_CMS');
+        $mockProvider->expects($this->once())
+            ->method('getData')
+            ->with(
+                [$apiKey],
+                [],
+            )
+            ->willReturn([
+                'klevu-api-key' => [
+                    $this->objectManager->create(MagentoEntityInterface::class, [
+                        'entityId' => 1,
+                        'apiKey' => $apiKey,
+                        'isIndexable' => true,
+                    ]),
+                    $this->objectManager->create(MagentoEntityInterface::class, [
+                        'entityId' => 2,
+                        'apiKey' => $apiKey,
+                        'isIndexable' => false,
+                    ]),
+                    $this->objectManager->create(MagentoEntityInterface::class, [
+                        'entityId' => 20,
+                        'apiKey' => $apiKey,
+                        'isIndexable' => true,
+                    ]),
+                ],
+            ]);
+
+        $mockFilterEntitiesToAddService = $this->getMockBuilder(FilterEntitiesToAddServiceInterface::class)
+            ->getMock();
+        $mockFilterEntitiesToAddService->expects($this->once())
+            ->method('execute')
+            ->willReturn([]);
+
+        $mockFilterEntitiesToDeleteService = $this->getMockBuilder(FilterEntitiesToDeleteServiceInterface::class)
+            ->getMock();
+        $mockFilterEntitiesToDeleteService->expects($this->once())
+            ->method('execute')
+            ->willReturn([]);
+
+        $entity1 = $this->objectManager->create(IndexingEntityInterface::class);
+        $entity1->setId(1);
+        $entity2 = $this->objectManager->create(IndexingEntityInterface::class);
+        $entity2->setId(2);
+        $mockSearchResult = $this->getMockBuilder(IndexingEntitySearchResultsInterface::class)
+            ->getMock();
+        $mockSearchResult->expects($this->once())
+            ->method('getItems')
+            ->willReturn([$entity1, $entity2]);
+        $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
+            ->getMock();
+        $mockIndexingEntityRepository->expects($this->once())
+            ->method('getList')
+            ->willReturn($mockSearchResult);
+
+        $mockIndexingEntityRepository->expects($this->never())
+            ->method('save');
+
+        $this->createIndexingEntity(data: [
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::TARGET_PARENT_ID => null,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
+            IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+        ]);
+        $this->createIndexingEntity(data: [
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::TARGET_PARENT_ID => null,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
+            IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+        ]);
+        $this->createIndexingEntity(data: [
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ID => 20,
+            IndexingEntity::TARGET_PARENT_ID => 1,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
+            IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+        ]);
+
+        $setIndexingEntitiesToUpdateAction = $this->objectManager->create(
+            type: SetIndexingEntitiesToUpdateActionInterface::class,
+            arguments: [
+                'indexingEntityRepository' => $mockIndexingEntityRepository,
+            ],
+        );
+
+        $service = $this->instantiateTestObject([
+            'setIndexingEntitiesToUpdateAction' => $setIndexingEntitiesToUpdateAction,
+            'filterEntitiesToAddService' => $mockFilterEntitiesToAddService,
+            'filterEntitiesToDeleteService' => $mockFilterEntitiesToDeleteService,
+            'discoveryProviders' => [
+                'cms' => $mockProvider,
+            ],
+        ]);
+        $result = $service->execute(entityType: 'KLEVU_CMS', apiKeys: [$apiKey], entityIds: []);
+
+        $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
+        $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
+        $messages = $result->getMessages();
+        $this->assertCount(expectedCount: 0, haystack: $messages, message: 'Message Count');
+    }
+
     /**
      * @magentoAppIsolation enabled
      */

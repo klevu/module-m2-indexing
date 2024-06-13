@@ -17,7 +17,7 @@ use Klevu\IndexingApi\Model\MagentoAttributeInterfaceFactory;
 use Klevu\IndexingApi\Service\Determiner\IsAttributeIndexableDeterminerInterface;
 use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
 use Klevu\IndexingApi\Service\Provider\AttributeDiscoveryProviderInterface;
-use Klevu\IndexingApi\Service\Provider\AttributeProviderInterface;
+use Klevu\IndexingApi\Service\Provider\AttributeProviderProviderInterface;
 use Magento\Eav\Api\Data\AttributeInterface;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Store\Api\Data\StoreInterface;
@@ -47,9 +47,9 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
      */
     private readonly IsAttributeIndexableDeterminerInterface $isIndexableDeterminer;
     /**
-     * @var AttributeProviderInterface[]
+     * @var AttributeProviderProviderInterface
      */
-    private array $attributeProviders;
+    private readonly AttributeProviderProviderInterface $attributeProviderProvider;
     /**
      * @var string
      */
@@ -69,7 +69,7 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
      * @param CurrentScopeFactory $currentScopeFactory
      * @param MagentoAttributeInterfaceFactory $magentoAttributeInterfaceFactory
      * @param IsAttributeIndexableDeterminerInterface $isIndexableDeterminer
-     * @param AttributeProviderInterface[] $attributeProviders
+     * @param AttributeProviderProviderInterface $attributeProviderProvider
      * @param string $attributeType
      * @param MagentoToKlevuAttributeMapperInterface[] $attributeMappers
      * @param LoggerInterface $logger
@@ -80,7 +80,7 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
         CurrentScopeFactory $currentScopeFactory,
         MagentoAttributeInterfaceFactory $magentoAttributeInterfaceFactory,
         IsAttributeIndexableDeterminerInterface $isIndexableDeterminer,
-        array $attributeProviders,
+        AttributeProviderProviderInterface $attributeProviderProvider,
         string $attributeType,
         array $attributeMappers,
         LoggerInterface $logger,
@@ -90,8 +90,8 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
         $this->currentScopeFactory = $currentScopeFactory;
         $this->magentoAttributeInterfaceFactory = $magentoAttributeInterfaceFactory;
         $this->isIndexableDeterminer = $isIndexableDeterminer;
+        $this->attributeProviderProvider = $attributeProviderProvider;
         $this->attributeType = $attributeType;
-        array_walk($attributeProviders, [$this, 'setAttributeProvider']);
         array_walk($attributeMappers, [$this, 'setAttributeMapper']);
         $this->logger = $logger;
     }
@@ -143,19 +143,6 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
     }
 
     /**
-     * @param AttributeProviderInterface $attributeProvider
-     * @param string $entityType
-     *
-     * @return void
-     */
-    private function setAttributeProvider(
-        AttributeProviderInterface $attributeProvider,
-        string $entityType,
-    ): void {
-        $this->attributeProviders[$entityType] = $attributeProvider;
-    }
-
-    /**
      * @param MagentoToKlevuAttributeMapperInterface $attributeMapper
      * @param string $entityType
      *
@@ -182,7 +169,7 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
         array $magentoAttributes,
         array $attributeIds,
     ): array {
-        foreach ($this->attributeProviders as $entityType => $attributeProvider) {
+        foreach ($this->attributeProviderProvider->get() as $entityType => $attributeProvider) {
             foreach ($attributeProvider->get($attributeIds) as $attribute) {
                 $isIndexable = $this->isIndexableDeterminer->execute(
                     attribute: $attribute,

@@ -18,6 +18,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class UpdateEntitiesCommand extends Command
 {
     public const COMMAND_NAME = 'klevu:indexing:entity-update';
+    public const ENTITY_IDS_ALL = 'all';
     public const OPTION_API_KEY = 'api-key';
     public const OPTION_ENTITY_TYPE = 'entity-type';
     public const OPTION_ENTITY_IDS = 'entity-ids';
@@ -54,7 +55,10 @@ class UpdateEntitiesCommand extends Command
         $this->addOption(
             name: static::OPTION_ENTITY_IDS,
             mode: InputOption::VALUE_REQUIRED,
-            description: (string)__('Update only these entities. Comma separate list e.g. --entity-ids 1,2,3'),
+            description: (string)__(
+                'Update only these entities. Comma separate list e.g. --entity-ids 1,2,3 or --entity-ids %1',
+                static::ENTITY_IDS_ALL,
+            ),
         );
         $this->addOption(
             name: static::OPTION_API_KEY,
@@ -100,7 +104,9 @@ class UpdateEntitiesCommand extends Command
             $success = $this->discoveryOrchestratorService->execute(
                 entityType: $input->getOption(static::OPTION_ENTITY_TYPE),
                 apiKeys: $apiKey ? [$apiKey] : null,
-                entityIds: array_map('intval', explode(',', $entityIds)),
+                entityIds: $entityIds === static::ENTITY_IDS_ALL
+                    ? []
+                    : array_map('intval', explode(',', $entityIds)),
             );
             if ($success->isSuccess()) {
                 $output->writeln(
