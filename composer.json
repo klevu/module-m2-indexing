@@ -2,7 +2,7 @@
     "name": "klevu/module-m2-indexing",
     "description": "Provides indexing ability for other Klevu modules to extend",
     "type": "magento2-module",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "require": {
         "klevu/module-m2-configuration": "0.2.0",
         "klevu/module-m2-indexing-api": "0.2.0",
