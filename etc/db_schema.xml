@@ -139,4 +139,107 @@
             <column name="api_key"/>
         </constraint>
     </table>
+
+    <table name="klevu_indexing_entity_sync_history"
+           resource="default"
+           engine="innodb"
+           comment="Klevu Entity Indexing Sync History">
+        <column xsi:type="int"
+                name="entity_id"
+                unsigned="true"
+                nullable="false"
+                identity="true"
+                comment="Primary Key"/>
+        <column xsi:type="varchar"
+                name="target_entity_type"
+                length="63"
+                nullable="false"
+                comment="Entity type, eg KLEVU_PRODUCT, ACME_BLOG"/>
+        <column xsi:type="int"
+                name="target_id"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                comment="Target ID"/>
+        <column xsi:type="int"
+                name="target_parent_id"
+                unsigned="true"
+                nullable="true"
+                identity="false"
+                comment="Target Parent ID"/>
+        <column xsi:type="varchar"
+                name="api_key"
+                length="31"
+                nullable="false"
+                comment="Klevu JS API Key"/>
+        <column xsi:type="varchar"
+                name="action"
+                length="6"
+                nullable="false"
+                default=""
+                comment="Action"/>
+        <column xsi:type="timestamp"
+                name="action_timestamp"
+                nullable="true"
+                comment="Action completed processing at"/>
+        <column xsi:type="tinyint"
+                name="is_success"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                default="1"
+                comment="Is sync successful"/>
+        <column xsi:type="text"
+                name="message"
+                nullable="true"
+                comment="Message"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+    </table>
+
+    <table name="klevu_indexing_entity_sync_history_consolidation"
+           resource="default"
+           engine="innodb"
+           comment="Klevu Consolidated Entity Indexing Sync History">
+        <column xsi:type="int"
+                name="entity_id"
+                unsigned="true"
+                nullable="false"
+                identity="true"
+                comment="Primary Key"/>
+        <column xsi:type="varchar"
+                name="target_entity_type"
+                length="63"
+                nullable="false"
+                comment="Entity type, eg KLEVU_PRODUCT, ACME_BLOG"/>
+        <column xsi:type="int"
+                name="target_id"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                comment="Target ID"/>
+        <column xsi:type="int"
+                name="target_parent_id"
+                unsigned="true"
+                nullable="true"
+                identity="false"
+                comment="Target Parent ID"/>
+        <column xsi:type="varchar"
+                name="api_key"
+                length="31"
+                nullable="false"
+                comment="Klevu JS API Key"/>
+        <column xsi:type="text"
+                name="history"
+                nullable="true"
+                comment="History for this day"/>
+        <column xsi:type="date"
+                name="date"
+                nullable="false"
+                comment="Date"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+    </table>
 </schema>

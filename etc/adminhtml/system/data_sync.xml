@@ -6,5 +6,65 @@
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
     <group id="indexing" translate="label" sortOrder="1000" showInDefault="1" showInWebsite="1" showInStore="1">
         <label>Indexing</label>
+        <field id="attribute_cron_frequency"
+               translate="label comment tooltip"
+               sortOrder="210"
+               type="select"
+               showInDefault="1"
+               showInWebsite="0"
+               showInStore="0"
+               canRestore="1">
+            <label>Attribute Indexing Sync Frequency</label>
+            <source_model>Klevu\Indexing\Model\Source\Options\CronFrequency</source_model>
+            <comment><![CDATA[Configure how often to index attribute data to Klevu.]]></comment>
+            <tooltip><![CDATA[Learn more about the available options for synchronising data here:
+                <a href="https://help.klevu.com/support/solutions/articles/5000871440-overview" target="_blank">Magento 2 Data Sync</a>.]]></tooltip>
+            <config_path>klevu/indexing/attribute_cron_frequency</config_path>
+        </field>
+        <field id="attribute_cron_expr"
+               translate="label comment tooltip"
+               sortOrder="220"
+               type="text"
+               showInDefault="1"
+               showInWebsite="0"
+               showInStore="0"
+               canRestore="1">
+            <label>Custom Attribute Indexing Sync Schedule</label>
+            <validate>required-entry</validate>
+            <config_path>klevu/indexing/attribute_cron_expr</config_path>
+            <depends>
+                <field id="attribute_cron_frequency"/>
+            </depends>
+        </field>
+        <field id="entity_cron_frequency"
+               translate="label comment tooltip"
+               sortOrder="230"
+               type="select"
+               showInDefault="1"
+               showInWebsite="0"
+               showInStore="0"
+               canRestore="1">
+            <label>Entity Indexing Sync Frequency</label>
+            <source_model>Klevu\Indexing\Model\Source\Options\CronFrequency</source_model>
+            <comment><![CDATA[Configure how often to index entity data to Klevu.]]></comment>
+            <tooltip><![CDATA[Learn more about the available options for synchronising data here:
+                <a href="https://help.klevu.com/support/solutions/articles/5000871440-overview" target="_blank">Magento 2 Data Sync</a>.]]></tooltip>
+            <config_path>klevu/indexing/entity_cron_frequency</config_path>
+        </field>
+        <field id="entity_cron_expr"
+               translate="label comment tooltip"
+               sortOrder="240"
+               type="text"
+               showInDefault="1"
+               showInWebsite="0"
+               showInStore="0"
+               canRestore="1">
+            <label>Custom Entity Indexing Sync Schedule</label>
+            <validate>required-entry</validate>
+            <config_path>klevu/indexing/entity_cron_expr</config_path>
+            <depends>
+                <field id="entity_cron_frequency"/>
+            </depends>
+        </field>
     </group>
 </config>

@@ -14,6 +14,7 @@ use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Magento\Eav\Api\Data\AttributeInterface;
+use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
@@ -63,20 +64,22 @@ trait IndexingAttributesTrait
     private function cleanIndexingAttributes(string $apiKey): void
     {
         $searchCriteriaBuilderFactory = $this->objectManager->get(SearchCriteriaBuilderFactory::class);
+        /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
         $searchCriteriaBuilder = $searchCriteriaBuilderFactory->create();
         $searchCriteriaBuilder->addFilter(
             field: IndexingAttribute::API_KEY,
             value: $apiKey,
+            conditionType: 'like',
         );
         $searchCriteria = $searchCriteriaBuilder->create();
         /** @var IndexingAttributeRepositoryInterface $repository */
         $repository = $this->objectManager->get(IndexingAttributeRepositoryInterface::class);
-        $indexingEntitiesToDelete = $repository->getList($searchCriteria);
-        foreach ($indexingEntitiesToDelete->getItems() as $indexingEntity) {
+        $indexingAttributesToDelete = $repository->getList($searchCriteria);
+        foreach ($indexingAttributesToDelete->getItems() as $indexingAttribute) {
             try {
-                $repository->delete($indexingEntity);
+                $repository->delete($indexingAttribute);
             } catch (LocalizedException) {
-                // this is fine, indexingEntity already deleted
+                // this is fine, indexingAttribute already deleted
             }
         }
     }
@@ -93,9 +96,9 @@ trait IndexingAttributesTrait
         AttributeInterface $attribute,
         ?string $type = 'KLEVU_PRODUCT',
     ): ?IndexingAttributeInterface {
-        $productIndexingEntities = $this->getIndexingAttributes($type, $apiKey);
+        $productIndexingAttributes = $this->getIndexingAttributes($type, $apiKey);
         $productIndexingEntityArray = array_filter(
-            array: $productIndexingEntities,
+            array: $productIndexingAttributes,
             callback: static fn (IndexingAttributeInterface $indexingEntity) => (
                 (int)$indexingEntity->getTargetId() === (int)$attribute->getAttributeId()
             )

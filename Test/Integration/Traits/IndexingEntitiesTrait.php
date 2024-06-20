@@ -15,6 +15,7 @@ use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Magento\Cms\Api\Data\PageInterface;
 use Magento\Framework\Api\ExtensibleDataInterface;
+use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
@@ -60,10 +61,12 @@ trait IndexingEntitiesTrait
     private function cleanIndexingEntities(string $apiKey): void
     {
         $searchCriteriaBuilderFactory = $this->objectManager->get(SearchCriteriaBuilderFactory::class);
+        /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
         $searchCriteriaBuilder = $searchCriteriaBuilderFactory->create();
         $searchCriteriaBuilder->addFilter(
             field: IndexingEntity::API_KEY,
             value: $apiKey,
+            conditionType: 'like',
         );
         $searchCriteria = $searchCriteriaBuilder->create();
         /** @var IndexingEntityRepositoryInterface $repository */

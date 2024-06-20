@@ -18,4 +18,24 @@
             <source_model>Klevu\Logger\Source\LogLevel\Monolog</source_model>
         </field>
     </group>
+    <group id="indexing" translate="label" sortOrder="1000" showInDefault="1" showInWebsite="0" showInStore="0">
+        <label>Indexing</label>
+
+        <field id="remove_indexing_history_after_days"
+               translate="label comment tooltip"
+               sortOrder="10"
+               type="text"
+               showInDefault="1"
+               showInWebsite="0"
+               showInStore="0"
+               canRestore="1">
+            <label>Remove History for Indexing After (days)</label>
+            <validate>validate-digits validate-digits-range digits-range-1-999999</validate>
+            <tooltip><![CDATA[If you have a high number of entities and are experiencing resource
+                or performance issues as the <code>klevu_indexing_entity_sync_history_consolidation</code> table
+                fills up, you can specify a maximum number of days for which to retain history.<br />
+                History items older than this interval will be pruned via cron once a day.]]></tooltip>
+            <config_path>klevu/indexing/remove_indexing_history_after_days</config_path>
+        </field>
+    </group>
 </config>

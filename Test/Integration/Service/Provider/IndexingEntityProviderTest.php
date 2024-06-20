@@ -17,6 +17,7 @@ use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
+use Magento\Framework\Api\SortOrder;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
@@ -363,5 +364,66 @@ class IndexingEntityProviderTest extends TestCase
         );
         $this->assertContains(needle: $expectedEntity1->getId(), haystack: $entityIds);
         $this->assertContains(needle: $expectedEntity2->getId(), haystack: $entityIds);
+    }
+
+    public function testGet_ReturnsIndexingEntities_SortedByProvidedOrder(): void
+    {
+        $apiKey = 'klevu-js-api-key';
+        $this->cleanIndexingEntities($apiKey);
+
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 321,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 789,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 654,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 987,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+
+        $provider = $this->instantiateTestObject();
+        $results = $provider->get(
+            entityType: 'KLEVU_PRODUCT',
+            apiKey: $apiKey,
+            sorting: [
+                SortOrder::FIELD => IndexingEntity::TARGET_ID,
+                SortOrder::DIRECTION => SortOrder::SORT_DESC,
+            ],
+        );
+        $this->assertCount(expectedCount: 4, haystack: $results);
+        $targetIds = array_map(
+            static fn (IndexingEntityInterface $indexingEntity): int => ($indexingEntity->getTargetId()),
+            $results,
+        );
+        $this->assertContains(321, $targetIds);
+        $this->assertContains(654, $targetIds);
+        $this->assertContains(789, $targetIds);
+        $this->assertContains(987, $targetIds);
+
+        /** @var IndexingEntity $firstItem */
+        $firstItem = array_shift($results);
+        $this->assertSame(expected: 987, actual: $firstItem->getTargetId());
+        /** @var IndexingEntity $secondItem */
+        $secondItem = array_shift($results);
+        $this->assertSame(expected: 789, actual: $secondItem->getTargetId());
+        /** @var IndexingEntity $thirdItem */
+        $thirdItem = array_shift($results);
+        $this->assertSame(expected: 654, actual: $thirdItem->getTargetId());
+        /** @var IndexingEntity $forthItem */
+        $forthItem = array_shift($results);
+        $this->assertSame(expected: 321, actual: $forthItem->getTargetId());
+
+        $this->cleanIndexingEntities($apiKey);
     }
 }

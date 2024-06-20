@@ -42,7 +42,6 @@ class DiscoverEntities
         $this->logger->info(
             message: 'Starting discovery of entities.',
         );
-
         $success = $this->discoveryOrchestratorService->execute();
 
         $this->logger->info(

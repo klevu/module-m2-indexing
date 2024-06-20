@@ -8,23 +8,24 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Observer;
 
-use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
+use Klevu\IndexingApi\Service\Action\CreateCronScheduleActionInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 
 class DiscoverEntitiesAfterIntegrationRemovalObserver implements ObserverInterface
 {
     /**
-     * @var EntityDiscoveryOrchestratorServiceInterface
+     * @var CreateCronScheduleActionInterface
      */
-    private readonly EntityDiscoveryOrchestratorServiceInterface $discoveryOrchestratorService;
+    private readonly CreateCronScheduleActionInterface $createCronScheduleAction;
 
     /**
-     * @param EntityDiscoveryOrchestratorServiceInterface $discoveryOrchestratorService
+     * @param CreateCronScheduleActionInterface $createCronScheduleAction
      */
-    public function __construct(EntityDiscoveryOrchestratorServiceInterface $discoveryOrchestratorService)
-    {
-        $this->discoveryOrchestratorService = $discoveryOrchestratorService;
+    public function __construct(
+        CreateCronScheduleActionInterface $createCronScheduleAction,
+    ) {
+        $this->createCronScheduleAction = $createCronScheduleAction;
     }
 
     /**
@@ -39,7 +40,6 @@ class DiscoverEntitiesAfterIntegrationRemovalObserver implements ObserverInterfa
         if (!$apiKey) {
             return;
         }
-
-        $this->discoveryOrchestratorService->execute(apiKeys: [$apiKey]);
+        $this->createCronScheduleAction->execute();
     }
 }

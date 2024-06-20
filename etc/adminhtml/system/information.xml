@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+
+<!-- Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details. -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_include.xsd">
+
+    <group id="indexing"
+           translate="label"
+           sortOrder="10"
+           showInDefault="1"
+           showInWebsite="1"
+           showInStore="1">
+        <label>Indexing</label>
+        <attribute type="expanded">0</attribute>
+        <frontend_model>Magento\Config\Block\System\Config\Form\Fieldset</frontend_model>
+
+        <field id="klevu_indexing_entitles" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <!--
+            frontend_model is a virtualType based on \Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset
+            see etc/adminhtml/di.xml for config
+            -->
+            <frontend_model>Klevu\Indexing\Block\Adminhtml\Config\Information\IndexingEntities</frontend_model>
+        </field>
+        <field id="klevu_indexing_attributes" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+            <!--
+            frontend_model is a virtualType based on \Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset
+            see etc/adminhtml/di.xml for config
+            -->
+            <frontend_model>Klevu\Indexing\Block\Adminhtml\Config\Information\IndexingAttributes</frontend_model>
+        </field>
+    </group>
+</config>

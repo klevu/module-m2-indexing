@@ -1,0 +1,129 @@
+<?php
+
+/**
+ * Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details.
+ */
+
+declare(strict_types=1);
+
+use Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset;
+use Klevu\IndexingApi\ViewModel\Config\Information\IndexingEntitiesInterface;
+
+/**
+ * @var KlevuFieldset $block
+ * @var IndexingEntitiesInterface $viewModel
+ */
+$viewModel = $block->getViewModel();
+$escaper = $block->getEscaper();
+?>
+
+<?php if ($viewModel->hasEntities()): ?>
+    <h2>
+        <strong>
+            <?= $escaper->escapeHtml(__('Entities')->render()) ?>
+        </strong>
+    </h2>
+    <table class="klevu-indexing-entities">
+        <thead>
+            <tr>
+                <th scope="col"><?= $escaper->escapeHtml(__('API Key')->render()) ?></th>
+                <th scope="col"><?= $escaper->escapeHtml(__('Entity Type')->render()) ?></th>
+                <th scope="col"><?= $escaper->escapeHtml(__('Total Entities')->render()) ?></th>
+                <th scope="col"><?= $escaper->escapeHtml(__('Add')->render()) ?></th>
+                <th scope="col"><?= $escaper->escapeHtml(__('Update')->render()) ?></th>
+                <th scope="col"><?= $escaper->escapeHtml(__('Delete')->render()) ?></th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($viewModel->getEntities() as $apiKey => $entity): ?>
+            <?php foreach ($entity as $entityType => $data): ?>
+                <tr>
+                    <td>
+                        <span><?= $escaper->escapeHtml($apiKey) ?></span>
+                    </td>
+                    <td>
+                        <span><?= $escaper->escapeHtml($entityType) ?></span>
+                    </td>
+                    <td>
+                        <span><?= $escaper->escapeHtml($data['total'] ?? 0) ?></span>
+                    </td>
+                    <td>
+                        <span><?= $escaper->escapeHtml($data['Add'] ?? 0) ?></span>
+                    </td>
+                    <td>
+                        <span><?= $escaper->escapeHtml($data['Update'] ?? 0) ?></span>
+                    </td>
+                    <td>
+                        <span><?= $escaper->escapeHtml($data['Delete'] ?? 0) ?></span>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+            <tr>
+                <th scope="row" colspan="6">
+                    <?= $escaper->escapeHtml(
+                        __('Indexing entities and their next actions.')->render(),
+                    ) ?>
+                </th>
+            </tr>
+        </tfoot>
+    </table>
+    <style>
+        table.klevu-indexing-entities {
+            table-layout: fixed;
+            width: 100%;
+            border-collapse: collapse;
+            border: solid 1px #f5f5f5;
+            background-color: #fff;
+            margin-bottom: 30px;
+        }
+
+        .klevu-indexing-entities thead tr,
+        .klevu-indexing-entities tfoot tr {
+            border: solid 1px #f5f5f5;
+        }
+
+        .klevu-indexing-entities thead th {
+            background-color: #000;
+            color: #fff;
+            text-align: left;
+            border: 0.1rem solid #666666;
+        }
+
+        .klevu-indexing-entities thead th:nth-child(1),
+        .klevu-indexing-entities thead th:nth-child(2) {
+            width: 25%;
+        }
+
+        .klevu-indexing-entities tfoot th,
+        .klevu-indexing-entities tr:nth-child(2n) {
+            background-color: #fff;
+        }
+
+        .klevu-indexing-entities tr:nth-child(2n-1) {
+            background-color: #f5f5f5;
+        }
+
+        .klevu-indexing-entities tbody tr:hover {
+            background-color: #e5f7fe;
+        }
+
+        .klevu-indexing-entities tbody td {
+            text-align: right;
+            border-left: 0.1rem dashed #d6d6d6;
+            border-right: 0.1rem dashed #d6d6d6;
+        }
+
+        .klevu-indexing-entities tbody td:nth-child(1),
+        .klevu-indexing-entities tbody td:nth-child(2) {
+            text-align: left;
+        }
+
+        .accordion .form-inline .config .klevu-indexing-entities th,
+        .accordion .form-inline .config .klevu-indexing-entities td {
+            padding: 1.5rem;
+        }
+    </style>
+<?php endif; ?>

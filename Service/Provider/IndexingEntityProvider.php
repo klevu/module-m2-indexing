@@ -22,6 +22,9 @@ use Magento\Framework\Api\Search\FilterGroupBuilder;
 use Magento\Framework\Api\Search\FilterGroupBuilderFactory;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
+use Magento\Framework\Api\SortOrder;
+use Magento\Framework\Api\SortOrderBuilder;
+use Magento\Framework\Api\SortOrderBuilderFactory;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Adapter\AdapterInterface;
 use Magento\Framework\DB\Select;
@@ -52,6 +55,10 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
      * @var ResourceConnection
      */
     private readonly ResourceConnection $resourceConnection;
+    /**
+     * @var SortOrderBuilderFactory
+     */
+    private readonly SortOrderBuilderFactory $sortOrderBuilderFactory;
 
     /**
      * @param SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory
@@ -60,6 +67,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
      * @param FilterBuilderFactory $filterBuilderFactory
      * @param CollectionFactory $collectionFactory
      * @param ResourceConnection $resourceConnection
+     * @param SortOrderBuilderFactory $sortOrderBuilderFactory
      */
     public function __construct(
         SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
@@ -68,6 +76,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         FilterBuilderFactory $filterBuilderFactory,
         CollectionFactory $collectionFactory,
         ResourceConnection $resourceConnection,
+        SortOrderBuilderFactory $sortOrderBuilderFactory,
     ) {
         $this->searchCriteriaBuilderFactory = $searchCriteriaBuilderFactory;
         $this->indexingEntityRepository = $indexingEntityRepository;
@@ -75,6 +84,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         $this->filterBuilderFactory = $filterBuilderFactory;
         $this->collectionFactory = $collectionFactory;
         $this->resourceConnection = $resourceConnection;
+        $this->sortOrderBuilderFactory = $sortOrderBuilderFactory;
     }
 
     /**
@@ -83,6 +93,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
      * @param int[]|null $entityIds
      * @param Actions|null $nextAction
      * @param bool|null $isIndexable
+     * @param array<string, string>|null $sorting [SortOrder::DIRECTION => SortOrder::SORT_ASC, SortOrder::FIELD => '']
      *
      * @return IndexingEntityInterface[]
      */
@@ -92,6 +103,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         ?array $entityIds = [],
         ?Actions $nextAction = null,
         ?bool $isIndexable = null,
+        ?array $sorting = [],
     ): array {
         /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
         $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
@@ -135,6 +147,14 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
                 value: $isIndexable,
             );
         }
+        if (($sorting[SortOrder::FIELD] ?? null) && ($sorting[SortOrder::DIRECTION] ?? null)) {
+            /** @var SortOrderBuilder $sortOrderBuilder */
+            $sortOrderBuilder = $this->sortOrderBuilderFactory->create();
+            $sortOrderBuilder->setField($sorting[SortOrder::FIELD]);
+            $sortOrderBuilder->setDirection(strtoupper($sorting[SortOrder::DIRECTION]));
+            $searchCriteriaBuilder->addSortOrder(sortOrder: $sortOrderBuilder->create());
+        }
+
         $searchCriteria = $searchCriteriaBuilder->create();
         $klevuEntitySearchResult = $this->indexingEntityRepository->getList($searchCriteria);
 

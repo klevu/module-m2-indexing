@@ -9,7 +9,7 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Pipeline\Indexing\Stage;
 
 use Klevu\Indexing\Model\IndexingEntity;
-use Klevu\Indexing\Pipeline\Indexing\Stage\UpdateIndexingEntityRecord;
+use Klevu\Indexing\Pipeline\Indexing\Stage\HandleBatchResponse;
 use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Action\UpdateIndexingEntitiesActionsActionInterface;
@@ -25,17 +25,18 @@ use Klevu\TestFixtures\Catalog\ProductTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Magento\Framework\DataObject;
+use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use TddWizard\Fixtures\Catalog\ProductFixturePool;
 
 /**
- * @covers UpdateIndexingEntityRecord
- * @method UpdateIndexingEntityRecord instantiateTestObject(?array $arguments = null)
- * @method UpdateIndexingEntityRecord instantiateTestObjectFromInterface(?array $arguments = null)
+ * @covers HandleBatchResponse
+ * @method HandleBatchResponse instantiateTestObject(?array $arguments = null)
+ * @method HandleBatchResponse instantiateTestObjectFromInterface(?array $arguments = null)
  */
-class UpdateIndexingEntityRecordTest extends TestCase
+class HandleBatchResponseTest extends TestCase
 {
     use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
@@ -54,7 +55,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
     {
         parent::setUp();
 
-        $this->implementationFqcn = UpdateIndexingEntityRecord::class;
+        $this->implementationFqcn = HandleBatchResponse::class;
         $this->interfaceFqcn = PipelineInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
         $this->productFixturePool = $this->objectManager->get(ProductFixturePool::class);
@@ -85,7 +86,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $this->expectExceptionMessage(
             sprintf(
                 'Argument (%s) is required',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION,
+                HandleBatchResponse::ARGUMENT_KEY_ACTION,
             ),
         );
 
@@ -96,8 +97,8 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $pipeline = $this->instantiateTestObject([
             'identifier' => 'some-string',
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
             ],
         ]);
         $pipeline->execute(
@@ -112,7 +113,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $this->expectExceptionMessage(
             sprintf(
                 'Argument (%s) is required',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY,
             ),
         );
 
@@ -123,8 +124,8 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $pipeline = $this->instantiateTestObject([
             'identifier' => 'some-string',
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => Actions::ADD->value,
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::ADD->value,
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
 
             ],
         ]);
@@ -140,7 +141,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $this->expectExceptionMessage(
             sprintf(
                 'Argument (%s) is required',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE,
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE,
             ),
         );
 
@@ -151,8 +152,8 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $pipeline = $this->instantiateTestObject([
             'identifier' => 'some-string',
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => Actions::ADD->value,
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::ADD->value,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
             ],
         ]);
         $pipeline->execute(
@@ -171,7 +172,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $this->expectExceptionMessage(
             sprintf(
                 'Argument (%s) must be string|%s; Received %s',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION,
+                HandleBatchResponse::ARGUMENT_KEY_ACTION,
                 Extraction::class,
                 get_debug_type($action),
             ),
@@ -183,9 +184,9 @@ class UpdateIndexingEntityRecordTest extends TestCase
 
         $pipeline = $this->instantiateTestObject([
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => $action,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => $action,
             ],
         ]);
         $pipeline->execute(
@@ -215,7 +216,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $this->expectExceptionMessage(
             sprintf(
                 'Argument (%s) valid action (%s); Received %s',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION,
+                HandleBatchResponse::ARGUMENT_KEY_ACTION,
                 Actions::class,
                 $action,
             ),
@@ -227,9 +228,9 @@ class UpdateIndexingEntityRecordTest extends TestCase
 
         $pipeline = $this->instantiateTestObject([
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => $action,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => $action,
             ],
         ]);
         $pipeline->execute(
@@ -248,7 +249,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $this->expectExceptionMessage(
             sprintf(
                 'Argument (%s) must be string|%s; Received %s',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY,
                 Extraction::class,
                 get_debug_type($apiKey),
             ),
@@ -260,9 +261,9 @@ class UpdateIndexingEntityRecordTest extends TestCase
 
         $pipeline = $this->instantiateTestObject([
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => $apiKey,
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => Actions::UPDATE->value,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => $apiKey,
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::UPDATE->value,
             ],
         ]);
         $pipeline->execute(
@@ -294,7 +295,7 @@ class UpdateIndexingEntityRecordTest extends TestCase
         $this->expectExceptionMessage(
             sprintf(
                 'Argument (%s) must be string|%s; Received %s',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE,
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE,
                 Extraction::class,
                 get_debug_type($entityType),
             ),
@@ -306,9 +307,9 @@ class UpdateIndexingEntityRecordTest extends TestCase
 
         $pipeline = $this->instantiateTestObject([
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => 'Klevu-test-api-key',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => $entityType,
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => Actions::UPDATE->value,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => 'Klevu-test-api-key',
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => $entityType,
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::UPDATE->value,
             ],
         ]);
         $pipeline->execute(
@@ -348,9 +349,9 @@ class UpdateIndexingEntityRecordTest extends TestCase
 
         $pipeline = $this->instantiateTestObject([
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => Actions::ADD->value,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::ADD->value,
             ],
         ]);
         $pipeline->execute(
@@ -377,9 +378,76 @@ class UpdateIndexingEntityRecordTest extends TestCase
 
     public function testExecute_DoesNotCallUpdate_Actions_WhenPipelineFails(): void
     {
+        $apiKey = 'klevu-test-api-key';
+
+        $this->createProduct();
+        $productFixture = $this->productFixturePool->get('test_product');
+
+        $this->createProduct([
+            'key' => 'test_parent_product',
+        ]);
+        $parentProductFixture = $this->productFixturePool->get('test_parent_product');
+
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => $productFixture->getId(),
+            IndexingEntity::TARGET_PARENT_ID => $parentProductFixture->getId(),
+            IndexingEntity::NEXT_ACTION => Actions::ADD,
+            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+        ]);
+        $indexingEntity = $this->getIndexingEntityForEntity(
+            apiKey: $apiKey,
+            entity: $productFixture->getProduct(),
+            type: 'KLEVU_PRODUCT',
+        );
+
+        $record = $this->objectManager->create(IndexingRecord::class, [
+            'id' => $parentProductFixture->getId() . '-' . $productFixture->getId(),
+            'type' => 'KLEVU_PRODUCT',
+            'relations' => [],
+            'attributes' => [],
+            'display' => [],
+        ]);
+
+        $recordIterator = $this->objectManager->create(RecordIterator::class, [
+            'data' => [$record],
+        ]);
+
         $mockApiResult = $this->objectManager->create(ApiPipelineResult::class, [
             'success' => false,
+            'message' => 'Batch rejected',
+            'payload' => $recordIterator,
         ]);
+
+        $mockEventManager = $this->getMockBuilder(ManagerInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockEventManager->expects($this->exactly(2))
+            ->method('dispatch')
+            ->withConsecutive(
+                [
+                    'klevu_indexing_handle_batch_response_before',
+                    [
+                        'apiPipelineResult' => $mockApiResult,
+                        'action' => Actions::ADD,
+                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                        'entityType' => 'KLEVU_PRODUCT',
+                        'apiKey' => $apiKey,
+                    ],
+                ],
+                [
+                    'klevu_indexing_handle_batch_response_after',
+                    [
+                        'apiPipelineResult' => $mockApiResult,
+                        'action' => Actions::ADD,
+                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                        'entityType' => 'KLEVU_PRODUCT',
+                        'apiKey' => $apiKey,
+                    ],
+                ],
+            );
 
         $mockUpdateEntitiesAction = $this->getMockBuilder(UpdateIndexingEntitiesActionsActionInterface::class)
             ->disableOriginalConstructor()
@@ -389,16 +457,19 @@ class UpdateIndexingEntityRecordTest extends TestCase
 
         $pipeline = $this->instantiateTestObject([
             'updateIndexingEntitiesActionsAction' => $mockUpdateEntitiesAction,
+            'eventManager' => $mockEventManager,
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => 'klevu-test-api-key',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEUU_PRODUCT',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => Actions::ADD->value,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => $apiKey,
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEVU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::ADD->value,
             ],
         ]);
         $pipeline->execute(
             payload: $mockApiResult,
             context: new Context([]),
         );
+
+        $this->cleanIndexingEntities($apiKey);
     }
 
     public function testExecute_UpdatesEntityAction_WhenPipelineSucceeds(): void
@@ -422,6 +493,11 @@ class UpdateIndexingEntityRecordTest extends TestCase
             IndexingEntity::NEXT_ACTION => Actions::ADD,
             IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
         ]);
+        $indexingEntity = $this->getIndexingEntityForEntity(
+            apiKey: $apiKey,
+            entity: $productFixture->getProduct(),
+            type: 'KLEVU_PRODUCT',
+        );
 
         $record = $this->objectManager->create(IndexingRecord::class, [
             'id' => $parentProductFixture->getId() . '-' . $productFixture->getId(),
@@ -441,11 +517,40 @@ class UpdateIndexingEntityRecordTest extends TestCase
             'payload' => $recordIterator,
         ]);
 
+        $mockEventManager = $this->getMockBuilder(ManagerInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockEventManager->expects($this->exactly(2))
+            ->method('dispatch')
+            ->withConsecutive(
+                [
+                    'klevu_indexing_handle_batch_response_before',
+                    [
+                        'apiPipelineResult' => $mockApiResult,
+                        'action' => Actions::ADD,
+                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                        'entityType' => 'KLEVU_PRODUCT',
+                        'apiKey' => $apiKey,
+                    ],
+                ],
+                [
+                    'klevu_indexing_handle_batch_response_after',
+                    [
+                        'apiPipelineResult' => $mockApiResult,
+                        'action' => Actions::ADD,
+                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                        'entityType' => 'KLEVU_PRODUCT',
+                        'apiKey' => $apiKey,
+                    ],
+                ],
+            );
+
         $pipeline = $this->instantiateTestObject([
+            'eventManager' => $mockEventManager,
             'args' => [
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_API_KEY => $apiKey,
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ENTITY_TYPE => 'KLEVU_PRODUCT',
-                UpdateIndexingEntityRecord::ARGUMENT_KEY_ACTION => Actions::ADD->value,
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => $apiKey,
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEVU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::ADD->value,
             ],
         ]);
         $pipeline->execute(

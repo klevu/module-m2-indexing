@@ -17,8 +17,8 @@ stages:
             pipeline: Stage\RegisterContext
             args:
               contextKey: "processBatchResult"
-      updateRecordsAction:
-        pipeline: Indexing\Stage\UpdateIndexingEntityRecord
+      handleBatchResponse:
+        pipeline: Indexing\Stage\HandleBatchResponse
         args:
           action: $currentAction::
           entityType: $currentEntityType::

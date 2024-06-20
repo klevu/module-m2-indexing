@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Test\Integration\Service;
 
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\FilterAttributesToAddService;
+use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoAttributeInterface;
@@ -33,6 +34,7 @@ use PHPUnit\Framework\TestCase;
  */
 class FilterAttributesToAddServiceTest extends TestCase
 {
+    use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
@@ -52,6 +54,18 @@ class FilterAttributesToAddServiceTest extends TestCase
         $this->implementationFqcn = FilterAttributesToAddService::class;
         $this->interfaceFqcn = FilterAttributesToAddServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
     }
 
     public function testExecute_RemovesMagentoAttributesAlreadyInKlevuAttributes(): void
