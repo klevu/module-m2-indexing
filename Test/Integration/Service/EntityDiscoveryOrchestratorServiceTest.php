@@ -11,6 +11,7 @@ namespace Klevu\Indexing\Test\Integration\Service;
 use Klevu\Indexing\Model\IndexingEntity;
 use Klevu\Indexing\Model\ResourceModel\IndexingEntity\Collection as IndexingEntityCollection;
 use Klevu\Indexing\Service\EntityDiscoveryOrchestratorService;
+use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\Data\IndexingEntitySearchResultsInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
@@ -45,6 +46,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
+    use IndexingEntitiesTrait;
 
     /**
      * @var ObjectManagerInterface|null
@@ -61,8 +63,23 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $this->implementationFqcn = EntityDiscoveryOrchestratorService::class;
         $this->interfaceFqcn = EntityDiscoveryOrchestratorServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingEntities('klevu-api-key%');
     }
 
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingEntities('klevu-api-key%');
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_NoProviders_ReturnsSuccessFalse(): void
     {
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
@@ -94,6 +111,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         );
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_WithTypeArgument_SkipsOtherEntityTypes(): void
     {
         $collection = $this->objectManager->create(IndexingEntityCollection::class);
@@ -128,6 +148,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         );
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_WithTypeArgument(): void
     {
         $collection = $this->objectManager->create(IndexingEntityCollection::class);
@@ -324,6 +347,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         );
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_SetExistingEntitiesToUpdate_WhenEntityIdsProvided(): void
     {
         $apiKey = 'klevu-api-key';
@@ -437,6 +463,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $this->assertCount(expectedCount: 0, haystack: $messages, message: 'Message Count');
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_SetExistingEntitiesToUpdate_WhenEntityIdsEmptyArray(): void
     {
         $apiKey = 'klevu-api-key';
@@ -671,6 +700,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         );
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_SetExistingEntitiesToBeIndexable(): void
     {
         $apiKey = 'klevu-api-key';

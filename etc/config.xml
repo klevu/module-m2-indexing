@@ -9,6 +9,11 @@
             <indexing>
                 <log_level>200</log_level> <!-- Logger::INFO -->
                 <exclude_record_types_from_sync/>
+                <attribute_cron_frequency>*/10 * * * *</attribute_cron_frequency>
+                <attribute_cron_expr>*/10 * * * *</attribute_cron_expr>
+                <entity_cron_frequency>*/30 * * * *</entity_cron_frequency>
+                <entity_cron_expr>*/30 * * * *</entity_cron_expr>
+                <remove_indexing_history_after_days>7</remove_indexing_history_after_days>
             </indexing>
         </klevu>
     </default>

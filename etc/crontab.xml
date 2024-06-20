@@ -15,12 +15,22 @@
         <job name="klevu_indexing_sync_attributes"
              instance="Klevu\Indexing\Cron\SyncAttributes"
              method="execute">
-            <schedule>12,42 * * * *</schedule>
+            <config_path>klevu/indexing/attribute_cron_expr</config_path>
         </job>
         <job name="klevu_indexing_sync_entities"
              instance="Klevu\Indexing\Cron\SyncEntities"
              method="execute">
-            <schedule>16,46 * * * *</schedule>
+            <config_path>klevu/indexing/entity_cron_expr</config_path>
+        </job>
+        <job name="klevu_indexing_sync_history_consolidation"
+             instance="Klevu\Indexing\Cron\SyncHistoryConsolidation"
+             method="execute">
+            <schedule>2 0 * * *</schedule>
+        </job>
+        <job name="klevu_indexing_sync_history_consolidation_clean"
+             instance="Klevu\Indexing\Cron\SyncHistoryConsolidationClean"
+             method="execute">
+            <schedule>10 0 * * *</schedule>
         </job>
     </group>
 </config>

@@ -16,6 +16,7 @@ use Klevu\IndexingApi\Service\EntityIndexerServiceInterface;
 use Klevu\IndexingApi\Service\EntitySyncOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\Provider\AccountCredentialsProviderInterface;
 use Klevu\PhpSDK\Model\AccountCredentials;
+use Magento\Framework\Event\ManagerInterface as EventManagerInterface;
 use Psr\Log\LoggerInterface;
 
 class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInterface
@@ -33,6 +34,10 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
      */
     private readonly IndexerResultInterfaceFactory $indexerResultFactory;
     /**
+     * @var EventManagerInterface
+     */
+    private readonly EventManagerInterface $eventManager;
+    /**
      * @var EntityIndexerServiceInterface[]
      */
     private array $entityIndexerServices = [];
@@ -41,6 +46,7 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
      * @param LoggerInterface $logger
      * @param AccountCredentialsProviderInterface $accountCredentialsProvider
      * @param IndexerResultInterfaceFactory $indexerResultFactory
+     * @param EventManagerInterface $eventManager
      * @param EntityIndexerServiceInterface[][] $entityIndexerServices
      *
      * @throws InvalidEntityIndexerServiceException
@@ -49,11 +55,13 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
         LoggerInterface $logger,
         AccountCredentialsProviderInterface $accountCredentialsProvider,
         IndexerResultInterfaceFactory $indexerResultFactory,
+        EventManagerInterface $eventManager,
         array $entityIndexerServices,
     ) {
         $this->logger = $logger;
         $this->accountCredentialsProvider = $accountCredentialsProvider;
         $this->indexerResultFactory = $indexerResultFactory;
+        $this->eventManager = $eventManager;
         array_walk($entityIndexerServices, [$this, 'setIndexerServices']);
     }
 
@@ -85,6 +93,14 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
         $this->logger->debug(
             message: 'IndexerService::execute completed',
             context: [
+                'return' => $return,
+            ],
+        );
+        $this->eventManager->dispatch(
+            'klevu_indexing_entity_orchestrator_sync_after',
+            [
+                'entityType' => $entityType,
+                'apiKey' => $apiKey,
                 'return' => $return,
             ],
         );

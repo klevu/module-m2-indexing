@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Test\Integration\Service;
 
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\FilterAttributesToDeleteService;
+use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoAttributeInterfaceFactory;
@@ -32,6 +33,7 @@ use PHPUnit\Framework\TestCase;
  */
 class FilterAttributesToDeleteServiceTest extends TestCase
 {
+    use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
@@ -51,6 +53,18 @@ class FilterAttributesToDeleteServiceTest extends TestCase
         $this->implementationFqcn = FilterAttributesToDeleteService::class;
         $this->interfaceFqcn = FilterAttributesToDeleteServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
     }
 
     public function testExecute_ReturnsArrayOfIntegers(): void

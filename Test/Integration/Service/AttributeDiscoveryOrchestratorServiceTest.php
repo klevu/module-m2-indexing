@@ -57,6 +57,15 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         $this->implementationFqcn = AttributeDiscoveryOrchestratorService::class;
         $this->interfaceFqcn = AttributeDiscoveryOrchestratorServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingAttributes('klevu-api-key');
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingAttributes('klevu-api-key');
     }
 
     public function testExecute_NoProviders_ReturnsSuccessFalse(): void

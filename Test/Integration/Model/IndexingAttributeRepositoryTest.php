@@ -58,7 +58,7 @@ class IndexingAttributeRepositoryTest extends TestCase
         $this->implementationFqcn = IndexingAttributeRepository::class;
         $this->interfaceFqcn = IndexingAttributeRepositoryInterface::class;
 
-        $this->cleanIndexingAttributes('klevu-js-api-key');
+        $this->cleanIndexingAttributes('klevu-js-api-key%');
     }
 
     /**
@@ -68,7 +68,7 @@ class IndexingAttributeRepositoryTest extends TestCase
     {
         parent::tearDown();
 
-        $this->cleanIndexingAttributes('klevu-js-api-key');
+        $this->cleanIndexingAttributes('klevu-js-api-key%');
 
     }
 
@@ -209,6 +209,9 @@ class IndexingAttributeRepositoryTest extends TestCase
         $repository->save($indexingAttribute);
     }
 
+    /**
+     * @magentoDbIsolation enabled
+     */
     public function testSave_Create(): void
     {
         $repository = $this->instantiateTestObject();

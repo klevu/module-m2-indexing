@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Test\Integration\Service;
 
 use Klevu\Indexing\Model\IndexingEntity;
 use Klevu\Indexing\Service\FilterEntitiesToDeleteService;
+use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterfaceFactory;
@@ -32,6 +33,7 @@ use PHPUnit\Framework\TestCase;
  */
 class FilterEntitiesToDeleteServiceTest extends TestCase
 {
+    use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
@@ -51,6 +53,18 @@ class FilterEntitiesToDeleteServiceTest extends TestCase
         $this->implementationFqcn = FilterEntitiesToDeleteService::class;
         $this->interfaceFqcn = FilterEntitiesToDeleteServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingEntities('klevu-api-key%');
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingEntities('klevu-api-key%');
     }
 
     public function testExecute_ReturnsEntityIdsTODelete_whichHaveBeenDisabled(): void

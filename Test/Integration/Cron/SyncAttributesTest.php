@@ -21,10 +21,12 @@ use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\PipelineAttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Magento\Cron\Model\Config as CronConfig;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use TddWizard\Fixtures\Core\ConfigFixture;
 
 /**
  * @covers SyncAttributes
@@ -44,6 +46,9 @@ class SyncAttributesTest extends TestCase
      */
     private ?ObjectManagerInterface $objectManager = null; // @phpstan-ignore-line
 
+    /**
+     * @return void
+     */
     protected function setUp(): void
     {
         parent::setUp();
@@ -66,6 +71,9 @@ class SyncAttributesTest extends TestCase
         $this->storeFixturesPool->rollback();
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testCrontabIsConfigured(): void
     {
         $cronConfig = $this->objectManager->get(CronConfig::class);
@@ -80,9 +88,56 @@ class SyncAttributesTest extends TestCase
         $this->assertSame(expected: SyncAttributes::class, actual: $syncEntityCron['instance']);
         $this->assertSame(expected: 'execute', actual: $syncEntityCron['method']);
         $this->assertSame(expected: 'klevu_indexing_sync_attributes', actual: $syncEntityCron['name']);
-        $this->assertSame(expected: '12,42 * * * *', actual: $syncEntityCron['schedule']);
+        $this->assertSame(expected: 'klevu/indexing/attribute_cron_expr', actual: $syncEntityCron['config_path']);
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testCrontab_DefaultFrequency(): void
+    {
+        ConfigFixture::setGlobal(
+            'klevu/indexing/attribute_cron_frequency',
+            value: null,
+        );
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $result = $scopeConfig->getValue(
+            'klevu/indexing/attribute_cron_frequency',
+            ScopeConfigInterface::SCOPE_TYPE_DEFAULT,
+            null,
+        );
+
+        $this->assertSame(
+            expected: '*/10 * * * *',
+            actual: $result,
+        );
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testCrontab_DefaultExpr(): void
+    {
+        ConfigFixture::setGlobal(
+            'klevu/indexing/attribute_cron_expr',
+            value: null,
+        );
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $result = $scopeConfig->getValue(
+            'klevu/indexing/attribute_cron_expr',
+            ScopeConfigInterface::SCOPE_TYPE_DEFAULT,
+            null,
+        );
+
+        $this->assertSame(
+            expected: '*/10 * * * *',
+            actual: $result,
+        );
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_PrintsSuccessMessage_onSuccess(): void
     {
         $apiKey = 'klevu-js-api-key';

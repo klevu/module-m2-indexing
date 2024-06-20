@@ -46,6 +46,18 @@ class FilterAttributesToUpdateServiceTest extends TestCase
         $this->implementationFqcn = FilterAttributesToUpdateService::class;
         $this->interfaceFqcn = FilterAttributesToUpdateServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
     }
 
     public function testExecute_ReturnsArrayOfIndexingAttributesIds(): void

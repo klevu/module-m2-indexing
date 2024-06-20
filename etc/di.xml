@@ -17,11 +17,23 @@
     <preference for="Klevu\IndexingApi\Api\Data\IndexerResultInterface"
                 type="Klevu\Indexing\Model\IndexerResult"/>
 
+    <preference for="Klevu\IndexingApi\Api\Data\SyncHistoryEntityConsolidationRecordInterface"
+                type="Klevu\Indexing\Model\SyncHistoryEntityConsolidationRecord"/>
+
+    <preference for="Klevu\IndexingApi\Api\SyncHistoryEntityConsolidationRepositoryInterface"
+                type="Klevu\Indexing\Model\SyncHistoryEntityConsolidationRepository"/>
+
+    <preference for="Klevu\IndexingApi\Api\Data\SyncHistoryEntityRecordInterface"
+                type="Klevu\Indexing\Model\SyncHistoryEntityRecord"/>
+
     <preference for="Klevu\IndexingApi\Api\Data\SyncResultInterface"
                 type="Klevu\Indexing\Model\SyncResult"/>
 
     <preference for="Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface"
                 type="\Klevu\Indexing\Model\IndexingEntityRepository"/>
+
+    <preference for="Klevu\IndexingApi\Api\SyncHistoryEntityRepositoryInterface"
+                type="\Klevu\Indexing\Model\SyncHistoryEntityRepository"/>
 
     <preference for="Klevu\IndexingApi\Model\EntityIndexingDeleteRecordInterface"
                 type="Klevu\Indexing\Model\EntityIndexingDeleteRecord"/>
@@ -77,6 +89,12 @@
     <preference for="Klevu\IndexingApi\Service\AttributeUpdateOrchestratorServiceInterface"
                 type="Klevu\Indexing\Service\AttributeUpdateOrchestratorService"/>
 
+    <preference for="Klevu\IndexingApi\Service\CleanConsolidatedSyncHistoryServiceInterface"
+                type="Klevu\Indexing\Service\CleanConsolidatedSyncHistoryService"/>
+
+    <preference for="Klevu\IndexingApi\Service\ConsolidateSyncHistoryServiceInterface"
+                type="Klevu\Indexing\Service\ConsolidateSyncHistoryService"/>
+
     <preference for="Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface"
                 type="Klevu\Indexing\Service\EntityDiscoveryOrchestratorService"/>
 
@@ -125,6 +143,12 @@
     <preference for="Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface"
                 type="Klevu\Indexing\Service\Provider\IndexingEntityProvider"/>
 
+    <preference for="Klevu\IndexingApi\Service\Provider\SyncHistoryEntityByDateProviderInterface"
+                type="Klevu\Indexing\Service\Provider\SyncHistoryEntityByDateProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\SyncHistoryEntityConsolidatedByDateProviderInterface"
+                type="Klevu\Indexing\Service\Provider\SyncHistoryEntityConsolidatedByDateProvider"/>
+
     <type name="Klevu\Indexing\Model\IndexingAttributeRepository">
         <arguments>
             <argument name="indexingAttributeValidator"
@@ -136,6 +160,20 @@
         <arguments>
             <argument name="indexingEntityValidator"
                       xsi:type="object">Klevu\Indexing\Validator\IndexingEntityValidator</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Model\SyncHistoryEntityRepository">
+        <arguments>
+            <argument name="syncHistoryRecordValidator"
+                      xsi:type="object">Klevu\Indexing\Validator\SyncHistoryRecordValidator</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Model\SyncHistoryEntityConsolidationRepository">
+        <arguments>
+            <argument name="syncHistoryConsolidationRecordValidator"
+                      xsi:type="object">Klevu\Indexing\Validator\SyncHistoryConsolidationRecordValidator</argument>
         </arguments>
     </type>
 
@@ -436,4 +474,157 @@
             </argument>
         </arguments>
     </type>
+
+    <type name="Klevu\Indexing\Pipeline\Indexing\Stage\HandleBatchResponse">
+        <arguments>
+            <argument name="batchResponderServices" xsi:type="array">
+                <item name="updateActionService"
+                      xsi:type="object">Klevu\Indexing\Service\UpdateIndexingEntitiesActionsService</item>
+                <item name="RecordHistory"
+                      xsi:type="object">Klevu\Indexing\Service\RecordIndexingEntityHistoryService</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Provider\SyncHistoryEntityLessThenDateProvider"
+                 type="Klevu\Indexing\Service\Provider\SyncHistoryEntityByDateProvider">
+        <arguments>
+            <argument name="dateComparator"
+                      xsi:type="const">Klevu\Indexing\Service\Provider\SyncHistoryEntityByDateProvider::LESS_THAN</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Service\ConsolidateSyncHistoryService">
+        <arguments>
+            <argument name="syncHistoryProvider"
+                      xsi:type="object">Klevu\Indexing\Service\Provider\SyncHistoryEntityLessThenDateProvider</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Provider\SyncHistoryEntityConsolidatedLessThenDateProvider"
+                 type="Klevu\Indexing\Service\Provider\SyncHistoryEntityConsolidatedByDateProvider">
+        <arguments>
+            <argument name="dateComparator"
+                      xsi:type="const">Klevu\Indexing\Service\Provider\SyncHistoryEntityConsolidatedByDateProvider::LESS_THAN</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Service\CleanConsolidatedSyncHistoryService">
+        <arguments>
+            <argument name="syncHistoryEntityConsolidationByDateProvider"
+                      xsi:type="object">Klevu\Indexing\Service\Provider\SyncHistoryEntityConsolidatedLessThenDateProvider</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Cron\SyncHistoryConsolidation">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Cron\SyncHistoryConsolidationClean">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\EntitySyncOrchestratorService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\RecordIndexingEntityHistoryService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Stdlib\DateTime\DateTimeFormatter"
+                 type="Magento\Framework\Stdlib\DateTime\DateTimeFormatter">
+        <arguments>
+            <argument name="useIntlFormatObject" xsi:type="boolean">false</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Ui\Component\Listing\EntitySyncHistoryConsolidationDataProvider">
+        <arguments>
+            <argument name="dateTimeFormatter"
+                      xsi:type="object">Klevu\Indexing\Stdlib\DateTime\DateTimeFormatter</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\Cron\CreateCronScheduleAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction"
+                 type="Klevu\Indexing\Service\Action\Cron\CreateCronScheduleAction">
+        <arguments>
+            <argument name="jobCode"
+                      xsi:type="const">\Klevu\Indexing\Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Observer\DiscoverEntitiesAfterIntegrationObserver">
+        <arguments>
+            <argument name="createCronScheduleAction"
+                      xsi:type="object">Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Observer\DiscoverEntitiesAfterIntegrationRemovalObserver">
+        <arguments>
+            <argument name="createCronScheduleAction"
+                      xsi:type="object">Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\ConsolidateSyncCronConfigSettingsAction">
+        <arguments>
+            <argument name="cronFrequencySource"
+                      xsi:type="object">Klevu\Indexing\Model\Source\Options\CronFrequency</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Action\ConsolidateAttributeSyncCronConfigSettingsAction"
+        type="Klevu\Indexing\Service\Action\ConsolidateSyncCronConfigSettingsAction">
+        <arguments>
+            <argument name="xmlPathFrequency"
+                      xsi:type="const">Klevu\Indexing\Constants::XML_PATH_ATTRIBUTE_CRON_FREQUENCY</argument>
+            <argument name="xmlPathExpr"
+                      xsi:type="const">Klevu\Indexing\Constants::XML_PATH_ATTRIBUTE_CRON_EXPR</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Observer\Admin\System\Config\UpdateAttributeSyncCronObserver">
+        <arguments>
+            <argument name="consolidateCronConfigSettingsAction"
+                      xsi:type="object">Klevu\Indexing\Service\Action\ConsolidateAttributeSyncCronConfigSettingsAction</argument>
+        </arguments>
+    </type>
+
+    <virtualType name="Klevu\Indexing\Service\Action\ConsolidateEntitySyncCronConfigSettingsAction"
+                 type="Klevu\Indexing\Service\Action\ConsolidateSyncCronConfigSettingsAction">
+        <arguments>
+            <argument name="xmlPathFrequency"
+                      xsi:type="const">Klevu\Indexing\Constants::XML_PATH_ENTITY_CRON_FREQUENCY</argument>
+            <argument name="xmlPathExpr"
+                      xsi:type="const">Klevu\Indexing\Constants::XML_PATH_ENTITY_CRON_EXPR</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Klevu\Indexing\Observer\Admin\System\Config\UpdateEntitySyncCronObserver">
+        <arguments>
+            <argument name="consolidateCronConfigSettingsAction"
+                      xsi:type="object">Klevu\Indexing\Service\Action\ConsolidateEntitySyncCronConfigSettingsAction</argument>
+        </arguments>
+    </type>
+
 </config>

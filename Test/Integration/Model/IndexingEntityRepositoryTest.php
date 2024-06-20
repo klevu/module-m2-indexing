@@ -57,6 +57,19 @@ class IndexingEntityRepositoryTest extends TestCase
         $this->objectManager = Bootstrap::getObjectManager();
         $this->implementationFqcn = IndexingEntityRepository::class;
         $this->interfaceFqcn = IndexingEntityRepositoryInterface::class;
+
+        $this->cleanIndexingEntities('klevu-js-api-key%');
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingEntities('klevu-js-api-key%');
+
     }
 
     public function testCreate_ReturnsIndexingEntityModel(): void
@@ -231,7 +244,7 @@ class IndexingEntityRepositoryTest extends TestCase
         $indexingEntity->setIsIndexable(true);
         $savedIndexingEntity = $repository->save($indexingEntity);
 
-        $lastActionTime = date('Y-m-d h:i:s');
+        $lastActionTime = date('Y-m-d H:i:s');
         $savedIndexingEntity->setLastAction(Actions::ADD);
         $savedIndexingEntity->setLastActionTimestamp($lastActionTime);
         $savedIndexingEntity->setNextAction(Actions::UPDATE);

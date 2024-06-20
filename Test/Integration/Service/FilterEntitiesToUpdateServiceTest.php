@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Test\Integration\Service;
 
 use Klevu\Indexing\Model\IndexingEntity;
 use Klevu\Indexing\Service\FilterEntitiesToUpdateService;
+use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
@@ -31,6 +32,7 @@ use PHPUnit\Framework\TestCase;
  */
 class FilterEntitiesToUpdateServiceTest extends TestCase
 {
+    use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
@@ -50,6 +52,18 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $this->implementationFqcn = FilterEntitiesToUpdateService::class;
         $this->interfaceFqcn = FilterEntitiesToUpdateServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingEntities('klevu-api-key%');
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingEntities('klevu-api-key%');
     }
 
     public function testExecute_ReturnsArrayOfIndexingEntityIds(): void

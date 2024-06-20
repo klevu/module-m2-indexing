@@ -11,7 +11,7 @@ namespace Klevu\Indexing\Pipeline\Indexing\Stage;
 use Klevu\Indexing\Model\IndexingEntity;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
-use Klevu\IndexingApi\Service\Action\UpdateIndexingEntitiesActionsActionInterface;
+use Klevu\IndexingApi\Service\BatchResponderServiceInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
 use Klevu\PhpSDK\Model\Indexing\RecordIterator;
 use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
@@ -26,8 +26,9 @@ use Klevu\Pipelines\Parser\ArgumentConverter;
 use Klevu\Pipelines\Parser\SyntaxParser;
 use Klevu\Pipelines\Pipeline\PipelineInterface;
 use Klevu\Pipelines\Pipeline\StagesNotSupportedTrait;
+use Magento\Framework\Event\ManagerInterface as EventManagerInterface;
 
-class UpdateIndexingEntityRecord implements PipelineInterface
+class HandleBatchResponse implements PipelineInterface
 {
     use StagesNotSupportedTrait;
 
@@ -44,13 +45,17 @@ class UpdateIndexingEntityRecord implements PipelineInterface
      */
     private readonly Extractor $extractor;
     /**
-     * @var UpdateIndexingEntitiesActionsActionInterface
-     */
-    private readonly UpdateIndexingEntitiesActionsActionInterface $updateIndexingEntitiesActionsAction;
-    /**
      * @var IndexingEntityProviderInterface
      */
     private readonly IndexingEntityProviderInterface $indexingEntityProvider;
+    /**
+     * @var EventManagerInterface
+     */
+    private readonly EventManagerInterface $eventManager;
+    /**
+     * @var BatchResponderServiceInterface[]
+     */
+    private array $batchResponderServices = [];
     /**
      * @var string
      */
@@ -58,21 +63,22 @@ class UpdateIndexingEntityRecord implements PipelineInterface
     /**
      * @var string|Extraction|null
      */
-    private string|Extraction|null $apiKeyArgument = null;
+    private string | Extraction | null $apiKeyArgument = null;
     /**
      * @var string|Extraction|null
      */
-    private string|Extraction|null $actionArgument = null;
+    private string | Extraction | null $actionArgument = null;
     /**
      * @var string|Extraction|null
      */
-    private string|Extraction|null $entityTypeArgument = null;
+    private string | Extraction | null $entityTypeArgument = null;
 
     /**
      * @param ArgumentConverter $argumentConverter
      * @param Extractor $extractor
-     * @param UpdateIndexingEntitiesActionsActionInterface $updateIndexingEntitiesActionsAction
      * @param IndexingEntityProviderInterface $indexingEntityProvider
+     * @param EventManagerInterface $eventManager
+     * @param BatchResponderServiceInterface[] $batchResponderServices
      * @param mixed[] $stages
      * @param mixed[]|null $args
      * @param string $identifier
@@ -80,17 +86,19 @@ class UpdateIndexingEntityRecord implements PipelineInterface
     public function __construct(
         ArgumentConverter $argumentConverter,
         Extractor $extractor,
-        UpdateIndexingEntitiesActionsActionInterface $updateIndexingEntitiesActionsAction,
         IndexingEntityProviderInterface $indexingEntityProvider,
+        EventManagerInterface $eventManager,
+        array $batchResponderServices = [],
         array $stages = [],
         ?array $args = null,
         string $identifier = '',
     ) {
         $this->argumentConverter = $argumentConverter;
         $this->extractor = $extractor;
-        $this->updateIndexingEntitiesActionsAction = $updateIndexingEntitiesActionsAction;
         $this->indexingEntityProvider = $indexingEntityProvider;
+        $this->eventManager = $eventManager;
         $this->identifier = $identifier;
+        array_walk($batchResponderServices, [$this, 'addBatchResponderService']);
         array_walk($stages, [$this, 'addStage']);
         if ($args) {
             $this->setArgs($args);
@@ -103,26 +111,46 @@ class UpdateIndexingEntityRecord implements PipelineInterface
      *
      * @return mixed
      * @throws InvalidPipelinePayloadException
+     * @throws ExtractionExceptionInterface
+     * @throws TransformationExceptionInterface
      */
     public function execute(mixed $payload, ?\ArrayAccess $context = null): mixed
     {
         /** @var ApiPipelineResult $payload */
         $this->validatePayload($payload);
-        if ($payload->success) {
-            $entityIds = $this->getEntityIds(
-                payload: $payload->payload,
-                context: $context,
-            );
-            $action = $this->getAction(
-                actionArgument: $this->actionArgument,
-                payload: $payload,
-                context: $context,
-            );
-            $this->updateIndexingEntitiesActionsAction->execute(
-                entityIds: $entityIds,
-                lastAction: $action,
+        [$entityType, $apiKey, $indexingEntities, $action] = $this->extractPayloadData(
+            payload: $payload,
+            context: $context,
+        );
+        $this->eventManager->dispatch(
+            'klevu_indexing_handle_batch_response_before',
+            [
+                'apiPipelineResult' => $payload,
+                'action' => $action,
+                'indexingEntities' => $indexingEntities,
+                'entityType' => $entityType,
+                'apiKey' => $apiKey,
+            ],
+        );
+        foreach ($this->batchResponderServices as $batchResponderService) {
+            $batchResponderService->execute(
+                apiPipelineResult: $payload,
+                action: $action,
+                indexingEntities: $indexingEntities,
+                entityType: $entityType,
+                apiKey: $apiKey,
             );
         }
+        $this->eventManager->dispatch(
+            'klevu_indexing_handle_batch_response_after',
+            [
+                'apiPipelineResult' => $payload,
+                'action' => $action,
+                'indexingEntities' => $indexingEntities,
+                'entityType' => $entityType,
+                'apiKey' => $apiKey,
+            ],
+        );
 
         return $payload;
     }
@@ -187,6 +215,16 @@ class UpdateIndexingEntityRecord implements PipelineInterface
     }
 
     /**
+     * @param BatchResponderServiceInterface $batchResponderService
+     *
+     * @return void
+     */
+    private function addBatchResponderService(BatchResponderServiceInterface $batchResponderService): void
+    {
+        $this->batchResponderServices[] = $batchResponderService;
+    }
+
+    /**
      * @param mixed $apiKey
      * @param mixed[]|null $arguments
      *
@@ -195,7 +233,7 @@ class UpdateIndexingEntityRecord implements PipelineInterface
     private function prepareApiKeyArgument(
         mixed $apiKey,
         ?array $arguments,
-    ): string|Extraction {
+    ): string | Extraction {
         if (
             is_string($apiKey)
             && str_starts_with($apiKey, SyntaxParser::EXTRACTION_START_CHARACTER)
@@ -229,7 +267,7 @@ class UpdateIndexingEntityRecord implements PipelineInterface
     private function prepareEntityTypeArgument(
         mixed $entityType,
         ?array $arguments,
-    ): string|Extraction {
+    ): string | Extraction {
         if (
             is_string($entityType)
             && str_starts_with($entityType, SyntaxParser::EXTRACTION_START_CHARACTER)
@@ -263,7 +301,7 @@ class UpdateIndexingEntityRecord implements PipelineInterface
     private function prepareActionArgument(
         mixed $action,
         ?array $arguments,
-    ): string|Extraction {
+    ): string | Extraction {
         if (
             is_string($action)
             && str_starts_with($action, SyntaxParser::EXTRACTION_START_CHARACTER)
@@ -286,7 +324,7 @@ class UpdateIndexingEntityRecord implements PipelineInterface
         if (is_string($action)) {
             try {
                 $action = Actions::tryFrom($action)->value;
-            } catch (\Exception $exception) {
+            } catch (\Exception) {
                 throw new InvalidPipelineArgumentsException(
                     pipelineName: $this::class,
                     arguments: $arguments,
@@ -327,17 +365,15 @@ class UpdateIndexingEntityRecord implements PipelineInterface
     }
 
     /**
-     * @param mixed $payload
+     * @param ApiPipelineResult $payload
      * @param \ArrayAccess<int|string, mixed>|null $context
      *
-     * @return int[]
+     * @return array<Actions|string|IndexingEntityInterface[]>
      * @throws ExtractionExceptionInterface
      * @throws TransformationExceptionInterface
      */
-    private function getEntityIds(
-        mixed $payload,
-        \ArrayAccess|null $context,
-    ): array {
+    private function extractPayloadData(ApiPipelineResult $payload, ?\ArrayAccess $context): array
+    {
         $entityType = $this->getEntityType(
             entityTypeArgument: $this->entityTypeArgument,
             payload: $payload,
@@ -348,6 +384,32 @@ class UpdateIndexingEntityRecord implements PipelineInterface
             payload: $payload,
             context: $context,
         );
+        $indexingEntities = $this->getIndexingEntities(
+            payload: $payload->payload,
+            entityType: $entityType,
+            apiKey: $apiKey,
+        );
+        $action = $this->getAction(
+            actionArgument: $this->actionArgument,
+            payload: $payload,
+            context: $context,
+        );
+
+        return [$entityType, $apiKey, $indexingEntities, $action];
+    }
+
+    /**
+     * @param mixed $payload
+     * @param string $entityType
+     * @param string $apiKey
+     *
+     * @return IndexingEntityInterface[]
+     */
+    private function getIndexingEntities(
+        mixed $payload,
+        string $entityType,
+        string $apiKey,
+    ): array {
         $targetIds = $payload instanceof RecordIterator
             ? $this->getTargetIdsFromRecordIterator($payload)
             : $this->getTargetIdsFromArray($payload);
@@ -357,13 +419,10 @@ class UpdateIndexingEntityRecord implements PipelineInterface
             apiKey: $apiKey,
             pairs: $targetIds,
         );
-        /** @var IndexingEntityInterface[] $indexingEntities */
-        $indexingEntities = $entityCollection->getItems();
+        /** @var IndexingEntityInterface[] $items */
+        $items = $entityCollection->getItems();
 
-        return array_map(
-            callback: static fn (IndexingEntityInterface $indexingEntity): int => (int)$indexingEntity->getId(),
-            array: $indexingEntities,
-        );
+        return $items;
     }
 
     /**

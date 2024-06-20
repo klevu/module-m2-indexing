@@ -24,10 +24,12 @@ use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\PipelineEntityApiCallTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Magento\Cron\Model\Config as CronConfig;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use TddWizard\Fixtures\Core\ConfigFixture;
 
 class SyncEntitiesTest extends TestCase
 {
@@ -76,7 +78,45 @@ class SyncEntitiesTest extends TestCase
         $this->assertSame(expected: SyncEntities::class, actual: $syncEntityCron['instance']);
         $this->assertSame(expected: 'execute', actual: $syncEntityCron['method']);
         $this->assertSame(expected: 'klevu_indexing_sync_entities', actual: $syncEntityCron['name']);
-        $this->assertSame(expected: '16,46 * * * *', actual: $syncEntityCron['schedule']);
+        $this->assertSame(expected: 'klevu/indexing/entity_cron_expr', actual: $syncEntityCron['config_path']);
+    }
+    
+    public function testCrontab_DefaultFrequency(): void
+    {
+        ConfigFixture::setGlobal(
+            'klevu/indexing/entity_cron_frequency',
+            value: null,
+        );
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $result = $scopeConfig->getValue(
+            'klevu/indexing/entity_cron_frequency',
+            ScopeConfigInterface::SCOPE_TYPE_DEFAULT,
+            null,
+        );
+
+        $this->assertSame(
+            expected: '*/30 * * * *',
+            actual: $result,
+        );
+    }
+
+    public function testCrontab_DefaultExpr(): void
+    {
+        ConfigFixture::setGlobal(
+            'klevu/indexing/entity_cron_expr',
+            value: null,
+        );
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $result = $scopeConfig->getValue(
+            'klevu/indexing/entity_cron_expr',
+            ScopeConfigInterface::SCOPE_TYPE_DEFAULT,
+            null,
+        );
+
+        $this->assertSame(
+            expected: '*/30 * * * *',
+            actual: $result,
+        );
     }
 
     public function testExecute_PrintsSuccessMessage_onSuccess(): void

@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+
+<!-- Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details. -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <virtualType name="Klevu\Indexing\Block\Adminhtml\Config\Information\IndexingEntities"
+                 type="Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset">
+        <arguments>
+            <argument name="blockName" xsi:type="string">klevu_indexing_entitles</argument>
+            <argument name="template"
+                      xsi:type="string">Klevu_Indexing::system/config/information/indexing_entities.phtml</argument>
+            <argument name="viewModel"
+                      xsi:type="object">Klevu\Indexing\ViewModel\Config\Information\IndexingEntities</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Klevu\Indexing\Block\Adminhtml\Config\Information\IndexingAttributes"
+                 type="Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset">
+        <arguments>
+            <argument name="blockName" xsi:type="string">klevu_indexing_attributes</argument>
+            <argument name="template"
+                      xsi:type="string">Klevu_Indexing::system/config/information/indexing_attributes.phtml</argument>
+            <argument name="viewModel"
+                      xsi:type="object">Klevu\Indexing\ViewModel\Config\Information\IndexingAttributes</argument>
+        </arguments>
+    </virtualType>
+
+</config>

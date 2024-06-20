@@ -9,7 +9,7 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Observer;
 
 use Klevu\Indexing\Observer\DiscoverEntitiesAfterIntegrationObserver;
-use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
+use Klevu\IndexingApi\Service\Action\CreateCronScheduleActionInterface;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Magento\Framework\Event;
@@ -62,7 +62,7 @@ class DiscoverEntitiesAfterIntegrationObserverTest extends TestCase
         );
     }
 
-    public function testExecute_WithoutApiKey_DoesNotCallOrchestrator(): void
+    public function testExecute_WithApiKey_DoesNotTriggersAction(): void
     {
         $mockEvent = $this->getMockBuilder(Event::class)
             ->disableOriginalConstructor()
@@ -79,18 +79,19 @@ class DiscoverEntitiesAfterIntegrationObserverTest extends TestCase
             ->method('getEvent')
             ->willReturn($mockEvent);
 
-        $mockOrchestratorService = $this->getMockBuilder(EntityDiscoveryOrchestratorServiceInterface::class)
+        $mockCreateCronScheduleAction = $this->getMockBuilder(CreateCronScheduleActionInterface::class)
+            ->disableOriginalConstructor()
             ->getMock();
-        $mockOrchestratorService->expects($this->never())
+        $mockCreateCronScheduleAction->expects($this->never())
             ->method('execute');
 
         $observer = $this->instantiateTestObject([
-            'discoveryOrchestratorService' => $mockOrchestratorService,
+            'createCronScheduleAction' => $mockCreateCronScheduleAction,
         ]);
         $observer->execute($mockObserver);
     }
 
-    public function testExecute_WithApiKey_DoesNotCallOrchestrator(): void
+    public function testExecute_WithApiKey_TriggersAction(): void
     {
         $apiKey = 'klevu-test-api-key';
 
@@ -109,15 +110,14 @@ class DiscoverEntitiesAfterIntegrationObserverTest extends TestCase
             ->method('getEvent')
             ->willReturn($mockEvent);
 
-        $mockOrchestratorService = $this->getMockBuilder(EntityDiscoveryOrchestratorServiceInterface::class)
+        $mockCreateCronScheduleAction = $this->getMockBuilder(CreateCronScheduleActionInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockOrchestratorService->expects($this->once())
-            ->method('execute')
-            ->with(null, [$apiKey], []);
+        $mockCreateCronScheduleAction->expects($this->once())
+            ->method('execute');
 
         $observer = $this->instantiateTestObject([
-            'discoveryOrchestratorService' => $mockOrchestratorService,
+            'createCronScheduleAction' => $mockCreateCronScheduleAction,
         ]);
         $observer->execute($mockObserver);
     }

@@ -35,5 +35,35 @@
             "PRIMARY": true,
             "KLEVU_INDEXING_ATTRIBUTE_TARGET_ATTRIBUTE_TYPE_TARGET_ID_API_KEY": true
         }
+    },
+    "klevu_indexing_entity_sync_history": {
+        "column": {
+            "entity_id": true,
+            "target_entity_type": true,
+            "target_id": true,
+            "target_parent_id": true,
+            "api_key": true,
+            "action": true,
+            "action_timestamp": true,
+            "is_success": true,
+            "message": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        }
+    },
+    "klevu_indexing_entity_sync_history_consolidation": {
+        "column": {
+            "entity_id": true,
+            "target_entity_type": true,
+            "target_id": true,
+            "target_parent_id": true,
+            "api_key": true,
+            "history": true,
+            "date": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        }
     }
 }

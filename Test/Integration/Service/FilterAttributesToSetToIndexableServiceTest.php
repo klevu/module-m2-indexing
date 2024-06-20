@@ -47,6 +47,20 @@ class FilterAttributesToSetToIndexableServiceTest extends TestCase
         $this->implementationFqcn = FilterAttributesToSetToIndexableService::class;
         $this->interfaceFqcn = FilterAttributesToSetToIndexableServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
+        $this->cleanIndexingAttributes('another-key%');
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->cleanIndexingAttributes('klevu-api-key%');
+        $this->cleanIndexingAttributes('another-key%');
     }
 
     public function testExecute_RemovesMagentoAttributesAlreadyIndexable(): void
