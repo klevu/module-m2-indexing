@@ -16,5 +16,10 @@
                 <remove_indexing_history_after_days>7</remove_indexing_history_after_days>
             </indexing>
         </klevu>
+        <klevu_indexing>
+            <developer>
+                <log_level_indexing>200</log_level_indexing>
+            </developer>
+        </klevu_indexing>
     </default>
 </config>

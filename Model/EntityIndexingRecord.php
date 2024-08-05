@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Model;
 
 use Klevu\IndexingApi\Model\EntityIndexingRecordInterface;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Magento\Cms\Api\Data\PageInterface;
 use Magento\Framework\Api\ExtensibleDataInterface;
 
@@ -26,18 +27,25 @@ class EntityIndexingRecord implements EntityIndexingRecordInterface
      * @var ExtensibleDataInterface|PageInterface|null
      */
     private readonly ExtensibleDataInterface|PageInterface|null $parent;
+    /**
+     * @var Actions
+     */
+    private readonly Actions $action;
 
     /**
      * @param int $recordId
      * @param ExtensibleDataInterface|PageInterface $entity
      * @param ExtensibleDataInterface|PageInterface|null $parent
+     * @param Actions $action
      */
     public function __construct(
         int $recordId,
+        Actions $action,
         ExtensibleDataInterface|PageInterface $entity,
         ExtensibleDataInterface|PageInterface|null $parent = null,
     ) {
         $this->recordId = $recordId;
+        $this->action = $action;
         $this->entity = $entity;
         $this->parent = $parent;
     }
@@ -64,5 +72,13 @@ class EntityIndexingRecord implements EntityIndexingRecordInterface
     public function getParent(): ExtensibleDataInterface|PageInterface|null
     {
         return $this->parent;
+    }
+
+    /**
+     * @return string
+     */
+    public function getAction(): string
+    {
+        return $this->action->value;
     }
 }

@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Test\Integration\Model;
 
 use Klevu\Indexing\Model\EntityIndexingRecord;
 use Klevu\IndexingApi\Model\EntityIndexingRecordInterface;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\TestFixtures\Catalog\ProductTrait;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
@@ -49,6 +50,7 @@ class EntityIndexingRecordTest extends TestCase
         $this->interfaceFqcn = EntityIndexingRecordInterface::class;
         $this->constructorArgumentDefaults = [
             'recordId' => 1,
+            'action' => Actions::ADD,
             'entity' => $this->getMockBuilder(ProductInterface::class)->getMock(),
         ];
         $this->objectManager = Bootstrap::getObjectManager();
@@ -79,6 +81,7 @@ class EntityIndexingRecordTest extends TestCase
 
         $model = $this->instantiateTestObject([
             'recordId' => 1,
+            'action' => Actions::UPDATE,
             'entity' => $productFixture->getProduct(),
         ]);
         $recordId = $model->getRecordId();
@@ -99,6 +102,7 @@ class EntityIndexingRecordTest extends TestCase
 
         $model = $this->instantiateTestObject([
             'recordId' => 1,
+            'action' => Actions::NO_ACTION,
             'entity' => $productFixture->getProduct(),
         ]);
         $entity = $model->getEntity();
@@ -124,6 +128,7 @@ class EntityIndexingRecordTest extends TestCase
 
         $model = $this->instantiateTestObject([
             'recordId' => 1,
+            'action' => Actions::UPDATE,
             'entity' => $productFixture1->getProduct(),
             'parent' => $productFixture2->getProduct(),
         ]);

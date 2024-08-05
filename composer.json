@@ -2,19 +2,19 @@
     "name": "klevu/module-m2-indexing",
     "description": "Provides indexing ability for other Klevu modules to extend",
     "type": "magento2-module",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "require": {
-        "klevu/module-m2-configuration": "0.3.0",
-        "klevu/module-m2-indexing-api": "0.3.0",
-        "klevu/module-m2-indexing-categories": "0.3.0",
-        "klevu/module-m2-indexing-cms": "0.3.0",
-        "klevu/module-m2-indexing-products": "0.3.0",
-        "klevu/module-m2-logger": "0.3.0",
-        "klevu/module-m2-logger-api": "0.3.0",
-        "klevu/module-m2-pipelines": "0.3.0",
-        "klevu/php-pipelines": "0.3.0",
-        "klevu/php-sdk": "0.3.0",
-        "klevu/php-sdk-pipelines": "0.3.0",
+        "klevu/module-m2-configuration": "0.4.0",
+        "klevu/module-m2-indexing-api": "0.4.0",
+        "klevu/module-m2-indexing-categories": "0.4.0",
+        "klevu/module-m2-indexing-cms": "0.4.0",
+        "klevu/module-m2-indexing-products": "0.4.0",
+        "klevu/module-m2-logger": "0.4.0",
+        "klevu/module-m2-logger-api": "0.4.0",
+        "klevu/module-m2-pipelines": "0.4.0",
+        "klevu/php-pipelines": "0.4.0",
+        "klevu/php-sdk": "0.4.0",
+        "klevu/php-sdk-pipelines": "0.4.0",
         "magento/framework": "^103.0.4",
         "magento/module-ui": "^101.2.4",
         "monolog/monolog": "@stable",
@@ -22,7 +22,7 @@
         "psr/log": "@stable"
     },
     "require-dev": {
-        "klevu/module-m2-test-fixtures": "0.3.0"
+        "klevu/module-m2-test-fixtures": "0.4.0"
     },
     "autoload": {
         "files": [

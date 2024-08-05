@@ -266,8 +266,7 @@ class ConsolidateSyncHistoryServiceTest extends TestCase
         )
             ->disableOriginalConstructor()
             ->getMock();
-        $mockSyncConsolidationRepo->expects($this->once())
-            ->method('save')
+        $mockSyncConsolidationRepo->method('save')
             ->willThrowException($exception);
 
         $mockSyncRepo = $this->getMockBuilder(SyncHistoryEntityRepositoryInterface::class)

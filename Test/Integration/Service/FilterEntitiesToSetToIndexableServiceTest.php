@@ -89,7 +89,7 @@ class FilterEntitiesToSetToIndexableServiceTest extends TestCase
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 3,
             IndexingEntity::IS_INDEXABLE => false,
-            IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingEntity::NEXT_ACTION => Actions::DELETE,
         ]);
         $indexingEntity4 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
@@ -98,6 +98,13 @@ class FilterEntitiesToSetToIndexableServiceTest extends TestCase
             IndexingEntity::TARGET_PARENT_ID => 99,
             IndexingEntity::IS_INDEXABLE => false,
             IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
+        ]);
+        $indexingEntity5 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 5,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::NEXT_ACTION => Actions::DELETE,
         ]);
 
         $magentoEntityInterfaceFactory = $this->objectManager->get(MagentoEntityInterfaceFactory::class);
@@ -122,15 +129,21 @@ class FilterEntitiesToSetToIndexableServiceTest extends TestCase
             'apiKey' => $apiKey,
             'isIndexable' => true,
         ]);
+        $magentoEntities[$apiKey][5] = $magentoEntityInterfaceFactory->create([
+            'entityId' => 5,
+            'apiKey' => $apiKey,
+            'isIndexable' => true,
+        ]);
 
         $service = $this->instantiateTestObject();
         $result = $service->execute($magentoEntities, 'KLEVU_PRODUCT');
 
-        $this->assertCount(expectedCount: 3, haystack: $result);
+        $this->assertCount(expectedCount: 4, haystack: $result);
         $this->assertContains(needle: (int)$indexingEntity1->getId(), haystack: $result);
         $this->assertContains(needle: (int)$indexingEntity2->getId(), haystack: $result);
         $this->assertNotContains(needle: (int)$indexingEntity3->getId(), haystack: $result);
         $this->assertContains(needle: (int)$indexingEntity4->getId(), haystack: $result);
+        $this->assertContains(needle: (int)$indexingEntity5->getId(), haystack: $result);
     }
 
     /**

@@ -13,11 +13,11 @@ use Klevu\Indexing\Model\IndexingEntity;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
-use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToBeIndexableActionInterface;
+use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToNotBeIndexableActionInterface;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Psr\Log\LoggerInterface;
 
-class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeIndexableActionInterface
+class SetIndexingEntitiesToNotBeIndexableAction implements SetIndexingEntitiesToNotBeIndexableActionInterface
 {
     /**
      * @var IndexingEntityRepositoryInterface
@@ -61,21 +61,12 @@ class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeI
         $failed = [];
         $indexingEntities = $this->getIndexingEntities($entityIds);
         foreach ($indexingEntities as $indexingEntity) {
-            if ($indexingEntity->getIsIndexable() && $indexingEntity->getNextAction() !== Actions::DELETE) {
+            if (!$indexingEntity->getIsIndexable()) {
                 continue;
             }
             try {
-                $isNextActionUpdateRequired = in_array(
-                    needle: $indexingEntity->getLastAction(),
-                    haystack: [Actions::NO_ACTION, Actions::DELETE],
-                    strict: true,
-                );
-                $indexingEntity->setNextAction(
-                    nextAction: $isNextActionUpdateRequired
-                        ? Actions::ADD
-                        : Actions::NO_ACTION,
-                );
-                $indexingEntity->setIsIndexable(isIndexable: true);
+                $indexingEntity->setNextAction(nextAction: Actions::NO_ACTION);
+                $indexingEntity->setIsIndexable(isIndexable: false);
                 $this->indexingEntityRepository->save(indexingEntity: $indexingEntity);
             } catch (\Exception $exception) {
                 $failed[] = $indexingEntity->getId();

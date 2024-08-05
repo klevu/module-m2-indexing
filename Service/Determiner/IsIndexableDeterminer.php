@@ -42,17 +42,23 @@ class IsIndexableDeterminer implements IsIndexableDeterminerInterface
     /**
      * @param ExtensibleDataInterface|PageInterface $entity
      * @param StoreInterface $store
+     * @param string $entitySubtype
      *
      * @return bool
      */
     public function execute(
         ExtensibleDataInterface|PageInterface $entity,
         StoreInterface $store,
+        string $entitySubtype = '',
     ): bool {
         $isIndexable = true;
         $isDebuggingEnabled = $this->isDebugLoggingEnabled($store);
         foreach ($this->isIndexableDeterminers as $isIndexableDeterminer) {
-            $isIndexable = $isIndexable && $isIndexableDeterminer->execute(entity: $entity, store: $store);
+            $isIndexable = $isIndexable && $isIndexableDeterminer->execute(
+                entity: $entity,
+                store: $store,
+                entitySubtype: $entitySubtype,
+            );
             if (!$isIndexable && !$isDebuggingEnabled) {
                 break;
             }

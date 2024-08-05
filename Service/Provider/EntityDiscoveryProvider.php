@@ -162,6 +162,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                 $isIndexable = $this->isIndexableDeterminer->execute(
                     entity: $entity,
                     store: $store,
+                    entitySubtype: $entityProvider->getEntitySubtype(),
                 );
                 $magentoEntities = $this->setMagentoEntity(
                     magentoEntities: $magentoEntities,

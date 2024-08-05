@@ -48,14 +48,13 @@ class CreateCronScheduleForEntityDiscoveryActionTest extends TestCase
 
     public function testExecute_CreateCronSchedule(): void
     {
-        $jobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
-        $this->assertCount(expectedCount: 0, haystack: $jobs);
+        $origJobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
 
         $action = $this->instantiateTestObject();
         $action->execute();
 
         $jobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
-        $this->assertCount(expectedCount: 1, haystack: $jobs);
+        $this->assertCount(expectedCount: count($origJobs) + 1, haystack: $jobs);
         $job = array_shift($jobs);
 
         $this->assertSame(expected: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY, actual: $job->getJobCode());
@@ -92,8 +91,7 @@ class CreateCronScheduleForEntityDiscoveryActionTest extends TestCase
         $mockLogger->expects($this->never())
             ->method('error');
 
-        $jobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
-        $this->assertCount(expectedCount: 0, haystack: $jobs);
+        $origJobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
 
         $action = $this->instantiateTestObject([
             'scheduleResourceModel' => $mockScheduleResourceModel,
@@ -102,7 +100,7 @@ class CreateCronScheduleForEntityDiscoveryActionTest extends TestCase
         $action->execute();
 
         $jobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
-        $this->assertCount(expectedCount: 0, haystack: $jobs);
+        $this->assertCount(expectedCount: count($origJobs), haystack: $jobs);
     }
 
     public function testExecute_LogsError_WhenExceptinThrown(): void
@@ -130,8 +128,7 @@ class CreateCronScheduleForEntityDiscoveryActionTest extends TestCase
                 ],
             );
 
-        $jobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
-        $this->assertCount(expectedCount: 0, haystack: $jobs);
+        $origJobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
 
         $action = $this->instantiateTestObject([
             'scheduleResourceModel' => $mockScheduleResourceModel,
@@ -140,7 +137,7 @@ class CreateCronScheduleForEntityDiscoveryActionTest extends TestCase
         $action->execute();
 
         $jobs = $this->getCronSchedule(jobCode: Constants::CRON_JOB_CODE_INDEXING_ENTITY_DISCOVERY);
-        $this->assertCount(expectedCount: 0, haystack: $jobs);
+        $this->assertCount(expectedCount: count($origJobs), haystack: $jobs);
     }
 
     /**

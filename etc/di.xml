@@ -71,6 +71,9 @@
     <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToBeIndexableActionInterface"
                 type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToBeIndexableAction"/>
 
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToNotBeIndexableActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToNotBeIndexableAction"/>
+
     <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToDeleteActionInterface"
                 type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToDeleteAction"/>
 
@@ -79,6 +82,9 @@
 
     <preference for="Klevu\IndexingApi\Service\Action\UpdateIndexingEntitiesActionsActionInterface"
                 type="Klevu\Indexing\Service\Action\UpdateIndexingEntitiesActionsAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\AttributeConflictHandlerServiceInterface"
+                type="Klevu\Indexing\Service\AttributeConflictHandlerService"/>
 
     <preference for="Klevu\IndexingApi\Service\AttributeDiscoveryOrchestratorServiceInterface"
                 type="Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService"/>
@@ -128,6 +134,9 @@
     <preference for="Klevu\IndexingApi\Service\FilterEntitiesToSetToIndexableServiceInterface"
                 type="Klevu\Indexing\Service\FilterEntitiesToSetToIndexableService"/>
 
+    <preference for="Klevu\IndexingApi\Service\FilterEntitiesToSetToNotIndexableServiceInterface"
+                type="Klevu\Indexing\Service\FilterEntitiesToSetToNotIndexableService"/>
+
     <preference for="Klevu\IndexingApi\Service\FilterEntitiesToUpdateServiceInterface"
                 type="Klevu\Indexing\Service\FilterEntitiesToUpdateService"/>
 
@@ -136,6 +145,12 @@
 
     <preference for="Klevu\IndexingApi\Service\Provider\AttributeSyncProviderInterface"
                 type="Klevu\Indexing\Service\Provider\AttributeSyncProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\ConflictingAttributeNamesProviderInterface"
+                type="Klevu\Indexing\Service\Provider\ConflictingAttributeNamesProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\DuplicateAttributeMappingProviderInterface"
+                type="Klevu\Indexing\Service\Provider\DuplicateAttributeMappingProvider"/>
 
     <preference for="Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface"
                 type="Klevu\Indexing\Service\Provider\IndexingAttributeProvider"/>
@@ -200,7 +215,7 @@
                  type="Klevu\Logger\Service\IsLoggingEnabledService">
         <arguments>
             <argument name="minLogLevelConfigPath"
-                      xsi:type="string">klevu_frontend/developer/log_level_indexing</argument>
+                      xsi:type="string">klevu_indexing/developer/log_level_indexing</argument>
         </arguments>
     </virtualType>
 
@@ -268,6 +283,12 @@
         </arguments>
     </type>
 
+    <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToNotBeIndexableAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
     <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToDeleteAction">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
@@ -288,6 +309,8 @@
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
             <argument name="userAgentProvider"
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\UserAgentProvider</argument>
+            <argument name="httpClient" xsi:type="object">GuzzleHttp\Client</argument>
+            <argument name="requestFactory" xsi:type="object">GuzzleHttp\Psr7\HttpFactory</argument>
         </arguments>
     </virtualType>
 
@@ -327,6 +350,10 @@
                       xsi:type="string">Klevu\Indexing\Service\Indexing\Batch\DeleteService</item>
                 <item name="Klevu\PhpSDK\Service\Indexing\Batch\DeleteService"
                       xsi:type="string">Klevu\Indexing\Service\Indexing\Batch\DeleteService</item>
+                <item name="Klevu\PhpSDK\Service\Indexing\AttributesService"
+                      xsi:type="string">Klevu\Indexing\Service\Indexing\AttributesService</item>
+                <item name="Klevu\PhpSDK\Api\Service\Indexing\AttributesServiceInterface"
+                      xsi:type="string">Klevu\Indexing\Service\Indexing\AttributesService</item>
             </argument>
         </arguments>
     </type>
@@ -357,6 +384,8 @@
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
             <argument name="userAgentProvider"
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\UserAgentProvider</argument>
+            <argument name="httpClient" xsi:type="object">GuzzleHttp\Client</argument>
+            <argument name="requestFactory" xsi:type="object">GuzzleHttp\Psr7\HttpFactory</argument>
         </arguments>
     </virtualType>
 
@@ -368,6 +397,8 @@
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\BaseUrlsProvider</argument>
             <argument name="userAgentProvider"
                       xsi:type="object">Klevu\Configuration\Service\Provider\Sdk\UserAgentProvider</argument>
+            <argument name="requestFactory" xsi:type="object">GuzzleHttp\Psr7\HttpFactory</argument>
+            <argument name="httpClient" xsi:type="object">GuzzleHttp\Client</argument>
         </arguments>
     </virtualType>
 
@@ -573,16 +604,14 @@
     <type name="Klevu\Indexing\Observer\DiscoverEntitiesAfterIntegrationObserver">
         <arguments>
             <argument name="createCronScheduleAction"
-                      xsi:type="object">Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction
-            </argument>
+                      xsi:type="object">Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction</argument>
         </arguments>
     </type>
 
     <type name="Klevu\Indexing\Observer\DiscoverEntitiesAfterIntegrationRemovalObserver">
         <arguments>
             <argument name="createCronScheduleAction"
-                      xsi:type="object">Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction
-            </argument>
+                      xsi:type="object">Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction</argument>
         </arguments>
     </type>
 
@@ -624,6 +653,18 @@
         <arguments>
             <argument name="consolidateCronConfigSettingsAction"
                       xsi:type="object">Klevu\Indexing\Service\Action\ConsolidateEntitySyncCronConfigSettingsAction</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\AttributeConflictHandlerService">
+        <arguments>
+            <argument name="serializer" xsi:type="object">\Magento\Framework\Serialize\Serializer\Json</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Provider\Sync\EntityIndexingRecordProvider">
+        <arguments>
+            <argument name="batchSize" xsi:type="number">2500</argument>
         </arguments>
     </type>
 

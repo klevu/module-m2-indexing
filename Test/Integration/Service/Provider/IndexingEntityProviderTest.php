@@ -426,4 +426,269 @@ class IndexingEntityProviderTest extends TestCase
 
         $this->cleanIndexingEntities($apiKey);
     }
+
+    public function testGet_ReturnsIndexingEntities_ByPage(): void
+    {
+        $apiKey = 'klevu-js-api-key';
+        $this->cleanIndexingEntities($apiKey);
+
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 321,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 789,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 654,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 987,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 623532,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 359839,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 23431,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 1211,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+
+        $provider = $this->instantiateTestObject();
+        $results = $provider->get(
+            apiKey: $apiKey,
+            sorting: [
+                SortOrder::FIELD => IndexingEntity::TARGET_ID,
+                SortOrder::DIRECTION => SortOrder::SORT_ASC,
+            ],
+            pageSize: 2,
+            currentPage: 2,
+        );
+        $this->assertCount(expectedCount: 2, haystack: $results);
+        $targetIds = array_map(
+            static fn (IndexingEntityInterface $indexingEntity): int => ($indexingEntity->getTargetId()),
+            $results,
+        );
+        $this->assertContains(789, $targetIds);
+        $this->assertContains(987, $targetIds);
+
+        /** @var IndexingEntity $firstItem */
+        $firstItem = array_shift($results);
+        $this->assertSame(expected: 789, actual: $firstItem->getTargetId());
+        /** @var IndexingEntity $secondItem */
+        $secondItem = array_shift($results);
+        $this->assertSame(expected: 987, actual: $secondItem->getTargetId());
+
+        $results = $provider->get(
+            apiKey: $apiKey,
+            sorting: [
+                SortOrder::FIELD => IndexingEntity::TARGET_ID,
+                SortOrder::DIRECTION => SortOrder::SORT_ASC,
+            ],
+            pageSize: 2,
+            currentPage: 4,
+        );
+        $this->assertCount(expectedCount: 2, haystack: $results);
+        $targetIds = array_map(
+            static fn (IndexingEntityInterface $indexingEntity): int => ($indexingEntity->getTargetId()),
+            $results,
+        );
+        $this->assertContains(359839, $targetIds);
+        $this->assertContains(623532, $targetIds);
+
+        /** @var IndexingEntity $firstItem */
+        $firstItem = array_shift($results);
+        $this->assertSame(expected: 359839, actual: $firstItem->getTargetId());
+        /** @var IndexingEntity $secondItem */
+        $secondItem = array_shift($results);
+        $this->assertSame(expected: 623532, actual: $secondItem->getTargetId());
+
+        $this->cleanIndexingEntities($apiKey);
+    }
+
+    /**
+     * @dataProvider testGet_ReturnsEmptyArray_WhenPageNumberExceedsLimit_DataProvider
+     */
+    public function testGet_ReturnsEmptyArray_WhenPageNumberExceedsLimit(?int $pageSize, ?int $pageNumber): void
+    {
+        $apiKey = 'klevu-js-api-key';
+        $this->cleanIndexingEntities($apiKey);
+
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 5,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 6,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 7,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 8,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 9,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 10,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+
+        $provider = $this->instantiateTestObject();
+        $results = $provider->get(
+            apiKey: $apiKey,
+            pageSize: $pageSize,
+            currentPage: $pageNumber,
+        );
+        $this->assertCount(expectedCount: 0, haystack: $results);
+
+        $this->cleanIndexingEntities($apiKey);
+    }
+
+    /**
+     * @return int[][]
+     */
+    public function testGet_ReturnsEmptyArray_WhenPageNumberExceedsLimit_DataProvider(): array
+    {
+        return[
+            [3, 999999],
+            [3, 5],
+            [10, 2],
+        ];
+    }
+
+    /**
+     * @dataProvider testGet_ReturnsIndexingEntities_ForFinalPage_DataProvider
+     */
+    public function testGet_ReturnsIndexingEntities_ForFinalPage(
+        ?int $pageSize,
+        ?int $pageNumber,
+        int $expectedCount,
+    ): void {
+        $apiKey = 'klevu-js-api-key';
+        $this->cleanIndexingEntities($apiKey);
+
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 5,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 6,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 7,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 8,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 9,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 10,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+
+        $provider = $this->instantiateTestObject();
+        $results = $provider->get(
+            apiKey: $apiKey,
+            pageSize: $pageSize,
+            currentPage: $pageNumber,
+        );
+        $this->assertCount(expectedCount: $expectedCount, haystack: $results);
+
+        $this->cleanIndexingEntities($apiKey);
+    }
+
+    /**
+     * @return int[][]
+     */
+    public function testGet_ReturnsIndexingEntities_ForFinalPage_DataProvider(): array
+    {
+        return[
+            [3, 4, 1],
+            [10, 1, 10],
+            [null, null, 10],
+        ];
+    }
 }

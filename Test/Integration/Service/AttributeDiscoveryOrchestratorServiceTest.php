@@ -21,6 +21,7 @@ use Klevu\IndexingApi\Service\Action\AddIndexingAttributesActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToBeIndexableActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToDeleteActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToUpdateActionInterface;
+use Klevu\IndexingApi\Service\AttributeConflictHandlerServiceInterface;
 use Klevu\IndexingApi\Service\AttributeDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\FilterAttributesToAddServiceInterface;
 use Klevu\IndexingApi\Service\FilterAttributesToDeleteServiceInterface;
@@ -30,6 +31,7 @@ use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -86,6 +88,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         $service = $this->instantiateTestObject([
             'logger' => $mockLogger,
             'discoveryProviders' => [],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute();
 
@@ -117,6 +120,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'products' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_CMS');
 
@@ -152,6 +156,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'products' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_PRODUCT');
 
@@ -219,6 +224,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'products' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_PRODUCT');
 
@@ -313,6 +319,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'products' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_PRODUCT');
 
@@ -423,6 +430,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'products' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_PRODUCT', apiKeys: [$apiKey], attributeIds: [1, 2]);
 
@@ -537,6 +545,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'category' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], attributeIds: [1, 2]);
 
@@ -650,6 +659,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'categories' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], attributeIds: [1, 2]);
 
@@ -759,6 +769,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             'discoveryProviders' => [
                 'categories' => $mockProvider,
             ],
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
         $result = $service->execute(attributeType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], attributeIds: [1, 2]);
 
@@ -771,5 +782,18 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             haystack: $messages,
             message: 'Expected Message Exists',
         );
+    }
+
+    /**
+     * @return MockObject&AttributeConflictHandlerServiceInterface
+     */
+    private function getMockAttributeConflictHandlerService(): MockObject
+    {
+        $mockAttributeConflictHandlerService = $this->getMockBuilder(AttributeConflictHandlerServiceInterface::class)
+            ->getMock();
+        $mockAttributeConflictHandlerService->expects($this->once())
+            ->method('execute');
+
+        return $mockAttributeConflictHandlerService;
     }
 }

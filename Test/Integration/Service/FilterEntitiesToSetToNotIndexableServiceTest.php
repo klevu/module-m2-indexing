@@ -9,13 +9,13 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Service;
 
 use Klevu\Indexing\Model\IndexingEntity;
-use Klevu\Indexing\Service\FilterEntitiesToDeleteService;
+use Klevu\Indexing\Service\FilterEntitiesToSetToNotIndexableService;
 use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterfaceFactory;
 use Klevu\IndexingApi\Model\Source\Actions;
-use Klevu\IndexingApi\Service\FilterEntitiesToDeleteServiceInterface;
+use Klevu\IndexingApi\Service\FilterEntitiesToSetToNotIndexableServiceInterface;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
@@ -26,13 +26,15 @@ use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 
+// phpcs:disable Generic.Files.LineLength.TooLong
 /**
- * @covers \Klevu\Indexing\Service\FilterEntitiesToDeleteService::class
- * @method FilterEntitiesToDeleteServiceInterface instantiateTestObject(?array $arguments = null)
- * @method FilterEntitiesToDeleteServiceInterface instantiateTestObjectFromInterface(?array $arguments = null)
+ * @covers \Klevu\Indexing\Service\FilterEntitiesToSetToNotIndexableService::class
+ * @method FilterEntitiesToSetToNotIndexableServiceInterface instantiateTestObject(?array $arguments = null)
+ * @method FilterEntitiesToSetToNotIndexableServiceInterface instantiateTestObjectFromInterface(?array $arguments = null)
  */
-class FilterEntitiesToDeleteServiceTest extends TestCase
+class FilterEntitiesToSetToNotIndexableServiceTest extends TestCase
 {
+    // phpcs:enable Generic.Files.LineLength.TooLong
     use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
@@ -50,8 +52,8 @@ class FilterEntitiesToDeleteServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->implementationFqcn = FilterEntitiesToDeleteService::class;
-        $this->interfaceFqcn = FilterEntitiesToDeleteServiceInterface::class;
+        $this->implementationFqcn = FilterEntitiesToSetToNotIndexableService::class;
+        $this->interfaceFqcn = FilterEntitiesToSetToNotIndexableServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
 
         $this->cleanIndexingEntities('klevu-api-key%');
@@ -67,120 +69,7 @@ class FilterEntitiesToDeleteServiceTest extends TestCase
         $this->cleanIndexingEntities('klevu-api-key%');
     }
 
-    public function testExecute_ReturnsEntityIdsToDelete_whichHaveBeenDisabled(): void
-    {
-        $apiKey = 'klevu-api-key';
-        $indexingEntity1 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 1,
-            IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::ADD,
-        ]);
-        $indexingEntity2 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 2,
-            IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::UPDATE,
-        ]);
-        $indexingEntity3 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 3,
-            IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::ADD,
-        ]);
-        $indexingEntity4 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 4,
-            IndexingEntity::IS_INDEXABLE => false,
-            IndexingEntity::LAST_ACTION => Actions::DELETE,
-        ]);
-
-        $magentoEntityInterfaceFactory = $this->objectManager->get(MagentoEntityInterfaceFactory::class);
-        $magentoEntities[$apiKey][1] = $magentoEntityInterfaceFactory->create([
-            'entityId' => 1,
-            'apiKey' => $apiKey,
-            'isIndexable' => true,
-        ]);
-        $magentoEntities[$apiKey][2] = $magentoEntityInterfaceFactory->create([
-            'entityId' => 2,
-            'apiKey' => $apiKey,
-            'isIndexable' => false,
-        ]);
-        $magentoEntities[$apiKey][3] = $magentoEntityInterfaceFactory->create([
-            'entityId' => 3,
-            'apiKey' => $apiKey,
-            'isIndexable' => false,
-        ]);
-        $magentoEntities[$apiKey][4] = $magentoEntityInterfaceFactory->create([
-            'entityId' => 4,
-            'apiKey' => $apiKey,
-            'isIndexable' => false,
-        ]);
-
-        $service = $this->instantiateTestObject();
-        $result = $service->execute($magentoEntities, 'KLEVU_PRODUCTS');
-
-        $this->assertCount(expectedCount: 2, haystack: $result);
-        $this->assertNotContains(needle: (int)$indexingEntity1->getId(), haystack: $result);
-        $this->assertContains(needle: (int)$indexingEntity2->getId(), haystack: $result);
-        $this->assertContains(needle: (int)$indexingEntity3->getId(), haystack: $result);
-        $this->assertNotContains(needle: (int)$indexingEntity4->getId(), haystack: $result);
-    }
-
-    public function testExecute_ReturnsEntityIdsToDelete_whichHaveBeenDeleted(): void
-    {
-        $apiKey = 'klevu-api-key';
-        $indexingEntity1 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 1,
-            IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::ADD,
-        ]);
-        $indexingEntity2 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 2,
-            IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::ADD,
-        ]);
-        $indexingEntity3 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 3,
-            IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::UPDATE,
-        ]);
-        $indexingEntity4 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
-            IndexingEntity::API_KEY => $apiKey,
-            IndexingEntity::TARGET_ID => 4,
-            IndexingEntity::IS_INDEXABLE => false,
-            IndexingEntity::LAST_ACTION => Actions::DELETE,
-        ]);
-
-        $magentoEntityInterfaceFactory = $this->objectManager->get(MagentoEntityInterfaceFactory::class);
-        $magentoEntities[$apiKey][1] = $magentoEntityInterfaceFactory->create([
-            'entityId' => 1,
-            'apiKey' => $apiKey,
-            'isIndexable' => true,
-        ]);
-
-        $service = $this->instantiateTestObject();
-        $result = $service->execute($magentoEntities, 'KLEVU_PRODUCTS');
-
-        $this->assertCount(expectedCount: 2, haystack: $result);
-        $this->assertNotContains(needle: (int)$indexingEntity1->getId(), haystack: $result);
-        $this->assertContains(needle: (int)$indexingEntity2->getId(), haystack: $result);
-        $this->assertContains(needle: (int)$indexingEntity3->getId(), haystack: $result);
-        $this->assertNotContains(needle: (int)$indexingEntity4->getId(), haystack: $result);
-    }
-
-    public function testExecute_DoesNotReturnsEntityIdsToDelete_whichHaveNeverBeenSynced(): void
+    public function testExecute_ReturnsEntityIdsToSetToNotIndexable_whichHaveBeenDisabled(): void
     {
         $apiKey = 'klevu-api-key';
         $indexingEntity1 = $this->createIndexingEntity([
@@ -195,14 +84,127 @@ class FilterEntitiesToDeleteServiceTest extends TestCase
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 2,
             IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::ADD,
+            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
         ]);
         $indexingEntity3 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 3,
             IndexingEntity::IS_INDEXABLE => true,
-            IndexingEntity::LAST_ACTION => Actions::UPDATE,
+            IndexingEntity::LAST_ACTION => Actions::DELETE,
+        ]);
+        $indexingEntity4 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::IS_INDEXABLE => false,
+            IndexingEntity::LAST_ACTION => Actions::DELETE,
+        ]);
+
+        $magentoEntityInterfaceFactory = $this->objectManager->get(MagentoEntityInterfaceFactory::class);
+        $magentoEntities[$apiKey][1] = $magentoEntityInterfaceFactory->create([
+            'entityId' => 1,
+            'apiKey' => $apiKey,
+            'isIndexable' => true,
+        ]);
+        $magentoEntities[$apiKey][2] = $magentoEntityInterfaceFactory->create([
+            'entityId' => 2,
+            'apiKey' => $apiKey,
+            'isIndexable' => false,
+        ]);
+        $magentoEntities[$apiKey][3] = $magentoEntityInterfaceFactory->create([
+            'entityId' => 3,
+            'apiKey' => $apiKey,
+            'isIndexable' => false,
+        ]);
+        $magentoEntities[$apiKey][4] = $magentoEntityInterfaceFactory->create([
+            'entityId' => 4,
+            'apiKey' => $apiKey,
+            'isIndexable' => false,
+        ]);
+
+        $service = $this->instantiateTestObject();
+        $result = $service->execute($magentoEntities, 'KLEVU_PRODUCTS');
+
+        $this->assertCount(expectedCount: 2, haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity1->getId(), haystack: $result);
+        $this->assertContains(needle: (int)$indexingEntity2->getId(), haystack: $result);
+        $this->assertContains(needle: (int)$indexingEntity3->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity4->getId(), haystack: $result);
+    }
+
+    public function testExecute_ReturnsEntityIdsToSetToNotIndexable_whichHaveBeenDeleted(): void
+    {
+        $apiKey = 'klevu-api-key';
+        $indexingEntity1 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+        ]);
+        $indexingEntity2 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+        ]);
+        $indexingEntity3 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::LAST_ACTION => Actions::DELETE,
+        ]);
+        $indexingEntity4 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::IS_INDEXABLE => false,
+            IndexingEntity::LAST_ACTION => Actions::DELETE,
+        ]);
+
+        $magentoEntityInterfaceFactory = $this->objectManager->get(MagentoEntityInterfaceFactory::class);
+        $magentoEntities[$apiKey][1] = $magentoEntityInterfaceFactory->create([
+            'entityId' => 1,
+            'apiKey' => $apiKey,
+            'isIndexable' => true,
+        ]);
+
+        $service = $this->instantiateTestObject();
+        $result = $service->execute($magentoEntities, 'KLEVU_PRODUCTS');
+
+        $this->assertCount(expectedCount: 2, haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity1->getId(), haystack: $result);
+        $this->assertContains(needle: (int)$indexingEntity2->getId(), haystack: $result);
+        $this->assertContains(needle: (int)$indexingEntity3->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity4->getId(), haystack: $result);
+    }
+
+    public function testExecute_DoesNotReturnsEntityIdsToSetTonotIndexale_whichHaveBeenSynced(): void
+    {
+        $apiKey = 'klevu-api-key';
+        $indexingEntity1 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
+        ]);
+        $indexingEntity2 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+        ]);
+        $indexingEntity3 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::LAST_ACTION => Actions::DELETE,
         ]);
         $indexingEntity4 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
@@ -243,7 +245,7 @@ class FilterEntitiesToDeleteServiceTest extends TestCase
         $this->assertContains(needle: (int)$indexingEntity3->getId(), haystack: $result);
         $this->assertNotContains(needle: (int)$indexingEntity4->getId(), haystack: $result);
     }
-    
+
     /**
      * @param mixed[] $data
      *

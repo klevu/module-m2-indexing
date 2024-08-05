@@ -15,11 +15,13 @@ use Klevu\IndexingApi\Model\MagentoEntityInterface;
 use Klevu\IndexingApi\Service\Action\AddIndexingEntitiesActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToBeIndexableActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToDeleteActionInterface;
+use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToNotBeIndexableActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToUpdateActionInterface;
 use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\FilterEntitiesToAddServiceInterface;
 use Klevu\IndexingApi\Service\FilterEntitiesToDeleteServiceInterface;
 use Klevu\IndexingApi\Service\FilterEntitiesToSetToIndexableServiceInterface;
+use Klevu\IndexingApi\Service\FilterEntitiesToSetToNotIndexableServiceInterface;
 use Klevu\IndexingApi\Service\FilterEntitiesToUpdateServiceInterface;
 use Klevu\IndexingApi\Service\Provider\EntityDiscoveryProviderInterface;
 use Magento\Framework\Exception\LocalizedException;
@@ -52,6 +54,10 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      */
     private readonly FilterEntitiesToSetToIndexableServiceInterface $filterEntitiesToSetToIndexableService;
     /**
+     * @var FilterEntitiesToSetToNotIndexableServiceInterface
+     */
+    private readonly FilterEntitiesToSetToNotIndexableServiceInterface $filterEntitiesToSetToNotIndexableService;
+    /**
      * @var AddIndexingEntitiesActionInterface
      */
     private readonly AddIndexingEntitiesActionInterface $addIndexingEntitiesAction;
@@ -67,6 +73,10 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @var SetIndexingEntitiesToBeIndexableActionInterface
      */
     private readonly SetIndexingEntitiesToBeIndexableActionInterface $setIndexingEntitiesToBeIndexableAction;
+    /**
+     * @var SetIndexingEntitiesToNotBeIndexableActionInterface
+     */
+    private readonly SetIndexingEntitiesToNotBeIndexableActionInterface $setIndexingEntitiesToNotBeIndexableAction;
     /**
      * @var EntityDiscoveryProviderInterface[]
      */
@@ -91,10 +101,12 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param FilterEntitiesToDeleteServiceInterface $filterEntitiesToDeleteService
      * @param FilterEntitiesToUpdateServiceInterface $filterEntitiesToUpdateService
      * @param FilterEntitiesToSetToIndexableServiceInterface $filterEntitiesToSetToIndexableService
+     * @param FilterEntitiesToSetToNotIndexableServiceInterface $filterEntitiesToSetToNotIndexableService
      * @param AddIndexingEntitiesActionInterface $addIndexingEntitiesAction
      * @param SetIndexingEntitiesToDeleteActionInterface $setIndexingEntitiesToDeleteAction
      * @param SetIndexingEntitiesToUpdateActionInterface $setIndexingEntitiesToUpdateAction
      * @param SetIndexingEntitiesToBeIndexableActionInterface $setIndexingEntitiesToBeIndexableAction
+     * @param SetIndexingEntitiesToNotBeIndexableActionInterface $setIndexingEntitiesToNotBeIndexableAction
      * @param EntityDiscoveryProviderInterface[] $discoveryProviders
      */
     public function __construct(
@@ -104,10 +116,12 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         FilterEntitiesToDeleteServiceInterface $filterEntitiesToDeleteService,
         FilterEntitiesToUpdateServiceInterface $filterEntitiesToUpdateService,
         FilterEntitiesToSetToIndexableServiceInterface $filterEntitiesToSetToIndexableService,
+        FilterEntitiesToSetToNotIndexableServiceInterface $filterEntitiesToSetToNotIndexableService,
         AddIndexingEntitiesActionInterface $addIndexingEntitiesAction,
         SetIndexingEntitiesToDeleteActionInterface $setIndexingEntitiesToDeleteAction,
         SetIndexingEntitiesToUpdateActionInterface $setIndexingEntitiesToUpdateAction,
         SetIndexingEntitiesToBeIndexableActionInterface $setIndexingEntitiesToBeIndexableAction,
+        SetIndexingEntitiesToNotBeIndexableActionInterface $setIndexingEntitiesToNotBeIndexableAction,
         array $discoveryProviders = [],
     ) {
         $this->logger = $logger;
@@ -116,10 +130,12 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         $this->filterEntitiesToDeleteService = $filterEntitiesToDeleteService;
         $this->filterEntitiesToUpdateService = $filterEntitiesToUpdateService;
         $this->filterEntitiesToSetToIndexableService = $filterEntitiesToSetToIndexableService;
+        $this->filterEntitiesToSetToNotIndexableService = $filterEntitiesToSetToNotIndexableService;
         $this->addIndexingEntitiesAction = $addIndexingEntitiesAction;
         $this->setIndexingEntitiesToDeleteAction = $setIndexingEntitiesToDeleteAction;
         $this->setIndexingEntitiesToUpdateAction = $setIndexingEntitiesToUpdateAction;
         $this->setIndexingEntitiesToBeIndexableAction = $setIndexingEntitiesToBeIndexableAction;
+        $this->setIndexingEntitiesToNotBeIndexableAction = $setIndexingEntitiesToNotBeIndexableAction;
         array_walk($discoveryProviders, [$this, 'addDiscoveryProvider']);
     }
 
@@ -163,8 +179,14 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
                 apiKeys: array_keys($magentoEntitiesByApiKey),
                 entityIds: $entityIds,
             );
-            // set entities that are no longer indexable to next action delete
+            // set entities that are no longer indexable to and have been indexed to next action delete
             $this->setNonIndexableEntitiesToDelete(
+                type: $type,
+                magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
+                entityIds: $entityIds ?? [],
+            );
+            // set entities that are no longer indexable and never synced to not indexable, next action none
+            $this->setNonIndexableNonIndexedEntitiesToNotIndexable(
                 type: $type,
                 magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
                 entityIds: $entityIds ?? [],
@@ -335,6 +357,32 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
 
         try {
             $this->setIndexingEntitiesToDeleteAction->execute(entityIds: $klevuEntityIds);
+        } catch (IndexingEntitySaveException $exception) {
+            $this->success = false;
+            $this->messages[] = $exception->getMessage();
+        }
+    }
+
+    /**
+     * @param string $type
+     * @param MagentoEntityInterface[][] $magentoEntitiesByApiKey
+     * @param int[] $entityIds
+     *
+     * @return void
+     */
+    private function setNonIndexableNonIndexedEntitiesToNotIndexable(
+        string $type,
+        array $magentoEntitiesByApiKey,
+        array $entityIds,
+    ): void {
+        $klevuEntityIds = $this->filterEntitiesToSetToNotIndexableService->execute(
+            magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
+            type: $type,
+            entityIds: $entityIds,
+        );
+
+        try {
+            $this->setIndexingEntitiesToNotBeIndexableAction->execute(entityIds: $klevuEntityIds);
         } catch (IndexingEntitySaveException $exception) {
             $this->success = false;
             $this->messages[] = $exception->getMessage();

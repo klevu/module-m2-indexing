@@ -11,10 +11,10 @@ namespace Klevu\Indexing\Service;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
-use Klevu\IndexingApi\Service\FilterEntitiesToDeleteServiceInterface;
+use Klevu\IndexingApi\Service\FilterEntitiesToSetToNotIndexableServiceInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
 
-class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInterface
+class FilterEntitiesToSetToNotIndexableService implements FilterEntitiesToSetToNotIndexableServiceInterface
 {
     /**
      * @var IndexingEntityProviderInterface
@@ -98,7 +98,7 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
 
                 return in_array(needle: $klevuId, haystack: $magentoEntityIds, strict: true)
                     && $indexingEntity->getIsIndexable()
-                    && $indexingEntity->getLastAction() !== Actions::NO_ACTION;
+                    && in_array($indexingEntity->getLastAction(), [Actions::NO_ACTION, Actions::DELETE], true);
             },
         );
 
@@ -141,7 +141,7 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
 
                 return !in_array(needle: $klevuId, haystack: $magentoEntityIds, strict: true)
                     && $indexingEntity->getIsIndexable()
-                    && $indexingEntity->getLastAction() !== Actions::NO_ACTION;
+                    && in_array($indexingEntity->getLastAction(), [Actions::NO_ACTION, Actions::DELETE], true);
             },
         );
 

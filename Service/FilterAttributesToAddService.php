@@ -46,7 +46,8 @@ class FilterAttributesToAddService implements FilterAttributesToAddServiceInterf
                 array: $magentoAttributes,
                 callback: static fn (MagentoAttributeInterface $magentoAttribute) => (
                     // Remove standard attributes, they already exist in klevu we don't need to create them again
-                    !in_array(needle: $magentoAttribute->getKlevuAttributeName(),
+                    !in_array(
+                        needle: $magentoAttribute->getKlevuAttributeName(),
                         haystack: StandardAttribute::values(),
                         strict: true,
                     )
