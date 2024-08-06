@@ -185,7 +185,6 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
     /**
      * @magentoAppIsolation enabled
      */
-
     public function testExecute_Save_ReturnSuccessFalse_AnyEntitiesFailToSave(): void
     {
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
@@ -362,7 +361,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->method('getData')
             ->with(
                 [$apiKey],
-                [1, 2],
+                [1, 2, 3, 4],
             )
             ->willReturn([
                 'klevu-api-key' => [
@@ -375,6 +374,16 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                         'entityId' => 2,
                         'apiKey' => $apiKey,
                         'isIndexable' => false,
+                    ]),
+                    $this->objectManager->create(MagentoEntityInterface::class, [
+                        'entityId' => 3,
+                        'apiKey' => $apiKey,
+                        'isIndexable' => false,
+                    ]),
+                    $this->objectManager->create(MagentoEntityInterface::class, [
+                        'entityId' => 4,
+                        'apiKey' => $apiKey,
+                        'isIndexable' => true,
                     ]),
                 ],
             ]);
@@ -395,11 +404,15 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $entity1->setId(1);
         $entity2 = $this->objectManager->create(IndexingEntityInterface::class);
         $entity2->setId(2);
+        $entity3 = $this->objectManager->create(IndexingEntityInterface::class);
+        $entity3->setId(3);
+        $entity4 = $this->objectManager->create(IndexingEntityInterface::class);
+        $entity4->setId(4);
         $mockSearchResult = $this->getMockBuilder(IndexingEntitySearchResultsInterface::class)
             ->getMock();
         $mockSearchResult->expects($this->once())
             ->method('getItems')
-            ->willReturn([$entity1, $entity2]);
+            ->willReturn([$entity1, $entity2, $entity3, $entity4]);
         $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
             ->getMock();
         $mockIndexingEntityRepository->expects($this->once())
@@ -439,6 +452,26 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             IndexingEntity::LAST_ACTION => Actions::ADD,
             IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
         ]);
+        $this->createIndexingEntity(data: [
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::TARGET_PARENT_ID => null,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::NEXT_ACTION => Actions::ADD,
+            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION_TIMESTAMP => null,
+        ]);
+        $this->createIndexingEntity(data: [
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::TARGET_PARENT_ID => null,
+            IndexingEntity::IS_INDEXABLE => true,
+            IndexingEntity::NEXT_ACTION => Actions::DELETE,
+            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+        ]);
 
         $setIndexingEntitiesToUpdateAction = $this->objectManager->create(
             type: SetIndexingEntitiesToUpdateActionInterface::class,
@@ -455,7 +488,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'cms' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_CMS', apiKeys: [$apiKey], entityIds: [1, 2]);
+        $result = $service->execute(entityType: 'KLEVU_CMS', apiKeys: [$apiKey], entityIds: [1, 2, 3, 4]);
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -742,25 +775,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->method('execute')
             ->willReturn([]);
 
-        $entity1 = $this->objectManager->create(IndexingEntityInterface::class);
-        $entity1->setId(1);
-        $entity2 = $this->objectManager->create(IndexingEntityInterface::class);
-        $entity2->setId(2);
-        $mockSearchResult = $this->getMockBuilder(IndexingEntitySearchResultsInterface::class)
-            ->getMock();
-        $mockSearchResult->expects($this->once())
-            ->method('getItems')
-            ->willReturn([$entity1, $entity2]);
-        $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
-            ->getMock();
-        $mockIndexingEntityRepository->expects($this->once())
-            ->method('getList')
-            ->willReturn($mockSearchResult);
-
-        $mockIndexingEntityRepository->expects($this->exactly(2))
-            ->method('save');
-
-        $this->createIndexingEntity(data: [
+        $entity1 = $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
             IndexingEntity::TARGET_ID => 1,
@@ -770,7 +785,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             IndexingEntity::LAST_ACTION => Actions::DELETE,
             IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
         ]);
-        $this->createIndexingEntity(data: [
+        $entity2 = $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
             IndexingEntity::TARGET_ID => 2,
@@ -790,6 +805,19 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             IndexingEntity::LAST_ACTION => Actions::DELETE,
             IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
         ]);
+
+        $mockSearchResult = $this->getMockBuilder(IndexingEntitySearchResultsInterface::class)
+            ->getMock();
+        $mockSearchResult->expects($this->once())
+            ->method('getItems')
+            ->willReturn([$entity1, $entity2]);
+        $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
+            ->getMock();
+        $mockIndexingEntityRepository->expects($this->once())
+            ->method('getList')
+            ->willReturn($mockSearchResult);
+        $mockIndexingEntityRepository->expects($this->exactly(2))
+            ->method('save');
 
         $setIndexingEntitiesToBeIndexableAction = $this->objectManager->create(
             type: SetIndexingEntitiesToBeIndexableActionInterface::class,

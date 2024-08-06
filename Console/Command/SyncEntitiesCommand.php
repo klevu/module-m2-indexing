@@ -112,6 +112,14 @@ class SyncEntitiesCommand extends Command
                     number_format($endTime - $startTime, 2),
                 )),
         );
+        $output->writeln(
+            sprintf('<comment>%s</comment>',
+                __(
+                    "Peak memory usage during sync: %1Mb",
+                    number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
+                ),
+            ),
+        );
 
         return $return;
     }

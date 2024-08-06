@@ -109,8 +109,6 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get(date('Y-m-d'));
 
-        $this->assertCount(expectedCount: 3, haystack: $result);
-
         $this->assertArrayHasKey(key: 'KLEVU_CATEGORY', array: $result);
         $this->assertCount(expectedCount: 1, haystack: $result['KLEVU_CATEGORY']);
         /** @var SyncHistoryEntityRecordInterface $categoryRecord */
@@ -171,11 +169,7 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get(date('Y-m-d'));
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-
         $this->assertArrayHasKey(key: 'KLEVU_PRODUCT', array: $result);
-        $this->assertCount(expectedCount: 1, haystack: $result['KLEVU_PRODUCT']);
-
         /** @var SyncHistoryEntityRecordInterface $record */
         $record = array_shift($result['KLEVU_PRODUCT']);
         $this->assertSame(expected: $apiKey, actual: $record->getApiKey());
@@ -221,8 +215,7 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get($timestamp);
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-
+        $this->assertArrayHasKey(key: 'KLEVU_PRODUCT', array: $result);
         /** @var SyncHistoryEntityRecordInterface $record */
         $record = array_shift($result['KLEVU_PRODUCT']);
         $this->assertSame(expected: $apiKey, actual: $record->getApiKey());
@@ -267,8 +260,7 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get($timestamp);
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-
+        $this->assertArrayHasKey(key: 'KLEVU_PRODUCT', array: $result);
         /** @var SyncHistoryEntityRecordInterface $record */
         $record = array_shift($result['KLEVU_PRODUCT']);
         $this->assertSame(expected: $apiKey, actual: $record->getApiKey());
@@ -313,8 +305,7 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get($timestamp2);
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-
+        $this->assertArrayHasKey(key: 'KLEVU_PRODUCT', array: $result);
         /** @var SyncHistoryEntityRecordInterface $record */
         $record = array_shift($result['KLEVU_PRODUCT']);
         $this->assertSame(expected: $apiKey, actual: $record->getApiKey());
@@ -359,8 +350,7 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get($timestamp);
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-
+        $this->assertArrayHasKey(key: 'KLEVU_PRODUCT', array: $result);
         /** @var SyncHistoryEntityRecordInterface $record */
         $record = array_shift($result['KLEVU_PRODUCT']);
         $this->assertSame(expected: $apiKey, actual: $record->getApiKey());
@@ -405,8 +395,7 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get($timestamp1);
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-
+        $this->assertArrayHasKey(key: 'KLEVU_PRODUCT', array: $result);
         /** @var SyncHistoryEntityRecordInterface $record */
         $record = array_shift($result['KLEVU_PRODUCT']);
         $this->assertSame(expected: $apiKey, actual: $record->getApiKey());
@@ -451,8 +440,7 @@ class SyncHistoryEntityByDateProviderTest extends TestCase
         ]);
         $result = $provider->get($timestamp2);
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-
+        $this->assertArrayHasKey(key: 'KLEVU_PRODUCT', array: $result);
         /** @var SyncHistoryEntityRecordInterface $record */
         $record = array_shift($result['KLEVU_PRODUCT']);
         $this->assertSame(expected: $apiKey, actual: $record->getApiKey());

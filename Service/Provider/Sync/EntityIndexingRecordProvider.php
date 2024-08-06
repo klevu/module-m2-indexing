@@ -62,6 +62,10 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      * @var string
      */
     private readonly string $entityType;
+    /**
+     * @var int|null
+     */
+    private readonly ?int $batchSize;
 
     /**
      * @param IndexingEntityProviderInterface $indexingEntityProvider
@@ -73,6 +77,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      * @param EntityProviderInterface[] $entityProviders
      * @param string $entityType
      * @param string $action
+     * @param int|null $batchSize
      */
     public function __construct(
         IndexingEntityProviderInterface $indexingEntityProvider,
@@ -84,6 +89,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         array $entityProviders,
         string $entityType,
         string $action,
+        ?int $batchSize = null,
     ) {
         $this->indexingEntityProvider = $indexingEntityProvider;
         $this->indexingRecordCreatorService = $indexingRecordCreatorService;
@@ -94,6 +100,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         array_walk($entityProviders, [$this, 'setEntityProvider']);
         $this->setAction($action);
         $this->entityType = $entityType;
+        $this->batchSize = $batchSize;
     }
 
     /**
@@ -107,30 +114,34 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         if (!$stores) {
             return;
         }
-        $entityIds = $this->getEntityIdsToSync(apiKey: $apiKey);
-        if (!$entityIds) {
-            return;
-        }
         $store = array_shift($stores);
         $this->scopeProvider->setCurrentScope($store);
 
-        $entitiesCache = $this->getEntities(
-            store: $store,
-            entityIds: $entityIds,
-        );
-
-        foreach ($entityIds as $entity) {
-            try {
-                yield $this->generateIndexingRecord($entity, $entitiesCache);
-            } catch (\Exception $exception) {
-                $this->logger->error(
-                    message: 'Method: {method}, Error: {message}',
-                    context: [
-                        'method' => __METHOD__,
-                        'message' => $exception->getMessage(),
-                    ],
-                );
+        $currentPage = 1;
+        while (true) {
+            $entityIds = $this->getEntityIdsToSync(apiKey: $apiKey, currentPage: $currentPage);
+            if (!$entityIds) {
+                break;
             }
+            $entitiesCache = $this->getEntities(
+                store: $store,
+                entityIds: $entityIds,
+            );
+
+            foreach ($entityIds as $entity) {
+                try {
+                    yield $this->generateIndexingRecord($entity, $entitiesCache);
+                } catch (\Exception $exception) {
+                    $this->logger->error(
+                        message: 'Method: {method}, Error: {message}',
+                        context: [
+                            'method' => __METHOD__,
+                            'message' => $exception->getMessage(),
+                        ],
+                    );
+                }
+            }
+            $currentPage++;
         }
     }
 
@@ -157,16 +168,19 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
 
     /**
      * @param string $apiKey
+     * @param int|null $currentPage
      *
      * @return array<array<string, int|null>>
      */
-    private function getEntityIdsToSync(string $apiKey): array
+    private function getEntityIdsToSync(string $apiKey, ?int $currentPage = null): array
     {
         $indexingEntities = $this->indexingEntityProvider->get(
             entityType: $this->entityType,
             apiKey: $apiKey,
             nextAction: $this->action,
             isIndexable: true,
+            pageSize: $this->batchSize,
+            currentPage: $currentPage,
         );
 
         return array_map(
@@ -245,6 +259,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
 
         return $this->indexingRecordCreatorService->execute(
             recordId: $entity['record_id'],
+            action: $this->action,
             entity: $entitiesCache[(string)$entity['entity_id']],
             parent: $entitiesCache[(string)$entity['parent_id']] ?? null,
         );

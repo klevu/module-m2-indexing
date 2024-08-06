@@ -16,4 +16,6 @@ class Constants
     public const XML_PATH_ATTRIBUTE_CRON_FREQUENCY = 'klevu/indexing/attribute_cron_frequency';
     public const XML_PATH_ENTITY_CRON_EXPR = 'klevu/indexing/entity_cron_expr';
     public const XML_PATH_ENTITY_CRON_FREQUENCY = 'klevu/indexing/entity_cron_frequency';
+    public const NOTIFICATION_TYPE_CONFLICTING_ATTRIBUTE_NAMES = 'Klevu_Indexing::conflicting_attribute_names';
+    public const NOTIFICATION_TYPE_DUPLICATE_ATTRIBUTE_MAPPING = 'Klevu_Indexing::duplicate_attribute_mapping';
 }

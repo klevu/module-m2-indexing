@@ -16,6 +16,7 @@ use Klevu\IndexingApi\Service\Action\AddIndexingAttributesActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToBeIndexableActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToDeleteActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToUpdateActionInterface;
+use Klevu\IndexingApi\Service\AttributeConflictHandlerServiceInterface;
 use Klevu\IndexingApi\Service\AttributeDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\FilterAttributesToAddServiceInterface;
 use Klevu\IndexingApi\Service\FilterAttributesToDeleteServiceInterface;
@@ -68,6 +69,10 @@ class AttributeDiscoveryOrchestratorService implements AttributeDiscoveryOrchest
      */
     private readonly FilterAttributesToSetToIndexableServiceInterface $filterAttributesToSetToIndexableService;
     /**
+     * @var AttributeConflictHandlerServiceInterface
+     */
+    private readonly AttributeConflictHandlerServiceInterface $attributeConflictHandlerService;
+    /**
      * @var AttributeDiscoveryProviderInterface[]
      */
     private array $discoveryProviders = [];
@@ -92,6 +97,7 @@ class AttributeDiscoveryOrchestratorService implements AttributeDiscoveryOrchest
      * @param FilterAttributesToUpdateServiceInterface $filterAttributesToUpdateService
      * @param FilterAttributesToSetToIndexableServiceInterface $filterAttributesToSetToIndexableService
      * @param AttributeDiscoveryProviderInterface[] $discoveryProviders
+     * @param AttributeConflictHandlerServiceInterface $attributeConflictHandlerService
      */
     public function __construct(
         DiscoveryResultFactory $discoveryResultFactory,
@@ -104,6 +110,7 @@ class AttributeDiscoveryOrchestratorService implements AttributeDiscoveryOrchest
         FilterAttributesToDeleteServiceInterface $filterAttributesToDeleteService,
         FilterAttributesToUpdateServiceInterface $filterAttributesToUpdateService,
         FilterAttributesToSetToIndexableServiceInterface $filterAttributesToSetToIndexableService,
+        AttributeConflictHandlerServiceInterface $attributeConflictHandlerService,
         array $discoveryProviders = [],
     ) {
         $this->discoveryResultFactory = $discoveryResultFactory;
@@ -116,6 +123,7 @@ class AttributeDiscoveryOrchestratorService implements AttributeDiscoveryOrchest
         $this->filterAttributesToDeleteService = $filterAttributesToDeleteService;
         $this->filterAttributesToUpdateService = $filterAttributesToUpdateService;
         $this->filterAttributesToSetToIndexableService = $filterAttributesToSetToIndexableService;
+        $this->attributeConflictHandlerService = $attributeConflictHandlerService;
         array_walk($discoveryProviders, [$this, 'addDiscoveryProvider']);
     }
 
@@ -179,6 +187,8 @@ class AttributeDiscoveryOrchestratorService implements AttributeDiscoveryOrchest
                 attributeIds: $attributeIds,
             );
         }
+
+        $this->attributeConflictHandlerService->execute();
 
         return $this->discoveryResultFactory->create(data: [
             'isSuccess' => $this->success,

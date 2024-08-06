@@ -223,7 +223,7 @@ class EntitySyncHistoryConsolidationDataProviderTest extends TestCase
         );
         $this->assertNull($record1[SyncHistoryEntityConsolidationRecord::TARGET_PARENT_ID]);
         $this->assertSame(
-            expected: date('M d, Y'),
+            expected: date('M j, Y'),
             actual: $record1[SyncHistoryEntityConsolidationRecord::DATE] ?? null,
         );
         $this->assertSame(
@@ -260,7 +260,7 @@ class EntitySyncHistoryConsolidationDataProviderTest extends TestCase
         );
 
         $this->assertSame(
-            expected: date('M d, Y'),
+            expected: date('M j, Y'),
             actual: $record2[SyncHistoryEntityConsolidationRecord::DATE] ?? null,
         );
         $this->assertSame(
@@ -273,6 +273,7 @@ class EntitySyncHistoryConsolidationDataProviderTest extends TestCase
 
     public function testGetData_ReturnsInjectedDateFormat(): void
     {
+        $time = time();
         $apiKey = 'klevu-js-api-key';
         $this->clearSyncHistoryConsolidationEntities(apiKey: $apiKey);
 
@@ -283,14 +284,14 @@ class EntitySyncHistoryConsolidationDataProviderTest extends TestCase
             SyncHistoryEntityConsolidationRecord::TARGET_PARENT_ID => 2,
             SyncHistoryEntityConsolidationRecord::HISTORY => [
                 [
-                    SyncHistoryEntityRecord::ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+                    SyncHistoryEntityRecord::ACTION_TIMESTAMP => date('Y-m-d H:i:s', $time),
                     SyncHistoryEntityRecord::ACTION => Actions::ADD,
                     SyncHistoryEntityRecord::IS_SUCCESS => true,
                     SyncHistoryEntityRecord::MESSAGE => 'Accepted',
                 ],
 
             ],
-            SyncHistoryEntityConsolidationRecord::DATE => date('Y-m-d'),
+            SyncHistoryEntityConsolidationRecord::DATE => date('Y-m-d', $time),
         ]);
 
         $request = $this->objectManager->get(RequestInterface::class);
@@ -318,11 +319,11 @@ class EntitySyncHistoryConsolidationDataProviderTest extends TestCase
         $record = array_shift($recordsArray);
 
         $this->assertSame(
-            expected: date('n/d/y'),
+            expected: date('n/j/y', $time),
             actual: $record[SyncHistoryEntityConsolidationRecord::DATE] ?? null,
         );
         $this->assertSame(
-            expected: sprintf('%s - Add - Success - Accepted<br/>', date('n/d/y, g:i:s A')),
+            expected: sprintf('%s - Add - Success - Accepted<br/>', date('n/j/y, g:i:s A', $time)),
             actual: $record[SyncHistoryEntityConsolidationRecord::HISTORY] ?? null,
         );
 

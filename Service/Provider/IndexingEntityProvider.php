@@ -94,6 +94,8 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
      * @param Actions|null $nextAction
      * @param bool|null $isIndexable
      * @param array<string, string>|null $sorting [SortOrder::DIRECTION => SortOrder::SORT_ASC, SortOrder::FIELD => '']
+     * @param int|null $pageSize
+     * @param int|null $currentPage
      *
      * @return IndexingEntityInterface[]
      */
@@ -104,6 +106,8 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         ?Actions $nextAction = null,
         ?bool $isIndexable = null,
         ?array $sorting = [],
+        ?int $pageSize = null,
+        ?int $currentPage = null,
     ): array {
         /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
         $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
@@ -154,11 +158,27 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
             $sortOrderBuilder->setDirection(strtoupper($sorting[SortOrder::DIRECTION]));
             $searchCriteriaBuilder->addSortOrder(sortOrder: $sortOrderBuilder->create());
         }
+        if (null !== $pageSize && null !== $currentPage) {
+            $searchCriteriaBuilder->setPageSize($pageSize);
+            $searchCriteriaBuilder->setCurrentPage($currentPage);
+        }
 
         $searchCriteria = $searchCriteriaBuilder->create();
         $klevuEntitySearchResult = $this->indexingEntityRepository->getList($searchCriteria);
+        $totalRecords = $klevuEntitySearchResult->getTotalCount();
 
-        return $klevuEntitySearchResult->getItems();
+        /**
+         * Magento will return page 1 if the request is out of bounds.
+         * This can result in an infinite loop if called in a while loop.
+         * Therefore, we return an empty array when out of bounds.
+         */
+        return $this->isInBounds(
+            totalRecords: $totalRecords,
+            pageSize: $pageSize,
+            currentPage: $currentPage,
+        )
+            ? $klevuEntitySearchResult->getItems()
+            : [];
     }
 
     /**
@@ -193,6 +213,22 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         }
 
         return $collection;
+    }
+
+    /**
+     * @param int $totalRecords
+     * @param int|null $pageSize
+     * @param int|null $currentPage
+     *
+     * @return bool
+     */
+    private function isInBounds(int $totalRecords, ?int $pageSize, ?int $currentPage): bool
+    {
+        return match (true) {
+            (null === $pageSize && null === $currentPage) => true,
+            (null === $pageSize && 1 !== $currentPage), ($totalRecords <= ($pageSize * ($currentPage - 1))) => false,
+            default => true,
+        };
     }
 
     /**

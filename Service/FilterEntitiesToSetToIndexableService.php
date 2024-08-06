@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Service;
 
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterface;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\FilterEntitiesToSetToIndexableServiceInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
 
@@ -62,13 +63,13 @@ class FilterEntitiesToSetToIndexableService implements FilterEntitiesToSetToInde
                         . '-' . $indexingEntity->getTargetEntityType();
 
                     return in_array(needle: $klevuId, haystack: $magentoEntityIds, strict: true)
-                        && !$indexingEntity->getIsIndexable();
+                        && (!$indexingEntity->getIsIndexable() || $indexingEntity->getNextAction() === Actions::DELETE);
                 },
             );
 
             $return[] = array_map(
                 callback: static fn (IndexingEntityInterface $indexingEntity) => (
-                (int)$indexingEntity->getId()
+                    (int)$indexingEntity->getId()
                 ),
                 array: $klevuEntities,
             );

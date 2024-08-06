@@ -65,6 +65,9 @@ class IndexingAttributesTest extends TestCase
         $this->storeFixturesPool->rollback();
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testHasAttributes_ReturnsFalse_WhenNotIntegrated(): void
     {
         $viewModel = $this->instantiateTestObject([]);
@@ -73,6 +76,9 @@ class IndexingAttributesTest extends TestCase
         $this->assertFalse(condition: $result);
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testGetAttributes_ReturnsEmptyArray_WhenNotIntegrated(): void
     {
         $viewModel = $this->instantiateTestObject([]);

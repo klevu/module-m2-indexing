@@ -20,6 +20,7 @@ use Klevu\Pipelines\Exception\ExtractionException;
 use Klevu\Pipelines\Exception\HasErrorsExceptionInterface;
 use Klevu\Pipelines\Exception\Pipeline\InvalidPipelineConfigurationException;
 use Klevu\Pipelines\Exception\Pipeline\StageException;
+use Klevu\Pipelines\Exception\TransformationException;
 use Klevu\Pipelines\Pipeline\ContextFactory as PipelineContextFactory;
 use Klevu\Pipelines\Pipeline\PipelineBuilderInterface;
 use Klevu\Pipelines\Pipeline\PipelineInterface;
@@ -144,11 +145,23 @@ class EntityIndexerService implements EntityIndexerServiceInterface
                     : [],
             );
         } catch (StageException $stageException) {
+            $message = $stageException->getMessage();
+            $previousException = $stageException->getPrevious();
+            if ($previousException) {
+                $message .= ' ' . $previousException->getMessage();
+                if ($previousException instanceof TransformationException) {
+                    $message .= ' - ' . $previousException->getTransformerName();
+                    foreach ($previousException->getErrors() as $error) {
+                        $message .= ' - ' . $error;
+                    }
+                }
+            }
+
             $this->logger->error(
                 message: 'Method: {method}, Error: {message}',
                 context: [
                     'method' => __METHOD__,
-                    'message' => $stageException->getMessage() ?: $stageException->getPrevious()?->getMessage(),
+                    'message' => $message,
                 ],
             );
             $status = IndexerResultStatuses::ERROR;
