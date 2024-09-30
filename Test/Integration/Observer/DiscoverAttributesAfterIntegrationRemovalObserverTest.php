@@ -116,14 +116,14 @@ class DiscoverAttributesAfterIntegrationRemovalObserverTest extends TestCase
             ->getMock();
         $mockDiscoveryOrchestratorService->expects($this->once())
             ->method('execute')
-            ->with(null, [$apiKey], []);
+            ->with([], [$apiKey], []);
 
         $mockSyncOrchestratorService = $this->getMockBuilder(AttributeSyncOrchestratorServiceInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
         $mockSyncOrchestratorService->expects($this->once())
             ->method('execute')
-            ->with(null, $apiKey)
+            ->with([], [$apiKey])
             ->willReturn([]);
 
         $observer = $this->instantiateTestObject([

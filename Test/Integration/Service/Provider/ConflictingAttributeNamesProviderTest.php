@@ -8,8 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service\Provider;
 
-use Klevu\Configuration\Service\Provider\ApiKeyProvider;
-use Klevu\Configuration\Service\Provider\AuthKeyProvider;
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\Provider\ConflictingAttributeNamesProvider;
 use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
@@ -19,13 +18,14 @@ use Klevu\IndexingCategories\Service\Mapper\MagentoToKlevuAttributeMapper as Cat
 use Klevu\IndexingProducts\Service\Mapper\MagentoToKlevuAttributeMapper as ProductAttributeMapperVirtualType;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
-use TddWizard\Fixtures\Core\ConfigFixture;
 
 /**
  * @covers ConflictingAttributeNamesProvider::class
@@ -34,8 +34,10 @@ use TddWizard\Fixtures\Core\ConfigFixture;
  */
 class ConflictingAttributeNamesProviderTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
     use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
@@ -54,20 +56,22 @@ class ConflictingAttributeNamesProviderTest extends TestCase
 
         $this->implementationFqcn = ConflictingAttributeNamesProvider::class;
         $this->interfaceFqcn = ConflictingAttributeNamesProviderInterface::class;
-
         $this->objectManager = Bootstrap::getObjectManager();
 
         $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
+        $this->mockSdkAttributeGetApiCall();
     }
 
     /**
      * @return void
+     * @throws \Exception
      */
     protected function tearDown(): void
     {
         parent::tearDown();
 
         $this->storeFixturesPool->rollback();
+        $this->removeSharedApiInstances();
     }
 
     /**
@@ -82,15 +86,13 @@ class ConflictingAttributeNamesProviderTest extends TestCase
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: $apiKey,
-            storeCode: 'klevu_indexing_test_store_1',
-        );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: 'klevu_indexing_test_store_1',
+        $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: 'ABCDE1234567890',
         );
 
         $this->createIndexingAttribute([
@@ -141,15 +143,13 @@ class ConflictingAttributeNamesProviderTest extends TestCase
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: $apiKey,
-            storeCode: 'klevu_indexing_test_store_1',
-        );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: 'klevu_indexing_test_store_1',
+        $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: 'ABCDE1234567890',
         );
 
         $this->createIndexingAttribute([
@@ -245,15 +245,13 @@ class ConflictingAttributeNamesProviderTest extends TestCase
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: $apiKey,
-            storeCode: 'klevu_indexing_test_store_1',
-        );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: 'klevu_indexing_test_store_1',
+        $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: 'ABCDE1234567890',
         );
 
         $this->createIndexingAttribute([

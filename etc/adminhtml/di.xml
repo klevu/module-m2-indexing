@@ -27,4 +27,30 @@
         </arguments>
     </virtualType>
 
+    <virtualType name="Klevu\Configuration\ViewModel\Config\Information\KnowledgeBase"
+                 type="Klevu\Configuration\ViewModel\Config\Information\ArticleList">
+        <arguments>
+            <argument name="articles" xsi:type="array">
+                <item name="documentation" xsi:type="array">
+                    <item name="indexing" xsi:type="array">
+                        <item name="link" xsi:type="string"><![CDATA[https://docs.klevu.com/klevu-magento-v4/indexing-overview]]></item>
+                        <item name="order" xsi:type="number">200</item>
+                        <item name="title" xsi:type="string">Indexing</item>
+                    </item>
+                </item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Klevu\Indexing\Block\Adminhtml\Config\Integration\Info"
+                 type="Klevu\Configuration\Block\Adminhtml\Backend\Template">
+        <arguments>
+            <argument name="data" xsi:type="array">
+                <item name="name" xsi:type="string">klevu_indexing_integration_info_block</item>
+                <item name="template" xsi:type="string">Klevu_Indexing::config/integration/info.phtml</item>
+                <item name="escaper_view_model" xsi:type="object">Klevu\Indexing\ViewModel\Escaper</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
 </config>

@@ -37,7 +37,6 @@ class AttributeSyncOrchestratorService implements AttributeSyncOrchestratorServi
      * @param AccountCredentialsProviderInterface $accountCredentialsProvider
      * @param AttributeIndexerServiceInterface[][] $attributesIndexerServices
      *
-     * @throws InvalidAttributeIndexerServiceException
      */
     public function __construct(
         LoggerInterface $logger,
@@ -50,21 +49,21 @@ class AttributeSyncOrchestratorService implements AttributeSyncOrchestratorServi
     }
 
     /**
-     * @param string|null $attributeType
-     * @param string|null $apiKey
+     * @param string[] $attributeTypes
+     * @param string[] $apiKeys
      *
      * @return SyncResultInterface[][][]
      */
-    public function execute(?string $attributeType = null, ?string $apiKey = null): array
+    public function execute(array $attributeTypes = [], array $apiKeys = []): array
     {
         $return = [];
-        $attributesIndexerServices = $this->getIndexerServices(attributeType: $attributeType);
-        foreach ($this->getAccountCredentials(apiKey: $apiKey) as $accountCredentials) {
+        $attributesIndexerServices = $this->getIndexerServices(attributeTypes: $attributeTypes);
+        foreach ($this->getCredentialsArray(apiKeys: $apiKeys) as $accountCredentials) {
             try {
                 foreach ($attributesIndexerServices as $action => $attributesIndexerService) {
                     $response = $attributesIndexerService->execute(
                         accountCredentials: $accountCredentials,
-                        attributeType: $this->getAttributeTypeFromAction($action),
+                        attributeType: $this->getAttributeTypeFromAction(action: $action),
                     );
                     if ($response) {
                         $return[$accountCredentials->jsApiKey][$action] = $response;
@@ -115,37 +114,68 @@ class AttributeSyncOrchestratorService implements AttributeSyncOrchestratorServi
     }
 
     /**
-     * @param string|null $attributeType
+     * @param string[] $attributeTypes
      *
      * @return AttributeIndexerServiceInterface[]
      */
-    private function getIndexerServices(?string $attributeType): array
+    private function getIndexerServices(array $attributeTypes): array
     {
-        return $attributeType
+        return $attributeTypes
             ? array_filter(
                 array: $this->attributesIndexerServices,
-                callback: static fn (string $key): bool => str_starts_with(
-                    haystack: $key,
-                    needle: $attributeType . '::',
-                ),
+                callback: static function (string $key) use ($attributeTypes): bool {
+                    foreach ($attributeTypes as $attributeType){
+                        if (str_starts_with(haystack: $key, needle: $attributeType . '::')) {
+                            return true;
+                        }
+                    }
+                    return false;
+                },
                 mode: ARRAY_FILTER_USE_KEY,
             )
             : $this->attributesIndexerServices;
     }
 
     /**
-     * @param string|null $apiKey
+     * @param string[] $apiKeys
      *
      * @return AccountCredentials[]
      */
-    private function getAccountCredentials(?string $apiKey): array
+    private function getCredentialsArray(array $apiKeys): array
+    {
+        $accountCredentialsArray = $this->getAccountCredentials(apiKeys: $apiKeys);
+        if ($apiKeys && !$accountCredentialsArray) {
+            $this->logger->warning(
+                message: 'Method: {method}, Warning: {message}',
+                context: [
+                    'method' => __METHOD__,
+                    'message' => __(
+                        'No Account found for provided API Keys. Check the JS API Keys (%1) provided.',
+                        implode(', ', $apiKeys),
+                    )->render(),
+                ],
+            );
+        }
+
+        return $accountCredentialsArray;
+    }
+
+    /**
+     * @param string[] $apiKeys
+     *
+     * @return AccountCredentials[]
+     */
+    private function getAccountCredentials(array $apiKeys): array
     {
         $accountCredentials = $this->accountCredentialsProvider->get();
-        if ($apiKey) {
-            $credentials = $accountCredentials[$apiKey] ?? null;
-            $accountCredentials = $credentials
-                ? [$credentials]
-                : [];
+        if ($apiKeys) {
+            $accountCredentials = array_filter(
+                array: $accountCredentials,
+                callback: static fn (string $apiKey): bool => (
+                    in_array(needle: $apiKey, haystack: $apiKeys, strict: true)
+                ),
+                mode: ARRAY_FILTER_USE_KEY,
+            );
         }
 
         return $accountCredentials;
@@ -158,8 +188,8 @@ class AttributeSyncOrchestratorService implements AttributeSyncOrchestratorServi
      */
     private function getAttributeTypeFromAction(string $action): string
     {
-        $actionArray = explode('::', $action);
+        $actionArray = explode(separator: '::', string: $action);
 
-        return array_shift($actionArray);
+        return array_shift(array: $actionArray);
     }
 }

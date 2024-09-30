@@ -73,6 +73,13 @@ class IndexingEntityTest extends TestCase
             expected: $indexingEntity->getTargetEntityType(),
             actual: $indexingEntityToLoad->getTargetEntityType(),
         );
+        $this->assertNull(
+            actual: $indexingEntityToLoad->getTargetEntitySubtype(),
+        );
+        $this->assertSame(
+            expected: $indexingEntity->getTargetEntitySubtype(),
+            actual: $indexingEntityToLoad->getTargetEntitySubtype(),
+        );
         $this->assertSame(
             expected: 1,
             actual: $indexingEntity->getTargetId(),
@@ -134,6 +141,7 @@ class IndexingEntityTest extends TestCase
         $indexingEntity = $this->createIndexingEntity(data: [
             'target_id' => 100,
             'target_parent_id' => 500,
+            'target_entity_subtype' => 'virtual',
             'lock_timestamp' => date(format: 'Y-m-d H:i:s', timestamp: time()),
             'last_action_timestamp' => date(format: 'Y-m-d H:i:s', timestamp: time() - 3600),
         ]);
@@ -156,6 +164,14 @@ class IndexingEntityTest extends TestCase
         $this->assertSame(
             expected: $indexingEntity->getTargetEntityType(),
             actual: $indexingEntityToLoad->getTargetEntityType(),
+        );
+        $this->assertSame(
+            expected: 'virtual',
+            actual: $indexingEntity->getTargetEntitySubtype(),
+        );
+        $this->assertSame(
+            expected: $indexingEntity->getTargetEntitySubtype(),
+            actual: $indexingEntityToLoad->getTargetEntitySubtype(),
         );
         $this->assertSame(
             expected: 100,
@@ -223,6 +239,7 @@ class IndexingEntityTest extends TestCase
         $indexingEntityA = $this->createIndexingEntity();
         $indexingEntityB = $this->createIndexingEntity(data: [
             'target_entity_type' => 'KLEVU_CATEGORY',
+            'target_entity_subtype' => null,
             'target_id' => 2,
             'target_parent_id' => 3,
             'next_action' => Actions::ADD,
@@ -253,6 +270,7 @@ class IndexingEntityTest extends TestCase
     {
         $indexingEntity = $this->instantiateTestObject([]);
         $indexingEntity->setTargetEntityType(entityType: $data['target_entity_type'] ?? 'KLEVU_PRODUCT');
+        $indexingEntity->setTargetEntitySubtype(entitySubtype: $data['target_entity_subtype'] ?? null);
         $indexingEntity->setTargetId(targetId: $data['target_id'] ?? 1);
         $indexingEntity->setTargetParentId(targetParentId: $data['target_parent_id'] ?? null);
         $indexingEntity->setApiKey(

@@ -71,24 +71,28 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $apiKey = 'klevu-api-key';
         $indexingEntity1 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 1,
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity2 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 2,
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity3 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => null,
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 3,
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity4 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable-variant',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 40,
             IndexingEntity::TARGET_PARENT_ID => 4,
@@ -96,18 +100,21 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         ]);
         $indexingEntity5 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGROIES',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => null,
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 4,
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity6 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::API_KEY => 'another-key',
             IndexingEntity::TARGET_ID => 6,
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity7 = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable-variant',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 50,
             IndexingEntity::TARGET_PARENT_ID => 7,
@@ -131,6 +138,90 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $this->assertNotContains(needle: (int)$indexingEntity7->getId(), haystack: $result);
     }
 
+    public function testExecute_ReturnsArrayOfIndexingEntityIds_FilteredBySubtype(): void
+    {
+        $apiKey = 'klevu-api-key';
+        $indexingEntity1 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $indexingEntity2 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::LAST_ACTION => Actions::DELETE,
+            IndexingEntity::IS_INDEXABLE => false,
+        ]);
+        $indexingEntity3 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $indexingEntity4 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable-variant',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 40,
+            IndexingEntity::TARGET_PARENT_ID => 4,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $indexingEntity5 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::API_KEY => 'another-key',
+            IndexingEntity::TARGET_ID => 6,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $indexingEntity6 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable-variant',
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 50,
+            IndexingEntity::TARGET_PARENT_ID => 7,
+            IndexingEntity::IS_INDEXABLE => false,
+        ]);
+        $indexingEntity7 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => null,
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 20,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $indexingEntity8 = $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => null,
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ID => 10,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+
+        $service = $this->instantiateTestObject();
+        $result = $service->execute(
+            type: 'KLEVU_PRODUCT',
+            entityIds: [],
+            apiKeys: [$apiKey],
+            entitySubtypes: [
+                'simple',
+            ],
+        );
+
+        $this->assertCount(expectedCount: 1, haystack: $result);
+        $this->assertContains(needle: (int)$indexingEntity1->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity2->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity3->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity4->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity5->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity6->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity7->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingEntity8->getId(), haystack: $result);
+    }
+
     /**
      * @param mixed[] $data
      *
@@ -146,6 +237,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $indexingEntity->setTargetId((int)$data[IndexingEntity::TARGET_ID]);
         $indexingEntity->setTargetParentId($data[IndexingEntity::TARGET_PARENT_ID] ?? null);
         $indexingEntity->setTargetEntityType($data[IndexingEntity::TARGET_ENTITY_TYPE] ?? 'KLEVU_PRODUCT');
+        $indexingEntity->setTargetEntitySubtype($data[IndexingEntity::TARGET_ENTITY_SUBTYPE] ?? null);
         $indexingEntity->setApiKey($data[IndexingEntity::API_KEY] ?? 'klevu-js-api-key');
         $indexingEntity->setNextAction($data[IndexingEntity::NEXT_ACTION] ?? Actions::NO_ACTION);
         $indexingEntity->setLastAction($data[IndexingEntity::LAST_ACTION] ?? Actions::NO_ACTION);

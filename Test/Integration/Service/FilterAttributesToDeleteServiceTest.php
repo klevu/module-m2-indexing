@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service;
 
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\FilterAttributesToDeleteService;
 use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
@@ -16,7 +17,11 @@ use Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoAttributeInterfaceFactory;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\FilterAttributesToDeleteServiceInterface;
+use Klevu\TestFixtures\Store\StoreFixturesPool;
+use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\Exception\AlreadyExistsException;
@@ -33,8 +38,11 @@ use PHPUnit\Framework\TestCase;
  */
 class FilterAttributesToDeleteServiceTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
+    use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
 
@@ -54,7 +62,11 @@ class FilterAttributesToDeleteServiceTest extends TestCase
         $this->interfaceFqcn = FilterAttributesToDeleteServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
 
+        $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
         $this->cleanIndexingAttributes('klevu-api-key%');
+
+        $this->clearAttributeCache();
+        $this->mockSdkAttributeGetApiCall();
     }
 
     /**
@@ -65,17 +77,34 @@ class FilterAttributesToDeleteServiceTest extends TestCase
         parent::tearDown();
 
         $this->cleanIndexingAttributes('klevu-api-key%');
+        $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
     }
 
-    public function testExecute_ReturnsArrayOfIntegers(): void
+    public function testExecute_ReturnsAttributeIdsToDelete_whichHaveBeenDisabled(): void
     {
         $apiKey = 'klevu-api-key';
+        $authKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $indexingAttribute1 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
             IndexingAttribute::API_KEY => $apiKey,
             IndexingAttribute::TARGET_ID => 1,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_1',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
         ]);
         $indexingAttribute2 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
@@ -83,6 +112,7 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             IndexingAttribute::TARGET_ID => 2,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_2',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::UPDATE,
         ]);
         $indexingAttribute3 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
@@ -90,13 +120,15 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             IndexingAttribute::TARGET_ID => 3,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_3',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
         ]);
         $indexingAttribute4 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
             IndexingAttribute::API_KEY => $apiKey,
             IndexingAttribute::TARGET_ID => 4,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_4',
-            IndexingAttribute::IS_INDEXABLE => false,
+            IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::NO_ACTION,
         ]);
 
         $magentoAttributeInterfaceFactory = $this->objectManager->get(MagentoAttributeInterfaceFactory::class);
@@ -121,6 +153,80 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             'isIndexable' => false,
             'klevuAttributeName' => 'name3',
         ]);
+        $magentoAttributes[$apiKey][4] = $magentoAttributeInterfaceFactory->create([
+            'attributeId' => 4,
+            'attributeCode' => 'klevu_test_attribute_4',
+            'apiKey' => $apiKey,
+            'isIndexable' => false,
+            'klevuAttributeName' => 'name4',
+        ]);
+
+        $service = $this->instantiateTestObject();
+        $result = $service->execute($magentoAttributes, 'KLEVU_PRODUCTS');
+
+        $this->assertCount(expectedCount: 2, haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingAttribute1->getId(), haystack: $result);
+        $this->assertContains(needle: (int)$indexingAttribute2->getId(), haystack: $result);
+        $this->assertContains(needle: (int)$indexingAttribute3->getId(), haystack: $result);
+        $this->assertNotContains(needle: (int)$indexingAttribute4->getId(), haystack: $result);
+    }
+
+    public function testExecute_ReturnsAttributeIdsToDelete_whichHaveBeenDeleted(): void
+    {
+        $apiKey = 'klevu-api-key';
+        $authKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
+        $indexingAttribute1 = $this->createIndexingAttribute([
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_1',
+            IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
+        ]);
+        $indexingAttribute2 = $this->createIndexingAttribute([
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ID => 2,
+            IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_2',
+            IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::UPDATE,
+        ]);
+        $indexingAttribute3 = $this->createIndexingAttribute([
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ID => 3,
+            IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_3',
+            IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
+        ]);
+        $indexingAttribute4 = $this->createIndexingAttribute([
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ID => 4,
+            IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_4',
+            IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::NO_ACTION,
+        ]);
+
+        $magentoAttributeInterfaceFactory = $this->objectManager->get(MagentoAttributeInterfaceFactory::class);
+        $magentoAttributes[$apiKey][1] = $magentoAttributeInterfaceFactory->create([
+            'attributeId' => 1,
+            'attributeCode' => 'klevu_test_attribute_1',
+            'apiKey' => $apiKey,
+            'isIndexable' => true,
+            'klevuAttributeName' => 'name1',
+        ]);
 
         $service = $this->instantiateTestObject();
         $result = $service->execute($magentoAttributes, 'KLEVU_PRODUCTS');
@@ -135,12 +241,25 @@ class FilterAttributesToDeleteServiceTest extends TestCase
     public function testExecute_RemovesKlevuStandardAttributes(): void
     {
         $apiKey = 'klevu-api-key';
+        $authKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $indexingAttribute1 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
             IndexingAttribute::API_KEY => $apiKey,
             IndexingAttribute::TARGET_ID => 1,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_1',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
         ]);
         $indexingAttribute2 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
@@ -148,6 +267,7 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             IndexingAttribute::TARGET_ID => 2,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_2',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::UPDATE,
         ]);
         $indexingAttribute3 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
@@ -155,6 +275,7 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             IndexingAttribute::TARGET_ID => 3,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_3',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::UPDATE,
         ]);
         $indexingAttribute4 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
@@ -162,6 +283,7 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             IndexingAttribute::TARGET_ID => 4,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_4',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
         ]);
         $indexingAttribute5 = $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
@@ -169,6 +291,7 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             IndexingAttribute::TARGET_ID => 5,
             IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_5',
             IndexingAttribute::IS_INDEXABLE => true,
+            IndexingAttribute::LAST_ACTION => Actions::UPDATE,
         ]);
 
         $magentoAttributeInterfaceFactory = $this->objectManager->get(MagentoAttributeInterfaceFactory::class);
@@ -191,7 +314,7 @@ class FilterAttributesToDeleteServiceTest extends TestCase
             'attributeCode' => 'klevu_test_attribute_3',
             'apiKey' => $apiKey,
             'isIndexable' => false,
-            'klevuAttributeName' => 'shortDescription',
+            'klevuAttributeName' => 'sku',
         ]);
         $magentoAttributes[$apiKey][4] = $magentoAttributeInterfaceFactory->create([
             'attributeId' => 4,

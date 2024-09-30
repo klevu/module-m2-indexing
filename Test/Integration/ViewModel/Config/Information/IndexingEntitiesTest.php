@@ -6,7 +6,7 @@
 
 declare(strict_types=1);
 
-namespace Klevu\Configuration\Test\Integration\ViewModel\Config\Information;
+namespace Klevu\Indexing\Test\Integration\ViewModel\Config\Information;
 
 use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Model\IndexingEntity;
@@ -39,7 +39,7 @@ class IndexingEntitiesTest extends TestCase
     /**
      * @var ObjectManagerInterface
      */
-    private ObjectManagerInterface $objectManager; // @phpstan-ignore-line
+    private ?ObjectManagerInterface $objectManager = null; // @phpstan-ignore-line
 
     /**
      * @return void

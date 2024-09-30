@@ -8,11 +8,15 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Service;
 
+use Klevu\Configuration\Exception\ApiKeyNotFoundException;
 use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Model\MagentoAttributeInterface;
-use Klevu\IndexingApi\Model\Source\StandardAttribute;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\FilterAttributesToSetToIndexableServiceInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface;
+use Klevu\IndexingApi\Service\Provider\StandardAttributesProviderInterface;
+use Klevu\PhpSDK\Exception\ApiExceptionInterface;
+use Psr\Log\LoggerInterface;
 
 class FilterAttributesToSetToIndexableService implements FilterAttributesToSetToIndexableServiceInterface
 {
@@ -20,13 +24,32 @@ class FilterAttributesToSetToIndexableService implements FilterAttributesToSetTo
      * @var IndexingAttributeProviderInterface
      */
     private readonly IndexingAttributeProviderInterface $indexingAttributeProvider;
+    /**
+     * @var StandardAttributesProviderInterface
+     */
+    private readonly StandardAttributesProviderInterface $standardAttributesProvider;
+    /**
+     * @var LoggerInterface
+     */
+    private readonly LoggerInterface $logger;
+    /**
+     * @var string[]|null
+     */
+    private ?array $standardAttributes = null;
 
     /**
      * @param IndexingAttributeProviderInterface $indexingAttributeProvider
+     * @param StandardAttributesProviderInterface $standardAttributesProvider
+     * @param LoggerInterface $logger
      */
-    public function __construct(IndexingAttributeProviderInterface $indexingAttributeProvider)
-    {
+    public function __construct(
+        IndexingAttributeProviderInterface $indexingAttributeProvider,
+        StandardAttributesProviderInterface $standardAttributesProvider,
+        LoggerInterface $logger,
+    ) {
         $this->indexingAttributeProvider = $indexingAttributeProvider;
+        $this->standardAttributesProvider = $standardAttributesProvider;
+        $this->logger = $logger;
     }
 
     /**
@@ -40,20 +63,34 @@ class FilterAttributesToSetToIndexableService implements FilterAttributesToSetTo
     {
         $return = [];
         foreach ($magentoAttributesByApiKey as $apiKey => $magentoAttributes) {
-            $magentoAttributes = $this->removeKlevuStandardAttributes($magentoAttributes);
-            $magentoAttributeIds = array_map(
-                callback: static fn (MagentoAttributeInterface $magentoAttribute) => (
-                    $magentoAttribute->getAttributeId()
-                    . '-' . $magentoAttribute->getApiKey()
-                    . '-' . $type
-                ),
-                array: array_filter(
-                    array: $magentoAttributes,
+            $magentoAttributeIds = [];
+            try {
+                $magentoAttributes = $this->removeKlevuStandardAttributes(
+                    allMagentoAttributes: $magentoAttributes,
+                    apiKey: $apiKey,
+                );
+                $magentoAttributeIds = array_map(
                     callback: static fn (MagentoAttributeInterface $magentoAttribute) => (
-                        $magentoAttribute->isIndexable()
+                        $magentoAttribute->getAttributeId()
+                        . '-' . $magentoAttribute->getApiKey()
+                        . '-' . $type
                     ),
-                ),
-            );
+                    array: array_filter(
+                        array: $magentoAttributes,
+                        callback: static fn (MagentoAttributeInterface $magentoAttribute) => (
+                        $magentoAttribute->isIndexable()
+                        ),
+                    ),
+                );
+            } catch (ApiExceptionInterface | ApiKeyNotFoundException $exception) {
+                $this->logger->error(
+                    message: 'Method: {method}, Error: {message}',
+                    context: [
+                        'method' => __METHOD__,
+                        'message' => $exception->getMessage(),
+                    ],
+                );
+            }
             $klevuAttributes = array_filter(
                 array: $this->getIndexingAttributes($type, $apiKey, $attributeIds),
                 callback: static function (IndexingAttributeInterface $indexingAttribute) use (
@@ -64,7 +101,10 @@ class FilterAttributesToSetToIndexableService implements FilterAttributesToSetTo
                         . '-' . $indexingAttribute->getTargetAttributeType();
 
                     return in_array(needle: $klevuId, haystack: $magentoAttributeIds, strict: true)
-                        && !$indexingAttribute->getIsIndexable();
+                        && (
+                            !$indexingAttribute->getIsIndexable()
+                            || $indexingAttribute->getNextAction() === Actions::DELETE
+                        );
                 },
             );
             $return[] = array_map(
@@ -95,22 +135,45 @@ class FilterAttributesToSetToIndexableService implements FilterAttributesToSetTo
     }
 
     /**
+     * Remove standard attributes, they can not be deleted from Klevu
+     *
      * @param MagentoAttributeInterface[] $allMagentoAttributes
+     * @param string $apiKey
      *
      * @return MagentoAttributeInterface[]
+     * @throws ApiExceptionInterface
+     * @throws ApiKeyNotFoundException
      */
-    private function removeKlevuStandardAttributes(array $allMagentoAttributes): array
+    private function removeKlevuStandardAttributes(array $allMagentoAttributes, string $apiKey): array
     {
         return array_filter(
             array: $allMagentoAttributes,
-            callback: static fn (MagentoAttributeInterface $magentoAttribute): bool => (
-                // Remove standard attributes, they can not be deleted from Klevu
-            !in_array(
-                needle: $magentoAttribute->getKlevuAttributeName(),
-                haystack: StandardAttribute::values(),
-                strict: true,
-            )
+            callback: fn (MagentoAttributeInterface $magentoAttribute): bool => (
+                !in_array(
+                    needle: $magentoAttribute->getKlevuAttributeName(),
+                    haystack: $this->getStandardAttributeCodes(apiKey: $apiKey),
+                    strict: true,
+                )
             ),
         );
+    }
+
+    /**
+     * @param string $apiKey
+     *
+     * @return string[]
+     * @throws ApiExceptionInterface
+     * @throws ApiKeyNotFoundException
+     */
+    private function getStandardAttributeCodes(string $apiKey): array
+    {
+        if (null === $this->standardAttributes) {
+            $this->standardAttributes = $this->standardAttributesProvider->getAttributeCodes(
+                apiKey: $apiKey,
+                includeAliases: true,
+            );
+        }
+
+        return $this->standardAttributes;
     }
 }

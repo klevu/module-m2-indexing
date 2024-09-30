@@ -64,13 +64,16 @@ class ConflictingAttributeNamesProvider implements ConflictingAttributeNamesProv
         );
 
         $mappedAttributes = array_map(
-            callback: function (IndexingAttributeInterface $indexingAttribute): array {
+            callback: function (IndexingAttributeInterface $indexingAttribute) use ($apiKey): array {
                 $targetAttributeType = $indexingAttribute->getTargetAttributeType();
                 $targetCode = $indexingAttribute->getTargetCode();
 
                 if (isset($this->attributeMappers[$targetAttributeType])) {
                     try {
-                        $targetCode = $this->attributeMappers[$targetAttributeType]->getByCode($targetCode);
+                        $targetCode = $this->attributeMappers[$targetAttributeType]->getByCode(
+                            attributeCode: $targetCode,
+                            apiKey: $apiKey,
+                        );
                     } catch (AttributeMappingMissingException) {
                         // This is fine
                     }

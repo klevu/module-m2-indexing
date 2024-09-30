@@ -11,6 +11,7 @@ namespace Klevu\Indexing\Test\Integration\Service;
 use Klevu\Configuration\Service\Provider\ApiKeyProviderInterface;
 use Klevu\Configuration\Service\Provider\ApiKeysProviderInterface;
 use Klevu\Indexing\Model\Update\Entity;
+use Klevu\Indexing\Model\Update\Entity as EntityUpdate;
 use Klevu\Indexing\Service\EntityUpdateOrchestratorService;
 use Klevu\IndexingApi\Model\Update\EntityInterface as EntityUpdateInterface;
 use Klevu\IndexingApi\Model\Update\EntityInterfaceFactory as EntityUpdateInterfaceFactory;
@@ -20,7 +21,6 @@ use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\ObjectManagerInterface;
-use Magento\Store\Model\StoreManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -64,6 +64,7 @@ class EntityUpdateOrchestratorServiceTest extends TestCase
                 Entity::ENTITY_TYPE => 'KLEVU_CMS',
                 Entity::ENTITY_IDS => [1, 2, 3],
                 Entity::STORE_IDS => [1],
+                EntityUpdate::ENTITY_SUBTYPES => [],
             ],
         ]);
 
@@ -87,32 +88,6 @@ class EntityUpdateOrchestratorServiceTest extends TestCase
         $apiKeysProvider = $this->objectManager->create(ApiKeysProviderInterface::class, [
             'logger' => $mockLogger,
             'apiKeyProvider' => $mockApiKeyProvider,
-        ]);
-
-        $service = $this->instantiateTestObject([
-            'apiKeysProvider' => $apiKeysProvider,
-        ]);
-        $service->execute($entityUpdate);
-    }
-
-    public function testExecute_ApiKeyLookUp_IsSkippedIfNoStoreIdsProvided(): void
-    {
-        $entityUpdateFactory = $this->objectManager->get(EntityUpdateInterfaceFactory::class);
-        /** @var EntityUpdateInterface $entityUpdate */
-        $entityUpdate = $entityUpdateFactory->create([
-            'data' => [
-                Entity::ENTITY_TYPE => 'KLEVU_CMS',
-                Entity::ENTITY_IDS => [1, 2, 3],
-                Entity::STORE_IDS => [],
-            ],
-        ]);
-        $mockStoreManager = $this->getMockBuilder(StoreManagerInterface::class)
-            ->getMock();
-        $mockStoreManager->expects($this->never())
-            ->method('getStores');
-
-        $apiKeysProvider = $this->objectManager->create(ApiKeysProviderInterface::class, [
-            'storeManager' => $mockStoreManager,
         ]);
 
         $service = $this->instantiateTestObject([

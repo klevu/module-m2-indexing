@@ -22,8 +22,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class SyncEntitiesCommand extends Command
 {
     public const COMMAND_NAME = 'klevu:indexing:entity-sync';
-    public const OPTION_API_KEY = 'api-key';
-    public const OPTION_ENTITY_TYPE = 'entity-type';
+    public const OPTION_API_KEYS = 'api-keys';
+    public const OPTION_ENTITY_TYPES = 'entity-types';
 
     /**
      * @var EntitySyncOrchestratorServiceInterface
@@ -55,14 +55,20 @@ class SyncEntitiesCommand extends Command
             (string)__('Sync entities with Klevu.'),
         );
         $this->addOption(
-            name: static::OPTION_API_KEY,
+            name: static::OPTION_API_KEYS,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Sync entities only for this API key (optional).'),
+            description: (string)__(
+                'Sync Entities only for these API Keys (optional). Comma separated list '
+                . 'e.g. --api-keys api-key-1,api-key-2',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_ENTITY_TYPE,
+            name: static::OPTION_ENTITY_TYPES,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Sync entities only for this attribute type (optional).'),
+            description: (string)__(
+                'Sync entities only for this Entity Type (optional). '
+                . 'Comma separated list e.g. --entity-types KLEVU_CMS, KLEVU_PRODUCTS',
+            ),
         );
     }
 
@@ -79,18 +85,18 @@ class SyncEntitiesCommand extends Command
     ): int {
         $startTime = microtime(true);
 
-        $entityType = $input->getOption(static::OPTION_ENTITY_TYPE);
-        $apiKey = $input->getOption(static::OPTION_API_KEY);
+        $entityTypes = $this->getEntityTypes(input: $input);
+        $apiKeys = $this->getApiKeys(input: $input);
         $filters = [];
-        if ($entityType) {
-            $filters[] = __('Entity Type = %1', $entityType);
+        if ($entityTypes) {
+            $filters[] = __('Entity Types = %1', implode(', ', $entityTypes));
         }
-        if ($apiKey) {
-            $filters[] = __('API Key = %1', $apiKey);
+        if ($apiKeys) {
+            $filters[] = __('API Keys = %1', implode(', ', $apiKeys));
         }
         $output->writeln('');
         $output->writeln(
-            sprintf(
+            messages: sprintf(
                 '<comment>%s</comment>',
                 __('Begin Entity Sync with filters: %1.', implode(', ', $filters)),
             ),
@@ -98,22 +104,22 @@ class SyncEntitiesCommand extends Command
         $output->writeln('----');
 
         $results = $this->syncOrchestratorService->execute(
-            entityType: $entityType,
-            apiKey: $apiKey,
+            entityTypes: $entityTypes,
+            apiKeys: $apiKeys,
             via: 'CLI::' . static::COMMAND_NAME,
         );
         $return = $this->processResponse(output: $output, results: $results);
 
         $endTime = microtime(true);
         $output->writeln(
-            sprintf('<comment>%s</comment>',
-                __(
+            messages: sprintf('<comment>%s</comment>',
+                 __(
                     'Sync operations complete in %1 seconds.',
                     number_format($endTime - $startTime, 2),
                 )),
         );
         $output->writeln(
-            sprintf('<comment>%s</comment>',
+            messages: sprintf('<comment>%s</comment>',
                 __(
                     "Peak memory usage during sync: %1Mb",
                     number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
@@ -138,7 +144,7 @@ class SyncEntitiesCommand extends Command
         $return = Cli::RETURN_SUCCESS;
         if (!$results) {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<comment>%s</comment>',
                     __('No entities were found that require syncing.'),
                 ),
@@ -149,16 +155,16 @@ class SyncEntitiesCommand extends Command
         $outputSuccessMessage = true;
         foreach ($results as $apiKey => $syncResult) {
             $failures = in_array(
-                $syncResult->getStatus(),
-                [IndexerResultStatuses::ERROR, IndexerResultStatuses::PARTIAL],
-                true,
+                needle: $syncResult->getStatus(),
+                haystack: [IndexerResultStatuses::ERROR, IndexerResultStatuses::PARTIAL],
+                strict: true,
             );
             if ($failures) {
                 $outputSuccessMessage = false;
             }
             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
                 $output->writeln(
-                    sprintf(
+                    messages: sprintf(
                         '<comment>%s</comment>',
                         __('Entity Sync for API Key: %1.', $apiKey),
                     ),
@@ -167,30 +173,30 @@ class SyncEntitiesCommand extends Command
             if ($syncResult->getStatus() === IndexerResultStatuses::ERROR) {
                 $return = Cli::RETURN_FAILURE;
                 $output->writeln(
-                    sprintf('<error>%s</error>', __(IndexerResultStatuses::ERROR->value)->render()),
+                    messages: sprintf('<error>%s</error>', __(IndexerResultStatuses::ERROR->value)->render()),
                 );
             } else {
                 $output->writeln(
-                    (string)__($syncResult->getStatus()->value),
+                    messages: (string)__($syncResult->getStatus()->value),
                 );
             }
             foreach ($syncResult->getMessages() as $message) {
-                $output->writeln($message);
+                $output->writeln(messages: $message);
             }
 
             $this->processPipelineResultOutput($syncResult, $output);
-            $output->writeln('----');
+            $output->writeln(messages: '----');
         }
         if ($outputSuccessMessage) {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<comment>%s</comment>',
                     __('Entity sync command completed successfully.'),
                 ),
             );
         } else {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<error>%s</error>',
                     __('All or part of Entity Sync Failed. See Logs for more details.'),
                 ),
@@ -230,14 +236,14 @@ class SyncEntitiesCommand extends Command
                 static fn (mixed $item): bool => ($item instanceof ApiPipelineResult),
             );
             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-                $output->writeln(' --');
+                $output->writeln(messages: ' --');
                 $output->writeln(
-                    __(' Action  : %1', $action)->render(),
+                    messages: __(' Action  : %1', $action)->render(),
                 );
                 $output->writeln(
-                    __(' Batches : %1', count($apiPipelineResults))->render(),
+                    messages: __(' Batches : %1', count($apiPipelineResults))->render(),
                 );
-                $output->writeln('');
+                $output->writeln(messages: '');
             }
 
             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
@@ -256,10 +262,10 @@ class SyncEntitiesCommand extends Command
     {
         foreach ($apiPipelineResults as $batch => $apiPipelineResult) {
             $output->writeln(
-                __('  Batch        : %1', $batch)->render(),
+                messages: __('  Batch        : %1', $batch)->render(),
             );
             $output->writeln(
-                __(
+                messages: __(
                     '  Success      : %1',
                     $apiPipelineResult->success
                         ? 'True'
@@ -267,18 +273,46 @@ class SyncEntitiesCommand extends Command
                 )->render(),
             );
             $output->writeln(
-                __('  API Response : %1', $apiPipelineResult->apiResponse?->getResponseCode())->render(),
+                messages: __('  API Response : %1', $apiPipelineResult->apiResponse?->getResponseCode())->render(),
             );
             $output->writeln(
-                __('  Job ID       : %1', $apiPipelineResult->apiResponse?->jobId ?? 'n/a')->render(),
+                messages: __('  Job ID       : %1', $apiPipelineResult->apiResponse?->jobId ?? 'n/a')->render(),
             );
             $output->writeln(
-                __('  Record Count : %1', count($apiPipelineResult->payload ?? []))->render(),
+                messages: __('  Record Count : %1', count($apiPipelineResult->payload ?? []))->render(),
             );
             foreach ($apiPipelineResult->apiResponse?->getMessages() ?? [] as $message) {
-                $output->writeln('  ' . $message);
+                $output->writeln(messages: '  ' . $message);
             }
-            $output->writeln('');
+            $output->writeln(messages: '');
         }
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getApiKeys(InputInterface $input): array
+    {
+        $apiKeys = $input->getOption(static::OPTION_API_KEYS);
+
+        return $apiKeys
+            ? array_map(callback: 'trim', array: explode(',', $apiKeys))
+            : [];
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getEntityTypes(InputInterface $input): array
+    {
+        $entityTypes = $input->getOption(static::OPTION_ENTITY_TYPES);
+
+        return $entityTypes
+            ? array_map(callback: 'trim', array: explode(',', $entityTypes))
+            : [];
     }
 }

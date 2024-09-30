@@ -17,6 +17,7 @@ class Entity implements EntityInterface
     public const STORE_IDS = 'storeIds';
     public const CUSTOMER_GROUP_IDS = 'customerGroupIds';
     public const ATTRIBUTES = 'attributes';
+    public const ENTITY_SUBTYPES = 'entitySubtypes';
 
     /**
      * @var string
@@ -38,6 +39,10 @@ class Entity implements EntityInterface
      * @var string[]
      */
     private array $attributes;
+    /**
+     * @var string[]
+     */
+    private array $entitySubtypes;
 
     /**
      * @param mixed[] $data
@@ -148,6 +153,26 @@ class Entity implements EntityInterface
     }
 
     /**
+     * @return string[]
+     */
+    public function getEntitySubtypes(): array
+    {
+        return $this->entitySubtypes;
+    }
+
+    /**
+     * @param string[] $entitySubtypes
+     *
+     * @return void
+     * @throws \InvalidArgumentException
+     */
+    public function setEntitySubtypes(array $entitySubtypes): void
+    {
+        array_walk($entitySubtypes, [$this, 'validateIsString'], static::ENTITY_SUBTYPES);
+        $this->entitySubtypes = $entitySubtypes;
+    }
+
+    /**
      * @param mixed $value
      * @param string $key
      *
@@ -162,6 +187,7 @@ class Entity implements EntityInterface
             static::STORE_IDS => $this->setStoreIds($value),
             static::CUSTOMER_GROUP_IDS => $this->setCustomerGroupIds($value),
             static::ATTRIBUTES => $this->setAttributes($value),
+            static::ENTITY_SUBTYPES => $this->setEntitySubtypes($value),
             default => throw new \InvalidArgumentException(
                 sprintf(
                     'Invalid key provided in creation of %s. Key %s',

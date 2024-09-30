@@ -10,17 +10,21 @@ namespace Klevu\Indexing\Test\Integration\Service;
 
 use Klevu\Configuration\Service\Provider\ApiKeyProviderInterface;
 use Klevu\Configuration\Service\Provider\ApiKeysProviderInterface;
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Model\Update\Attribute;
 use Klevu\Indexing\Service\AttributeUpdateOrchestratorService;
 use Klevu\IndexingApi\Model\Update\AttributeInterface as AttributeUpdateInterface;
 use Klevu\IndexingApi\Model\Update\AttributeInterfaceFactory as AttributeUpdateInterfaceFactory;
 use Klevu\IndexingApi\Service\AttributeUpdateOrchestratorServiceInterface;
+use Klevu\TestFixtures\Store\StoreFixturesPool;
+use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\ObjectManagerInterface;
-use Magento\Store\Model\StoreManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -32,7 +36,10 @@ use Psr\Log\LoggerInterface;
  */
 class AttributeUpdateOrchestratorServiceTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
+    use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
 
@@ -51,10 +58,40 @@ class AttributeUpdateOrchestratorServiceTest extends TestCase
         $this->implementationFqcn = AttributeUpdateOrchestratorService::class;
         $this->interfaceFqcn = AttributeUpdateOrchestratorServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
+
+        $this->mockSdkAttributeGetApiCall();
     }
 
+    /**
+     * @return void
+     * @throws \Exception
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_LogsNoSuchEntityException_WhenRetrievingApiKeys(): void
     {
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: 'klevu-js-key',
+            restAuthKey: 'klevu-rest-key',
+        );
+
         $exceptionMessage = 'No Such Attribute Exception Message';
 
         $attributeUpdateFactory = $this->objectManager->get(AttributeUpdateInterfaceFactory::class);
@@ -93,31 +130,5 @@ class AttributeUpdateOrchestratorServiceTest extends TestCase
             'apiKeysProvider' => $apiKeysProvider,
         ]);
         $service->execute($attributeUpdate);
-    }
-
-    public function testExecute_ApiKeyLookUp_IsSkippedIfNoStoreIdsProvided(): void
-    {
-        $attributeUpdateFactory = $this->objectManager->get(AttributeUpdateInterfaceFactory::class);
-        /** @var AttributeUpdateInterface $entityUpdate */
-        $entityUpdate = $attributeUpdateFactory->create([
-            'data' => [
-                Attribute::ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
-                Attribute::ATTRIBUTE_IDS => [1, 2, 3],
-                Attribute::STORE_IDS => [],
-            ],
-        ]);
-        $mockStoreManager = $this->getMockBuilder(StoreManagerInterface::class)
-            ->getMock();
-        $mockStoreManager->expects($this->never())
-            ->method('getStores');
-
-        $apiKeysProvider = $this->objectManager->create(ApiKeysProviderInterface::class, [
-            'storeManager' => $mockStoreManager,
-        ]);
-
-        $service = $this->instantiateTestObject([
-            'apiKeysProvider' => $apiKeysProvider,
-        ]);
-        $service->execute($entityUpdate);
     }
 }

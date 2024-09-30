@@ -17,8 +17,8 @@ use Klevu\TestFixtures\Catalog\Attribute\AttributeFixturePool;
 use Klevu\TestFixtures\Catalog\AttributeTrait;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
-use Klevu\TestFixtures\Traits\PipelineAttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Magento\Cron\Model\Config as CronConfig;
 use Magento\Framework\App\Config\ScopeConfigInterface;
@@ -34,10 +34,10 @@ use TddWizard\Fixtures\Core\ConfigFixture;
  */
 class SyncAttributesTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use AttributeTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
-    use PipelineAttributeApiCallTrait;
     use SetAuthKeysTrait;
     use StoreTrait;
 
@@ -57,6 +57,7 @@ class SyncAttributesTest extends TestCase
         $this->objectManager = Bootstrap::getObjectManager();
         $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
         $this->attributeFixturePool = $this->objectManager->get(AttributeFixturePool::class);
+        $this->mockSdkAttributeGetApiCall();
     }
 
     /**
@@ -69,6 +70,8 @@ class SyncAttributesTest extends TestCase
 
         $this->attributeFixturePool->rollback();
         $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
     }
 
     /**
@@ -154,8 +157,6 @@ class SyncAttributesTest extends TestCase
         );
         $scopeProvider->unsetCurrentScope();
 
-        $this->mockSdkAttributePutApiCall(isCalled: true, isSuccessful: true);
-
         $this->createAttribute();
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
 
@@ -183,6 +184,8 @@ class SyncAttributesTest extends TestCase
                 ],
             );
 
+        $this->mockSdkAttributePutApiCall(isCalled: true, isSuccessful: true);
+
         $cron = $this->instantiateTestObject([
             'logger' => $mockLogger,
         ]);
@@ -207,8 +210,6 @@ class SyncAttributesTest extends TestCase
             restAuthKey: $authKey,
         );
         $scopeProvider->unsetCurrentScope();
-
-        $this->mockSdkAttributePutApiCall(isCalled: true, isSuccessful: false);
 
         $this->createAttribute();
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
@@ -236,6 +237,8 @@ class SyncAttributesTest extends TestCase
                     ),
                 ],
             );
+
+        $this->mockSdkAttributePutApiCall(isCalled: true, isSuccessful: false);
 
         $cron = $this->instantiateTestObject([
             'logger' => $mockLogger,

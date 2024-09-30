@@ -56,11 +56,20 @@
     <preference for="Klevu\IndexingApi\Service\Action\AddIndexingEntitiesActionInterface"
                 type="Klevu\Indexing\Service\Action\AddIndexingEntitiesAction"/>
 
-    <preference for="Klevu\IndexingApi\Service\Action\ParseFilepathActionInterface"
-                type="Klevu\Indexing\Service\Action\ParseFilepath"/>
+    <preference for="Klevu\IndexingApi\Service\Action\Cache\CacheAttributesActionInterface"
+                type="Klevu\Indexing\Service\Action\Cache\CacheAttributesAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\Cache\ClearAttributesCacheActionInterface"
+                type="Klevu\Indexing\Service\Action\Cache\ClearAttributesCacheAction"/>
+
+    <preference for="Klevu\IndexingApi\Api\ConvertEavAttributeToIndexingAttributeActionInterface"
+                type="Klevu\Indexing\Service\Action\ConvertEavAttributeToIndexingAttributeAction"/>
 
     <preference for="Klevu\IndexingApi\Service\Action\SetIndexingAttributesToBeIndexableActionInterface"
                 type="Klevu\Indexing\Service\Action\SetIndexingAttributesToBeIndexableAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingAttributesToNotBeIndexableActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingAttributesToNotBeIndexableAction"/>
 
     <preference for="Klevu\IndexingApi\Service\Action\SetIndexingAttributesToDeleteActionInterface"
                 type="Klevu\Indexing\Service\Action\SetIndexingAttributesToDeleteAction"/>
@@ -89,11 +98,20 @@
     <preference for="Klevu\IndexingApi\Service\AttributeDiscoveryOrchestratorServiceInterface"
                 type="Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService"/>
 
+    <preference for="Klevu\IndexingApi\Service\AttributesMissingHandlerServiceInterface"
+                type="Klevu\Indexing\Service\AttributesMissingHandlerService"/>
+
     <preference for="Klevu\IndexingApi\Service\AttributeSyncOrchestratorServiceInterface"
                 type="Klevu\Indexing\Service\AttributeSyncOrchestratorService"/>
 
     <preference for="Klevu\IndexingApi\Service\AttributeUpdateOrchestratorServiceInterface"
                 type="Klevu\Indexing\Service\AttributeUpdateOrchestratorService"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\Cache\AttributesCacheKeyProviderInterface"
+                type="Klevu\Indexing\Service\Provider\Cache\AttributesCacheKeyProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\Cache\CachedAttributesProviderInterface"
+                type="Klevu\Indexing\Service\Provider\Cache\CachedAttributesProvider"/>
 
     <preference for="Klevu\IndexingApi\Service\CleanConsolidatedSyncHistoryServiceInterface"
                 type="Klevu\Indexing\Service\CleanConsolidatedSyncHistoryService"/>
@@ -121,6 +139,9 @@
 
     <preference for="Klevu\IndexingApi\Service\FilterAttributesToSetToIndexableServiceInterface"
                 type="Klevu\Indexing\Service\FilterAttributesToSetToIndexableService"/>
+
+    <preference for="Klevu\IndexingApi\Service\FilterAttributesToSetToNotIndexableServiceInterface"
+                type="Klevu\Indexing\Service\FilterAttributesToSetToNotIndexableService"/>
 
     <preference for="Klevu\IndexingApi\Service\FilterAttributesToUpdateServiceInterface"
                 type="Klevu\Indexing\Service\FilterAttributesToUpdateService"/>
@@ -157,6 +178,15 @@
 
     <preference for="Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface"
                 type="Klevu\Indexing\Service\Provider\IndexingEntityProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\MagentoToKlevuAttributeMapperProviderInterface"
+                type="Klevu\Indexing\Service\Provider\MagentoToKlevuAttributeMapperProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\Sdk\AttributesProviderInterface"
+                type="Klevu\Indexing\Service\Provider\Sdk\AttributesProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\StandardAttributesProviderInterface"
+                type="Klevu\Indexing\Service\Provider\StandardAttributesProvider"/>
 
     <preference for="Klevu\IndexingApi\Service\Provider\SyncHistoryEntityByDateProviderInterface"
                 type="Klevu\Indexing\Service\Provider\SyncHistoryEntityByDateProvider"/>
@@ -265,6 +295,25 @@
         </arguments>
     </type>
 
+    <type name="Klevu\Indexing\Service\Action\GenerateConfigurationOverridesContentAction">
+        <arguments>
+            <argument name="pipelineConfigurationBuilder"
+                      xsi:type="object">Klevu\PlatformPipelines\Pipeline\ConfigurationBuilder\WithoutDefaults</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingAttributesToBeIndexableAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingAttributesToNotBeIndexableAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
     <type name="Klevu\Indexing\Service\Action\SetIndexingAttributesToDeleteAction">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
@@ -338,6 +387,13 @@
         </arguments>
     </type>
 
+    <type name="Klevu\Indexing\Service\Provider\Sdk\AttributesProvider">
+        <arguments>
+            <argument name="attributesService"
+                      xsi:type="object">Klevu\Indexing\Service\Indexing\AttributesService</argument>
+        </arguments>
+    </type>
+
     <!-- Pipelines -->
     <type name="Klevu\PlatformPipelines\ObjectManager\Container">
         <arguments>
@@ -363,6 +419,20 @@
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
+
+    <virtualType name="Klevu\Indexing\Service\Provider\GeneratedConfigurationOverridesFilepathProvider"
+                 type="Klevu\PlatformPipelines\Service\Provider\GeneratedConfigurationOverridesFilepathProvider">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Klevu\Indexing\Service\ConfigurationOverridesHandler"
+                 type="Klevu\PlatformPipelines\Service\ConfigurationOverridesHandler">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </virtualType>
 
     <type name="Klevu\Indexing\Service\EntityIndexerService">
         <arguments>
@@ -486,6 +556,10 @@
                       xsi:type="object">Klevu\Indexing\Console\Command\DiscoverAttributesCommand\Proxy</item>
                 <item name="klevu_indexing_discover_entities"
                       xsi:type="object">Klevu\Indexing\Console\Command\DiscoverEntitiesCommand\Proxy</item>
+                <item name="klevu_indexing_dump_pipeline_configuration"
+                      xsi:type="object">Klevu\Indexing\Console\Command\ConfigurationDumpPipelineCommand\Proxy</item>
+                <item name="klevu_indexing_regenerate_configuration_overrides"
+                      xsi:type="object">Klevu\Indexing\Console\Command\ConfigurationOverridesRegenerateCommand\Proxy</item>
                 <item name="klevu_indexing_sync_attributes"
                       xsi:type="object">Klevu\Indexing\Console\Command\SyncAttributesCommand\Proxy</item>
                 <item name="klevu_indexing_sync_entities"
@@ -665,6 +739,54 @@
     <type name="Klevu\Indexing\Service\Provider\Sync\EntityIndexingRecordProvider">
         <arguments>
             <argument name="batchSize" xsi:type="number">2500</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Provider\Sync\AttributeIndexingRecordProvider">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\FilterAttributesToAddService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\FilterAttributesToDeleteService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\FilterAttributesToSetToIndexableService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+     <type name="Klevu\Indexing\Service\Provider\DuplicateAttributeMappingProvider">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\Cache\CacheAttributesAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\Cache\ClearAttributesCacheAction">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Provider\StandardAttributesProvider">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
 

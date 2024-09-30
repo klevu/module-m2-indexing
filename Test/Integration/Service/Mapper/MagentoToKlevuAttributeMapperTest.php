@@ -8,12 +8,17 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service\Mapper;
 
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Exception\AttributeMappingMissingException;
 use Klevu\Indexing\Service\Mapper\MagentoToKlevuAttributeMapper;
 use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
 use Klevu\TestFixtures\Catalog\Attribute\AttributeFixturePool;
 use Klevu\TestFixtures\Catalog\AttributeTrait;
+use Klevu\TestFixtures\Store\StoreFixturesPool;
+use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Magento\Catalog\Api\Data\CategoryAttributeInterface;
 use Magento\Catalog\Api\Data\CategoryInterface;
@@ -31,8 +36,11 @@ use PHPUnit\Framework\TestCase;
  */
 class MagentoToKlevuAttributeMapperTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use AttributeTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
+    use StoreTrait;
     use TestImplementsInterfaceTrait;
 
     /**
@@ -47,12 +55,15 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
     {
         parent::setUp();
 
+        $this->objectManager = Bootstrap::getObjectManager();
+
         $this->implementationFqcn = MagentoToKlevuAttributeMapper::class;
         $this->interfaceFqcn = MagentoToKlevuAttributeMapperInterface::class;
         $this->constructorArgumentDefaults = [
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
         ];
-        $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
         $this->attributeFixturePool = $this->objectManager->get(AttributeFixturePool::class);
     }
 
@@ -65,10 +76,12 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         parent::tearDown();
 
         $this->attributeFixturePool->rollback();
+        $this->storeFixturesPool->rollback();
     }
 
     public function testGet_ReturnsOriginalAttributeCode_WhenNoMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -79,13 +92,14 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
         ]);
-        $result = $mapper->get($magentoAttribute);
+        $result = $mapper->get(attribute: $magentoAttribute, apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeCode(), actual: $result);
     }
 
     public function testGet_ReturnsNewAttributeCode_WhenMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -99,13 +113,15 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->get($magentoAttribute);
+        $result = $mapper->get(attribute: $magentoAttribute, apiKey: $apiKey);
 
         $this->assertSame(expected: 'another_name', actual: $result);
     }
 
     public function testGet_ThrowsAttributeMappingMissingException_WhenMappingIsMissing_withoutPrefix(): void
     {
+        $apiKey = 'klevu-js-api-key';
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -137,21 +153,38 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'description',
             ],
         ]);
-        $mapper->get($descriptionAttribute);
+        $mapper->get(attribute: $descriptionAttribute, apiKey: $apiKey);
     }
 
     public function testGet_ThrowsAttributeMappingMissingException_WhenMappingIsMissing_withPrefix(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
         ]);
+        $attributeFixture = $this->attributeFixturePool->get('test_attribute');
 
         $attributeRepository = $this->objectManager->get(AttributeRepositoryInterface::class);
         $descriptionAttribute = $attributeRepository->get(
             entityTypeCode: CategoryAttributeInterface::ENTITY_TYPE_CODE,
             attributeCode: 'description',
         );
+        $descriptionAttributeCode = $descriptionAttribute->getAttributeCode();
+
+        $prefix = 'cat-';
 
         $this->expectException(AttributeMappingMissingException::class);
         $this->expectExceptionMessage(
@@ -160,25 +193,41 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 . 'Klevu attribute %s is mapped to Magento attribute %s. '
                 . '2 Magento attributes can not be mapped to the same Klevu attribute. '
                 . 'Either add mapping for Magento attribute %s or set it not to be indexable.',
-                'description',
-                'cat-description',
-                'klevu_test_attribute',
-                'description',
+                $descriptionAttributeCode,
+                $prefix . $descriptionAttributeCode,
+                $attributeFixture->getAttributeCode(),
+                $descriptionAttributeCode,
             ),
         );
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => CategoryAttributeInterface::ENTITY_TYPE_CODE,
-            'prefix' => 'cat-',
+            'prefix' => $prefix,
             'attributeMapping' => [
-                'klevu_test_attribute' => 'cat-description',
+                $attributeFixture->getAttributeCode() => $prefix . $descriptionAttributeCode,
             ],
         ]);
-        $mapper->get($descriptionAttribute);
+        $mapper->get(attribute: $descriptionAttribute, apiKey: $apiKey);
     }
 
     public function testGetReturnsNewAttributeCode_WhenPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -186,17 +235,21 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
             'prefix' => 'prod-',
         ]);
-        $result = $mapper->get($magentoAttribute);
+        $result = $mapper->get(attribute: $magentoAttribute, apiKey: $apiKey);
 
         $this->assertSame(expected: 'prod-klevu_test_attribute', actual: $result);
     }
 
     public function testGetReturnsNewAttributeCode_WhenMappingAndPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -211,13 +264,14 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->get($magentoAttribute);
+        $result = $mapper->get(attribute: $magentoAttribute, apiKey: $apiKey);
 
         $this->assertSame(expected: 'another_name', actual: $result);
     }
 
     public function testReverse_ReturnsOriginalAttributeCode_WhenNoMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -225,22 +279,30 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
         ]);
-        $result = $mapper->reverse($magentoAttribute->getAttributeCode());
+        $result = $mapper->reverse($magentoAttribute->getAttributeCode(), $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeId(), actual: $result->getAttributeId());
     }
 
     public function testReverse_ReturnsNewAttributeCode_WhenMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
         ]);
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
+
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
 
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
@@ -248,13 +310,14 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->reverse('another_name');
+        $result = $mapper->reverse(attributeName: 'another_name', apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeId(), actual: $result->getAttributeId());
     }
 
     public function testReverse_ThrowsException_WhenAttributeNameIsNotMappedAndDoesNotExist(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->expectException(NoSuchEntityException::class);
 
         $this->createAttribute([
@@ -262,14 +325,30 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
             'label' => 'TEST TEXT ATTRIBUTE',
         ]);
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
         ]);
-        $mapper->reverse('_IH*£END');
+        $mapper->reverse(attributeName: '_IH*£END', apiKey: $apiKey);
     }
 
     public function testReverse_ReturnsNewAttributeCode_WhenPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -277,23 +356,42 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
             'prefix' => 'prod-',
         ]);
-        $result = $mapper->reverse('prod-klevu_test_attribute');
+        $result = $mapper->reverse(attributeName: 'prod-klevu_test_attribute', apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeId(), actual: $result->getAttributeId());
     }
 
     public function testReverse_ReturnsNewAttributeCode_WhenMappingAndPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
         ]);
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
+
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
 
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
@@ -302,13 +400,14 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->reverse('another_name');
+        $result = $mapper->reverse(attributeName: 'another_name', apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeId(), actual: $result->getAttributeId());
     }
 
     public function testGetByCode_ReturnsOriginalAttributeCode_WhenNoMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -319,19 +418,23 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
         ]);
-        $result = $mapper->getByCode($magentoAttribute->getAttributeCode());
+        $result = $mapper->getByCode(attributeCode: $magentoAttribute->getAttributeCode(), apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeCode(), actual: $result);
     }
 
     public function testGetByCode_ReturnsNewAttributeCode_WhenMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
         ]);
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
+
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
 
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
@@ -339,13 +442,14 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->getByCode($magentoAttribute->getAttributeCode());
+        $result = $mapper->getByCode(attributeCode: $magentoAttribute->getAttributeCode(), apiKey: $apiKey);
 
         $this->assertSame(expected: 'another_name', actual: $result);
     }
 
     public function testGetByCode_ThrowsAttributeMappingMissingException_WhenMappingIsMissing_withoutPrefix(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -371,17 +475,33 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
             ),
         );
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
             'attributeMapping' => [
                 'klevu_test_attribute' => 'description',
             ],
         ]);
-        $mapper->getByCode($descriptionAttribute->getAttributeCode());
+        $mapper->getByCode(attributeCode: $descriptionAttribute->getAttributeCode(), apiKey: $apiKey);
     }
 
     public function testGetByCode_ThrowsAttributeMappingMissingException_WhenMappingIsMissing_withPrefix(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $attributeCode = 'klevu_test_attribute';
         $this->createAttribute([
             'code' => $attributeCode,
@@ -408,6 +528,9 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
             ),
         );
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => CategoryAttributeInterface::ENTITY_TYPE_CODE,
             'prefix' => 'cat-',
@@ -415,11 +538,24 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 $attributeCode => 'cat-' . CategoryInterface::KEY_NAME,
             ],
         ]);
-        $mapper->getByCode($descriptionAttribute->getAttributeCode());
+        $mapper->getByCode(attributeCode: $descriptionAttribute->getAttributeCode(), apiKey: $apiKey);
     }
 
     public function testGetByCode_ReturnsNewAttributeCode_WhenPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -427,23 +563,42 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
             'prefix' => 'prod-',
         ]);
-        $result = $mapper->getByCode($magentoAttribute->getAttributeCode());
+        $result = $mapper->getByCode(attributeCode: $magentoAttribute->getAttributeCode(), apiKey: $apiKey);
 
         $this->assertSame(expected: 'prod-klevu_test_attribute', actual: $result);
     }
 
     public function testGetByCode_ReturnsNewAttributeCode_WhenMappingAndPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
         ]);
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
+
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
 
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
@@ -452,13 +607,14 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->getByCode($magentoAttribute->getAttributeCode());
+        $result = $mapper->getByCode(attributeCode: $magentoAttribute->getAttributeCode(), apiKey: $apiKey);
 
         $this->assertSame(expected: 'another_name', actual: $result);
     }
 
     public function testReverseForCode_ReturnsOriginalAttribute_WhenNoMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -466,16 +622,20 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
         ]);
-        $result = $mapper->reverseForCode($magentoAttribute->getAttributeCode());
+        $result = $mapper->reverseForCode(attributeName: $magentoAttribute->getAttributeCode(), apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeCode(), actual: $result);
     }
 
     public function testReverseForCode_ReturnsNewAttributeCode_WhenMappingSetUp(): void
     {
+        $apiKey = 'klevu-js-api-key';
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -483,19 +643,35 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
             'attributeMapping' => [
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->reverseForCode('another_name');
+        $result = $mapper->reverseForCode(attributeName: 'another_name', apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeCode(), actual: $result);
     }
 
     public function testReverseForCode_ReturnsNewAttributeCode_WhenPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
@@ -503,23 +679,42 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
 
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
+
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
             'prefix' => 'prod-',
         ]);
-        $result = $mapper->reverseForCode('prod-klevu_test_attribute');
+        $result = $mapper->reverseForCode(attributeName: 'prod-klevu_test_attribute', apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeCode(), actual: $result);
     }
 
     public function testReverseForCode_ReturnsNewAttributeCode_WhenMappingAndPrefixSet(): void
     {
+        $apiKey = 'klevu-js-api-key';
+        $authKey = 'klevu-rest-auth-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createAttribute([
             'code' => 'klevu_test_attribute',
             'label' => 'TEST TEXT ATTRIBUTE',
         ]);
         $attributeFixture = $this->attributeFixturePool->get('test_attribute');
         $magentoAttribute = $attributeFixture->getAttribute();
+
+        $this->mockSdkAttributeGetApiCall();
+        $this->clearAttributeCache();
 
         $mapper = $this->instantiateTestObject([
             'entityType' => ProductAttributeInterface::ENTITY_TYPE_CODE,
@@ -528,7 +723,7 @@ class MagentoToKlevuAttributeMapperTest extends TestCase
                 'klevu_test_attribute' => 'another_name',
             ],
         ]);
-        $result = $mapper->reverseForCode('another_name');
+        $result = $mapper->reverseForCode(attributeName: 'another_name', apiKey: $apiKey);
 
         $this->assertSame(expected: $magentoAttribute->getAttributeCode(), actual: $result);
     }

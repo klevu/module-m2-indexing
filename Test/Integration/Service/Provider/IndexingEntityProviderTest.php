@@ -102,6 +102,81 @@ class IndexingEntityProviderTest extends TestCase
         $this->cleanIndexingEntities($apiKey);
     }
 
+    public function testGet_ReturnsIndexingEntities_FilteredBySubtype(): void
+    {
+        $apiKey = 'klevu-js-api-key';
+        $this->cleanIndexingEntities($apiKey);
+
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'bundle',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'grouped',
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'virtual',
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'downloadable',
+            IndexingEntity::TARGET_ID => 5,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable',
+            IndexingEntity::TARGET_ID => 6,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable_variant',
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::TARGET_PARENT_ID => 6,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+
+        $provider = $this->instantiateTestObject();
+        $results = $provider->get(
+            entityType: 'KLEVU_PRODUCT',
+            apiKey: $apiKey,
+            entitySubtypes: [
+                'simple',
+                'virtual',
+                'downloadable',
+                'configurable',
+            ],
+        );
+        $this->assertCount(expectedCount: 4, haystack: $results);
+        $targetIds = array_map(
+            static fn (IndexingEntityInterface $indexingEntity): string => (
+                (int)$indexingEntity->getTargetId() . '-' . (int)$indexingEntity->getTargetParentId()
+            ),
+            $results,
+        );
+        $this->assertContains('3-0', $targetIds);
+        $this->assertContains('4-0', $targetIds);
+        $this->assertContains('5-0', $targetIds);
+        $this->assertContains('6-0', $targetIds);
+
+        $this->cleanIndexingEntities($apiKey);
+    }
+
     public function testGet_ReturnsIndexingEntities_FilteredByApiKey(): void
     {
         $apiKey1 = 'klevu-js-api-key';

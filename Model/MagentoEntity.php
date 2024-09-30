@@ -28,23 +28,30 @@ class MagentoEntity implements MagentoEntityInterface
      * @var int|null
      */
     private readonly ?int $entityParentId;
+    /**
+     * @var string|null
+     */
+    private readonly ?string $entitySubtype;
 
     /**
      * @param int $entityId
-     * @param int|null $entityParentId
      * @param string $apiKey
      * @param bool $isIndexable
+     * @param int|null $entityParentId
+     * @param string|null $entitySubtype
      */
     public function __construct(
         int $entityId,
         string $apiKey,
         bool $isIndexable,
         ?int $entityParentId = null,
+        ?string $entitySubtype = null,
     ) {
         $this->entityId = $entityId;
         $this->apiKey = $apiKey;
         $this->isIndexable = $isIndexable;
         $this->entityParentId = $entityParentId;
+        $this->entitySubtype = $entitySubtype;
     }
 
     /**
@@ -61,6 +68,14 @@ class MagentoEntity implements MagentoEntityInterface
     public function getEntityParentId(): ?int
     {
         return $this->entityParentId;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getEntitySubtype(): ?string
+    {
+        return $this->entitySubtype;
     }
 
     /**

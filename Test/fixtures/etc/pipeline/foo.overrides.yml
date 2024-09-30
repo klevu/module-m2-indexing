@@ -1,0 +1,7 @@
+stages:
+    createRecord:
+        addStages:
+            bar:
+                pipeline: Stage\Extract
+                args:
+                    extraction: bar

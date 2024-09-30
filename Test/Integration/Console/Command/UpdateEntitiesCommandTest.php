@@ -65,7 +65,6 @@ class UpdateEntitiesCommandTest extends TestCase
     public function testExecute_Fails_WithOutEntityIds(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
@@ -110,7 +109,6 @@ class UpdateEntitiesCommandTest extends TestCase
     public function testExecute_Fails_forNonExistentApiKey(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
 
         $discoverAttributesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -119,7 +117,7 @@ class UpdateEntitiesCommandTest extends TestCase
         $isFailure = $tester->execute(
             input: [
                 '--entity-ids' => '1,2,3',
-                '--api-key' => 'klevu-api-key-with-no-store',
+                '--api-keys' => 'klevu-api-key-with-no-store',
             ],
         );
 
@@ -142,7 +140,6 @@ class UpdateEntitiesCommandTest extends TestCase
     public function testExecute_Fails_forNonExistentAttributeType(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
 
         $discoverAttributesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -151,7 +148,7 @@ class UpdateEntitiesCommandTest extends TestCase
         $isFailure = $tester->execute(
             input: [
                 '--entity-ids' => '1,2,3',
-                '--entity-type' => 'something',
+                '--entity-types' => 'something',
             ],
         );
 
@@ -168,13 +165,18 @@ class UpdateEntitiesCommandTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
+     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key-1
+     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key-1
+     * @magentoConfigFixture klevu_test_store_2_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key-2
+     * @magentoConfigFixture klevu_test_store_2_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key-2
      */
-    public function testExecute_Succeeds_WithApiKey(): void
+    public function testExecute_Succeeds_WithApiKeys(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
+        $this->createStore([
+            'key' => 'test_store_2',
+            'code' => 'klevu_test_store_2',
+        ]);
 
         $discoverAttributesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -183,7 +185,7 @@ class UpdateEntitiesCommandTest extends TestCase
         $isFailure = $tester->execute(
             input: [
                 '--entity-ids' => '1,2,3',
-                '--api-key' => 'klevu-js-api-key',
+                '--api-keys' => 'klevu-js-api-key-1, klevu-js-api-key-2',
             ],
         );
 
@@ -206,7 +208,6 @@ class UpdateEntitiesCommandTest extends TestCase
     public function testExecute_Succeeds_WithAttributeType(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
@@ -231,8 +232,8 @@ class UpdateEntitiesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [
-                '--entity-ids' => '1,2,3',
-                '--entity-type' => 'KLEVU_PRODUCT',
+                '--entity-ids' => 'all',
+                '--entity-types' => 'KLEVU_PRODUCT',
             ],
         );
 

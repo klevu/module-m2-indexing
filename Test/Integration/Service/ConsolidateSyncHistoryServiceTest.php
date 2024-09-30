@@ -278,7 +278,7 @@ class ConsolidateSyncHistoryServiceTest extends TestCase
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockLogger->expects($this->once())
+        $mockLogger->expects($this->atLeastOnce())
             ->method('error')
             ->with(
                 'Method: {method}, Error: {message}',

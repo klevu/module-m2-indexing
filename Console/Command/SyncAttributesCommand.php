@@ -18,8 +18,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class SyncAttributesCommand extends Command
 {
     public const COMMAND_NAME = 'klevu:indexing:attribute-sync';
-    public const OPTION_API_KEY = 'api-key';
-    public const OPTION_ATTRIBUTE_TYPE = 'attribute-type';
+    public const OPTION_API_KEYS = 'api-keys';
+    public const OPTION_ATTRIBUTE_TYPES = 'attribute-types';
 
     /**
      * @var AttributeSyncOrchestratorServiceInterface
@@ -46,19 +46,25 @@ class SyncAttributesCommand extends Command
     {
         parent::configure();
 
-        $this->setName(static::COMMAND_NAME);
+        $this->setName(name: static::COMMAND_NAME);
         $this->setDescription(
-            (string)__('Sync attributes with Klevu.'),
+            description: (string)__('Sync attributes with Klevu.'),
         );
         $this->addOption(
-            name: static::OPTION_API_KEY,
+            name: static::OPTION_API_KEYS,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Sync attributes only for this API key (optional).'),
+            description: (string)__(
+                'Sync Attributes only for these API Keys (optional). Comma separated list '
+                . 'e.g. --api-keys api-key-1,api-key-2',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_ATTRIBUTE_TYPE,
+            name: static::OPTION_ATTRIBUTE_TYPES,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Sync attributes only for this attribute type (optional).'),
+            description: (string)__(
+                'Sync attributes only for these attribute types (optional). '
+                . 'Comma separated list e.g. --attribute-types KLEVU_CMS,KLEVU_PRODUCTS',
+            ),
         );
     }
 
@@ -74,30 +80,30 @@ class SyncAttributesCommand extends Command
     ): int {
         $verbosity = $output->getVerbosity();
         $return = Cli::RETURN_SUCCESS;
-        $attributeType = $input->getOption(static::OPTION_ATTRIBUTE_TYPE);
-        $apiKey = $input->getOption(static::OPTION_API_KEY);
+        $attributeTypes = $this->getAttributeTypes(input: $input);
+        $apiKeys = $this->getApiKeys(input: $input);
         $filters = [];
-        if ($attributeType) {
-            $filters[] = __('Attribute Type = %1', $attributeType);
+        if ($attributeTypes) {
+            $filters[] = __('Attribute Types = %1', implode(separator: ', ', array: $attributeTypes));
         }
-        if ($apiKey) {
-            $filters[] = __('API Key = %1', $apiKey);
+        if ($apiKeys) {
+            $filters[] = __('API Keys = %1', implode(separator: ', ', array: $apiKeys));
         }
         $output->writeln('');
         $output->writeln(
-            sprintf(
+            messages: sprintf(
                 '<comment>%s</comment>',
-                __('Begin Attribute Sync with filters: %1.', implode(', ', $filters)),
+                __('Begin Attribute Sync with filters: %1.', implode(separator: ', ', array: $filters)),
             ),
         );
         $results = $this->syncOrchestratorService->execute(
-            attributeType: $attributeType,
-            apiKey: $apiKey,
+            attributeTypes: $attributeTypes,
+            apiKeys: $apiKeys,
         );
 
         if (!$results) {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<comment>%s</comment>',
                     __('No attributes were found that require syncing.'),
                 ),
@@ -109,7 +115,7 @@ class SyncAttributesCommand extends Command
         foreach ($results as $apiKey => $actions) {
             if ($verbosity >= OutputInterface::VERBOSITY_VERBOSE) {
                 $output->writeln(
-                    sprintf(
+                    messages: sprintf(
                         '<comment>%s</comment>',
                         __('Attribute Sync for API Key: %1.', $apiKey),
                     ),
@@ -118,7 +124,7 @@ class SyncAttributesCommand extends Command
             foreach ($actions as $action => $attributes) {
                 if ($verbosity >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
                     $output->writeln(
-                        sprintf(
+                        messages: sprintf(
                             '<comment>%s</comment>',
                             __('Attribute Sync for Action: %1.', $action),
                         ),
@@ -128,9 +134,12 @@ class SyncAttributesCommand extends Command
                     if ($syncResult->isSuccess()) {
                         if ($verbosity >= OutputInterface::VERBOSITY_DEBUG) {
                             $output->writeln(
-                                sprintf(
+                                messages: sprintf(
                                     '<comment>%s</comment>',
-                                    __('Attribute Sync for Attribute: "%1" Completed Successfully.', $attributeCode),
+                                    __(
+                                        'Attribute Sync for Attribute: "%1" Completed Successfully.',
+                                        $attributeCode,
+                                    ),
                                 ),
                             );
                         }
@@ -138,7 +147,7 @@ class SyncAttributesCommand extends Command
                     }
                     if ($verbosity >= OutputInterface::VERBOSITY_DEBUG) {
                         $output->writeln(
-                            sprintf(
+                            messages: sprintf(
                                 '<error>%s</error>',
                                 __(
                                     'Attribute Sync for Attribute: "%1" Failed. Errors: %2',
@@ -154,14 +163,14 @@ class SyncAttributesCommand extends Command
         }
         if ($return === Cli::RETURN_SUCCESS) {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<comment>%s</comment>',
                     __('Attribute Sync Completed Successfully.'),
                 ),
             );
         } else {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<error>%s</error>',
                     __('All or part of Attribute Sync Failed. See Logs for more details.'),
                 ),
@@ -169,5 +178,33 @@ class SyncAttributesCommand extends Command
         }
 
         return $return;
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getApiKeys(InputInterface $input): array
+    {
+        $apiKeys = $input->getOption(static::OPTION_API_KEYS);
+
+        return $apiKeys
+            ? array_map(callback: 'trim', array: explode(',', $apiKeys))
+            : [];
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getAttributeTypes(InputInterface $input): array
+    {
+        $attributeTypes = $input->getOption(static::OPTION_ATTRIBUTE_TYPES);
+
+        return $attributeTypes
+            ? array_map(callback: 'trim', array: explode(',', $attributeTypes))
+            : [];
     }
 }

@@ -31,7 +31,7 @@ class AttributeProvider implements AttributeProviderInterface
     /**
      * @param int[]|null $attributeIds
      *
-     * @return \Generator
+     * @return \Generator<AttributeInterface>
      */
     public function get(?array $attributeIds = []): \Generator
     {

@@ -19,8 +19,9 @@ class UpdateAttributesCommand extends Command
 {
     public const COMMAND_NAME = 'klevu:indexing:attribute-update';
     public const OPTION_ATTRIBUTE_IDS = 'attribute-ids';
-    public const OPTION_API_KEY = 'api-key';
-    public const OPTION_ATTRIBUTE_TYPE = 'attribute-type';
+    public const OPTION_API_KEYS = 'api-keys';
+    public const OPTION_ATTRIBUTE_TYPES = 'attribute-types';
+    public const ATTRIBUTE_IDS_ALL = 'all';
 
     /**
      * @var AttributeDiscoveryOrchestratorServiceInterface
@@ -47,24 +48,33 @@ class UpdateAttributesCommand extends Command
     {
         parent::configure();
 
-        $this->setName(static::COMMAND_NAME);
+        $this->setName(name: static::COMMAND_NAME);
         $this->setDescription(
-            (string)__('Recalculate attributes next action and set in "klevu_indexing_attribute" table.'),
+            description: (string)__(
+                'Recalculate attributes next action and set in "klevu_indexing_attribute" table.',
+            ),
         );
         $this->addOption(
             name: static::OPTION_ATTRIBUTE_IDS,
             mode: InputOption::VALUE_REQUIRED,
-            description: (string)__('Update only these attributes. Comma separate list e.g. --attribute-ids 1,2,3'),
+            description: (string)__(
+                'Update only these attributes. Comma separated list e.g. --attribute-ids 1,2,3',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_API_KEY,
+            name: static::OPTION_API_KEYS,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Update attributes only for this API key (optional).'),
+            description: (string)__(
+                'Update Attributes only for these API Keys (optional). Comma separated list '
+                . 'e.g. --api-keys api-key-1,api-key-2',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_ATTRIBUTE_TYPE,
+            name: static::OPTION_ATTRIBUTE_TYPES,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Update attributes only for this attribute type (optional).'),
+            description: (string)__('Update attributes only for these Attribute Types (optional). '
+                . 'Comma separated list e.g. --attribute-types KLEVU_CMS,KLEVU_PRODUCTS',
+            ),
         );
     }
 
@@ -80,30 +90,29 @@ class UpdateAttributesCommand extends Command
     ): int {
         $return = Cli::RETURN_SUCCESS;
         $output->writeln(
-            sprintf(
+            messages: sprintf(
                 '<comment>%s</comment>',
                 __('Begin Attribute Update.'),
             ),
         );
-        $attributeIds = $input->getOption(static::OPTION_ATTRIBUTE_IDS);
+        $attributeIds = $input->getOption(name: static::OPTION_ATTRIBUTE_IDS);
         if (!$attributeIds) {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<error>%s</error>',
                     __('Attribute IDs are required.'),
                 ),
             );
             $return = Cli::RETURN_FAILURE;
         } else {
-            $apiKey = $input->getOption(static::OPTION_API_KEY);
             $success = $this->discoveryOrchestratorService->execute(
-                attributeType: $input->getOption(static::OPTION_ATTRIBUTE_TYPE),
-                apiKeys: $apiKey ? [$apiKey] : null,
-                attributeIds: array_map('intval', explode(',', $attributeIds)),
+                attributeTypes: $this->getAttributeTypes(input: $input),
+                apiKeys: $this->getApiKeys(input: $input),
+                attributeIds: $this->formatAttributeIds(attributeIds: $attributeIds),
             );
             if ($success->isSuccess()) {
                 $output->writeln(
-                    sprintf(
+                    messages: sprintf(
                         '<comment>%s</comment>',
                         __('Attribute Update Completed Successfully.'),
                     ),
@@ -111,7 +120,7 @@ class UpdateAttributesCommand extends Command
             } else {
                 $return = Cli::RETURN_FAILURE;
                 $output->writeln(
-                    sprintf(
+                    messages: sprintf(
                         '<error>%s</error>',
                         __('Attribute Update Failed. See Logs for more details.'),
                     ),
@@ -120,5 +129,53 @@ class UpdateAttributesCommand extends Command
         }
 
         return $return;
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getApiKeys(InputInterface $input): array
+    {
+        $apiKeys = $input->getOption(name: static::OPTION_API_KEYS);
+
+        return $apiKeys
+            ? array_map(callback: 'trim', array: explode(',', $apiKeys))
+            : [];
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getAttributeTypes(InputInterface $input): array
+    {
+        $attributeTypes = $input->getOption(name: static::OPTION_ATTRIBUTE_TYPES);
+
+        return $attributeTypes
+            ? array_map(callback: 'trim', array: explode(',', $attributeTypes))
+            : [];
+    }
+
+    /**
+     * @param mixed $attributeIds
+     *
+     * @return int[]
+     */
+    private function formatAttributeIds(mixed $attributeIds): array
+    {
+        if ($attributeIds === static::ATTRIBUTE_IDS_ALL) {
+            return [];
+        }
+
+        return array_map(
+            callback: 'intval',
+            array: array_map(
+                callback: 'trim',
+                array: explode(separator: ',', string: $attributeIds),
+            ),
+        );
     }
 }

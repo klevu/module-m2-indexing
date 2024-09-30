@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Observer\Sync\Attributes;
 
 use Klevu\IndexingApi\Service\Action\UpdateIndexingAttributeActionsActionInterface;
 use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
+use Klevu\IndexingApi\Service\Provider\MagentoToKlevuAttributeMapperProviderInterface;
 use Klevu\IndexingApi\Service\Provider\StaticAttributeProviderInterface;
 use Magento\Eav\Api\Data\AttributeInterface;
 use Magento\Framework\Event\Observer;
@@ -41,20 +42,20 @@ class UpdateAttributeObserver implements ObserverInterface
     private array $staticAttributeProviders;
 
     /**
-     * @param MagentoToKlevuAttributeMapperInterface $attributeToNameMapper
+     * @param MagentoToKlevuAttributeMapperProviderInterface $magentoToKlevuAttributeMapperProvider
      * @param LoggerInterface $logger
      * @param UpdateIndexingAttributeActionsActionInterface $updateIndexingAttributeActionsAction
      * @param string $entityType
      * @param StaticAttributeProviderInterface[] $staticAttributeProviders
      */
     public function __construct(
-        MagentoToKlevuAttributeMapperInterface $attributeToNameMapper,
+        MagentoToKlevuAttributeMapperProviderInterface $magentoToKlevuAttributeMapperProvider,
         LoggerInterface $logger,
         UpdateIndexingAttributeActionsActionInterface $updateIndexingAttributeActionsAction,
         string $entityType,
         array $staticAttributeProviders,
     ) {
-        $this->attributeToNameMapper = $attributeToNameMapper;
+        $this->attributeToNameMapper = $magentoToKlevuAttributeMapperProvider->getByType(entityType: $entityType);
         $this->logger = $logger;
         $this->updateIndexingAttributeActionsAction = $updateIndexingAttributeActionsAction;
         $this->entityType = $entityType;
@@ -76,7 +77,7 @@ class UpdateAttributeObserver implements ObserverInterface
             return;
         }
         try {
-            $attributeId = $this->getAttributeId($attributeName);
+            $attributeId = $this->getAttributeId(attributeName: $attributeName, apiKey: $apiKey);
         } catch (NoSuchEntityException) {
             $this->logger->info(
                 message: 'Method: {method}, Info: {message}',
@@ -110,14 +111,15 @@ class UpdateAttributeObserver implements ObserverInterface
 
     /**
      * @param string $attributeName
+     * @param string $apiKey
      *
      * @return int
      * @throws NoSuchEntityException
      */
-    private function getAttributeId(mixed $attributeName): int
+    private function getAttributeId(string $attributeName, string $apiKey): int
     {
-        $attribute = $this->getAttributeFromStaticProvider($attributeName)
-            ?? $this->attributeToNameMapper->reverse($attributeName);
+        $attribute = $this->getAttributeFromStaticProvider(attributeName: $attributeName)
+            ?? $this->attributeToNameMapper->reverse(attributeName: $attributeName, apiKey: $apiKey);
 
         return (int)$attribute->getAttributeId();
     }
@@ -131,7 +133,7 @@ class UpdateAttributeObserver implements ObserverInterface
     {
         $return = null;
         foreach ($this->staticAttributeProviders as $attributeProvider) {
-            $attribute = $attributeProvider->getByAttributeCode($attributeName);
+            $attribute = $attributeProvider->getByAttributeCode(attributeCode: $attributeName);
             if ($attribute) {
                 $return = $attribute;
                 break;

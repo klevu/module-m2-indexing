@@ -55,12 +55,14 @@ class MagentoEntityTest extends TestCase
             'entityParentId' => 456,
             'apiKey' => 'klevu-js-api-key-test',
             'isIndexable' => false,
+            'entitySubtype' => 'simple',
         ]);
 
         $this->assertSame(expected: 123, actual: $entity->getEntityId());
         $this->assertSame(expected: 456, actual: $entity->getEntityParentId());
         $this->assertSame(expected: 'klevu-js-api-key-test', actual: $entity->getApiKey());
         $this->assertFalse(condition: $entity->isIndexable());
+        $this->assertSame(expected: 'simple', actual: $entity->getEntitySubtype());
     }
 
     public function testSetIsIndexable_SetsNewValue(): void
@@ -70,12 +72,14 @@ class MagentoEntityTest extends TestCase
             'entityParentId' => null,
             'apiKey' => 'klevu-js-api-key-test',
             'isIndexable' => false,
+            'entitySubtype' => 'configurable',
         ]);
 
         $this->assertSame(expected: 2, actual: $entity->getEntityId());
         $this->assertNull($entity->getEntityParentId());
         $this->assertSame(expected: 'klevu-js-api-key-test', actual: $entity->getApiKey());
         $this->assertFalse(condition: $entity->isIndexable());
+        $this->assertSame(expected: 'configurable', actual: $entity->getEntitySubtype());
 
         $entity->setIsIndexable(true);
 
@@ -83,5 +87,6 @@ class MagentoEntityTest extends TestCase
         $this->assertNull($entity->getEntityParentId());
         $this->assertSame(expected: 'klevu-js-api-key-test', actual: $entity->getApiKey());
         $this->assertTrue(condition: $entity->isIndexable());
+        $this->assertSame(expected: 'configurable', actual: $entity->getEntitySubtype());
     }
 }

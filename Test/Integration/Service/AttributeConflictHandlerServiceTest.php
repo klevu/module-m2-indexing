@@ -8,8 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service;
 
-use Klevu\Configuration\Service\Provider\ApiKeyProvider;
-use Klevu\Configuration\Service\Provider\AuthKeyProvider;
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Constants;
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\AttributeConflictHandlerService;
@@ -20,7 +19,9 @@ use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
 use Klevu\IndexingApi\Service\Provider\DuplicateAttributeMappingProviderInterface;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\Event\ManagerInterface as EventManagerInterface;
@@ -32,7 +33,6 @@ use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use TddWizard\Fixtures\Core\ConfigFixture;
 
 /**
  * @covers AttributeConflictHandlerService::class
@@ -41,8 +41,10 @@ use TddWizard\Fixtures\Core\ConfigFixture;
  */
 class AttributeConflictHandlerServiceTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
     use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
@@ -72,6 +74,8 @@ class AttributeConflictHandlerServiceTest extends TestCase
 
         $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
         $this->mockAttributeMappers = [];
+
+        $this->mockSdkAttributeGetApiCall();
     }
 
     /**
@@ -83,6 +87,8 @@ class AttributeConflictHandlerServiceTest extends TestCase
         parent::tearDown();
 
         $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
     }
 
     /**
@@ -189,15 +195,15 @@ class AttributeConflictHandlerServiceTest extends TestCase
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: self::FIXTURE_API_KEY,
-            storeCode: 'klevu_indexing_test_store_1',
-        );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: 'klevu_indexing_test_store_1',
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: self::FIXTURE_API_KEY,
+            restAuthKey: 'ABCDE1234567890',
         );
     }
 
@@ -289,7 +295,8 @@ class AttributeConflictHandlerServiceTest extends TestCase
     private function getMockEventManagerWithEvents(
         bool $conflictingAttributes,
         bool $duplicateAttributes,
-    ): MockObject {
+    ): MockObject&EventManagerInterface {
+        /** @var MockObject&EventManagerInterface $mockEventManager */
         $mockEventManager = $this->getMockBuilder(EventManagerInterface::class)
             ->getMock();
 

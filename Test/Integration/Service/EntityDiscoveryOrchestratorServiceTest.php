@@ -132,12 +132,12 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'products' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_CMS');
+        $result = $service->execute(entityTypes: ['KLEVU_CMS']);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
         $this->assertContains(
-            needle: 'Supplied entity type did not match any providers.',
+            needle: 'Supplied entity types did not match any providers.',
             haystack: $result->getMessages(),
         );
         $collection = $this->objectManager->create(IndexingEntityCollection::class);
@@ -170,7 +170,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'products' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_PRODUCT');
+        $result = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -236,7 +236,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'products' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_PRODUCT');
+        $result = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -333,7 +333,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'products' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_PRODUCT');
+        $result = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -488,7 +488,11 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'cms' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_CMS', apiKeys: [$apiKey], entityIds: [1, 2, 3, 4]);
+        $result = $service->execute(
+            entityTypes: ['KLEVU_CMS'],
+            apiKeys: [$apiKey],
+            entityIds: [1, 2, 3, 4],
+        );
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -609,7 +613,11 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'cms' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_CMS', apiKeys: [$apiKey], entityIds: []);
+        $result = $service->execute(
+            entityTypes: ['KLEVU_CMS'],
+            apiKeys: [$apiKey],
+            entityIds: [],
+        );
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -720,7 +728,11 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'cms' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_CMS', apiKeys: [$apiKey], entityIds: [1, 2]);
+        $result = $service->execute(
+            entityTypes: ['KLEVU_CMS'],
+            apiKeys: [$apiKey],
+            entityIds: [1, 2],
+        );
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -834,7 +846,11 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'categories' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], entityIds: [1, 2]);
+        $result = $service->execute(
+            entityTypes: ['KLEVU_CATEGORY'],
+            apiKeys: [$apiKey],
+            entityIds: [1, 2],
+        );
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -946,7 +962,11 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'categories' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], entityIds: [1, 2]);
+        $result = $service->execute(
+            entityTypes: ['KLEVU_CATEGORY'],
+            apiKeys: [$apiKey],
+            entityIds: [1, 2],
+        );
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');

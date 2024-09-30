@@ -133,6 +133,7 @@ class UpdateEntitiesObserverTest extends TestCase
                 EntityUpdate::ENTITY_IDS => [(int)$pageFixture->getId()],
                 EntityUpdate::STORE_IDS => [(int)$storeFixture->getId()],
                 EntityUpdate::ATTRIBUTES => ['price', 'stock'],
+                EntityUpdate::ENTITY_SUBTYPES => [],
             ],
         ]);
 

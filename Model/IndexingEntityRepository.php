@@ -213,6 +213,7 @@ class IndexingEntityRepository implements IndexingEntityRepositoryInterface
                         'targetId' => $indexingEntity->getTargetId(),
                         'targetParentId' => $indexingEntity->getTargetParentId(),
                         'targetEntityType' => $indexingEntity->getTargetEntityType(),
+                        'targetEntitySubType' => $indexingEntity->getTargetEntitySubtype(),
                         'apiKey' => $indexingEntity->getApiKey(),
                     ],
                 ],

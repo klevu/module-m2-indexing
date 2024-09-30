@@ -125,6 +125,14 @@ class IndexingEntityRepositoryTest extends TestCase
             actual: $loadedIndexingEntity->getData(IndexingEntity::TARGET_ENTITY_TYPE),
             message: "getData('target_entity_type')",
         );
+        $this->assertNull(
+            actual: $loadedIndexingEntity->getTargetEntitySubtype(),
+            message: "getTargetEntityType",
+        );
+        $this->assertNull(
+            actual: $loadedIndexingEntity->getData(IndexingEntity::TARGET_ENTITY_SUBTYPE),
+            message: "getData('target_entity_subtype')",
+        );
         $this->assertSame(
             expected: 1,
             actual: $loadedIndexingEntity->getTargetId(),
@@ -218,6 +226,7 @@ class IndexingEntityRepositoryTest extends TestCase
         $indexingEntity->setTargetId(1);
         $indexingEntity->setTargetParentId(123);
         $indexingEntity->setTargetEntityType('KLEVU_PRODUCT');
+        $indexingEntity->setTargetEntitySubtype('simple');
         $indexingEntity->setApiKey('klevu-js-api-key-test-1234');
         $indexingEntity->setLastAction(Actions::NO_ACTION);
         $indexingEntity->setLastActionTimestamp(null);
@@ -236,6 +245,7 @@ class IndexingEntityRepositoryTest extends TestCase
         $indexingEntity->setTargetId(1);
         $indexingEntity->setTargetParentId(100);
         $indexingEntity->setTargetEntityType('KLEVU_PRODUCT');
+        $indexingEntity->setTargetEntitySubtype('downloadable');
         $indexingEntity->setApiKey('klevu-js-api-key-test-1234');
         $indexingEntity->setLastAction(Actions::NO_ACTION);
         $indexingEntity->setLastActionTimestamp(null);
@@ -265,6 +275,10 @@ class IndexingEntityRepositoryTest extends TestCase
         $this->assertSame(
             expected: Actions::UPDATE,
             actual: $updatedIndexingEntity->getNextAction(),
+        );
+        $this->assertSame(
+            expected: 'downloadable',
+            actual: $updatedIndexingEntity->getTargetEntitySubtype(),
         );
     }
 
@@ -399,6 +413,7 @@ class IndexingEntityRepositoryTest extends TestCase
                         'targetId' => $indexingEntity->getTargetId(),
                         'targetParentId' => $indexingEntity->getTargetParentId(),
                         'targetEntityType' => $indexingEntity->getTargetEntityType(),
+                        'targetEntitySubType' => $indexingEntity->getTargetEntitySubtype(),
                         'apiKey' => $indexingEntity->getApiKey(),
                     ],
                 ],
@@ -475,23 +490,33 @@ class IndexingEntityRepositoryTest extends TestCase
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::TARGET_ID => 1,
             IndexingEntity::TARGET_PARENT_ID => 5,
             IndexingEntity::API_KEY => $apiKey,
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::TARGET_ID => 2,
             IndexingEntity::API_KEY => $apiKey,
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::TARGET_ID => 3,
             IndexingEntity::API_KEY => $apiKey,
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'virtual',
             IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => 5,
             IndexingEntity::API_KEY => $apiKey,
         ]);
 
@@ -512,6 +537,10 @@ class IndexingEntityRepositoryTest extends TestCase
             field: IndexingEntity::API_KEY,
             value: $apiKey,
         );
+        $searchCriteriaBuilder->addFilter(
+            field: IndexingEntity::TARGET_ENTITY_SUBTYPE,
+            value: 'simple',
+        );
         $searchCriteriaBuilder->setPageSize(2);
         $searchCriteriaBuilder->setCurrentPage(2);
         $searchCriteria = $searchCriteriaBuilder->create();
@@ -530,7 +559,7 @@ class IndexingEntityRepositoryTest extends TestCase
             $indexingEntity->getTargetId()
         ), $items);
         $this->assertContains(3, $targetIds);
-        $this->assertContains(4, $targetIds);
+        $this->assertContains(5, $targetIds);
 
         $this->cleanIndexingEntities($apiKey);
     }
@@ -547,6 +576,7 @@ class IndexingEntityRepositoryTest extends TestCase
         /** @var IndexingEntityInterface $indexingEntity */
         $indexingEntity = $this->objectManager->create(type: IndexingEntityInterface::class);
         $indexingEntity->setTargetEntityType(entityType: $data['target_entity_type'] ?? 'KLEVU_PRODUCT');
+        $indexingEntity->setTargetEntitySubtype(entitySubtype: $data['target_entity_subtype'] ?? null);
         $indexingEntity->setTargetId(targetId: $data['target_id'] ?? 1);
         $indexingEntity->setTargetParentId(targetParentId: $data['target_parent_id'] ?? null);
         $indexingEntity->setApiKey(

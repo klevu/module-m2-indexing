@@ -1,0 +1,129 @@
+<?php
+
+/**
+ * Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details.
+ */
+
+declare(strict_types=1);
+
+use Klevu\Configuration\Block\Adminhtml\Backend\Template;
+use Klevu\Indexing\ViewModel\Escaper as EscaperViewModel;
+
+/**
+ * @var Template $block
+ * @var EscaperViewModel $escaperViewModel
+ */
+$escaperViewModel = $block->getData('escaper_view_model');
+$escaper = $escaperViewModel->getEscaper();
+?>
+<section class="admin__page-section">
+    <div class="admin__page-section-content" style="display: flex; gap: 20px; margin-left: -10px; margin-right: -10px; margin-bottom: 20px;">
+        <section style="width: 50%;">
+            <h2><?= $escaper->escapeHtml(__('Attribute Discovery and Sync')->render()) ?></h2>
+            <p>
+                <?= $escaper->escapeHtml(
+                    data: __(
+                        '%1Attribute Discovery%2 has been triggered upon saving your Auth Keys.',
+                        '<strong>',
+                        '</strong>',
+                    )->render(),
+                    allowedTags: ['strong'],
+                ) ?>
+            </p>
+            <p>
+                <?= $escaper->escapeHtml(
+                    data: __(
+                        '%1Attribute Sync%2 has been triggered upon saving your Auth Keys.',
+                        '<strong>',
+                        '</strong>',
+                    ),
+                    allowedTags: ['strong'],
+                ) ?>
+            </p>
+        </section>
+        <section style="width: 50%;">
+            <h2><?= $escaper->escapeHtml(__('Entity Discovery and Sync')->render()) ?></h2>
+            <p>
+                <?= $escaper->escapeHtml(
+                    data: __(
+                        '%1Entity Discovery%2 has been scheduled to run via cron in 5 minutes.',
+                        '<strong>',
+                        '</strong>',
+                    ),
+                    allowedTags: ['strong'],
+                ) ?>
+            </p>
+            <p>
+                <?= $escaper->escapeHtml(
+                    data: __(
+                        '%1Entity Sync%2 will be handled via the cron schedule.',
+                        '<strong>',
+                        '</strong>',
+                    ),
+                    allowedTags: ['strong'],
+                ) ?>
+            </p>
+        </section>
+    </div>
+    <div class="admin__page-section-content" style="display: flex; gap: 20px; margin-left: -10px; margin-right: -10px; margin-top: 20px;">
+        <section style="flex-basis: 50%;">
+            <h2><?= $escaper->escapeHtml(__('Configuration')->render()) ?></h2>
+            <p>
+                <?= $escaper->escapeHtml(
+                    data: __(
+                        'You can find settings to update indexing configuration, under %1Klevu%2 &gt; %1Data Sync%2',
+                        '<strong>',
+                        '</strong>',
+                    )->render(),
+                    allowedTags: ['strong'],
+                ) ?>
+            </p>
+
+            <p>
+                <?= $escaper->escapeHtml(
+                    data: __(
+                        'Advanced configuration options can be found under %1Klevu%2 &gt; %1Developer Settings%2 '
+                        . '&gt; %1Indexing%2',
+                        '<strong>',
+                        '</strong>',
+                    )->render(),
+                    allowedTags: ['strong'],
+                ) ?>
+            </p>
+        </section>
+
+        <section style="flex-basis: 50%;">
+            <h2><?= $escaper->escapeHtml(__('Useful Links')->render()) ?></h2>
+            <p>
+                <?= $escaper->escapeHtml(
+                    data: __(
+                        'Our %1Documentation%2 contains in-depth guides and articles on the Klevu Indexing. '
+                        . 'Some pertinent ones can be found below:',
+                        '<a href="https://docs.klevu.com/klevu-magento-v4/indexing-overview" target="_blank">',
+                        '</a>',
+                    )->render(),
+                    allowedTags: ['a'],
+                ) ?>
+            </p>
+            <ul style="margin-left: 20px;">
+                <li>
+                    <a href="https://docs.klevu.com/klevu-magento-v4/attributes"
+                       target="_blank"
+                       ><?= $escaper->escapeHtml(__('Registering Attributes')->render()) ?></a>
+                </li>
+                <li>
+                    <a href="https://docs.klevu.com/klevu-magento-v4/entities-custom-product-types"
+                       target="_blank"
+                       ><?= $escaper->escapeHtml(__('Custom Product Types')->render()) ?></a>
+                </li>
+                <li>
+                    <a href="https://docs.klevu.com/klevu-magento-v4/entities-is-indexable-determiner"
+                       target="_blank"
+                       ><?= $escaper->escapeHtml(
+                            __('Indexable Determiners')->render(),
+                        ) ?></a>
+                </li>
+            </ul>
+        </section>
+    </div>
+</section>

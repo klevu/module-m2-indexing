@@ -78,7 +78,7 @@ class SyncAttributesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [
-                '--api-key' => 'klevu-api-key-with-no-store',
+                '--api-keys' => 'klevu-api-key-with-no-store',
             ],
         );
 
@@ -109,7 +109,7 @@ class SyncAttributesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [
-                '--attribute-type' => 'something',
+                '--attribute-types' => 'something',
             ],
         );
 
@@ -127,18 +127,34 @@ class SyncAttributesCommandTest extends TestCase
     /**
      * @magentoAppIsolation enabled
      */
-    public function testExecute_Succeeds_WithApiKey(): void
+    public function testExecute_Succeeds_WithApiKeys(): void
     {
-        $apiKey = 'klevu-js-api-key';
-        $authKey = 'klevu-rest-auth-key';
+        $apiKey1 = 'klevu-js-api-key-1';
+        $authKey1 = 'klevu-rest-auth-key-1';
         $this->createStore();
         $storeFixture1 = $this->storeFixturesPool->get('test_store');
         $scopeProvider1 = $this->objectManager->get(ScopeProviderInterface::class);
         $scopeProvider1->setCurrentScope(scope: $storeFixture1->get());
         $this->setAuthKeys(
             scopeProvider: $scopeProvider1,
-            jsApiKey: $apiKey,
-            restAuthKey: $authKey,
+            jsApiKey: $apiKey1,
+            restAuthKey: $authKey1,
+        );
+
+        $apiKey2 = 'klevu-js-api-key-2';
+        $authKey2 = 'klevu-rest-auth-key-2';
+        $this->createStore([
+            'code' => 'klevu_test_store_2',
+            'key' => 'test_store_2',
+        ]);
+        $storeFixture2 = $this->storeFixturesPool->get('test_store_2');
+        $scopeProvider2 = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider2->setCurrentScope(scope: $storeFixture2->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider2,
+            jsApiKey: $apiKey2,
+            restAuthKey: $authKey2,
+            removeApiKeys: false,
         );
 
         $mockSyncResult = $this->getMockBuilder(SyncResultInterface::class)
@@ -151,7 +167,7 @@ class SyncAttributesCommandTest extends TestCase
         $indexerService = $this->getMockBuilder(AttributeIndexerServiceInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $indexerService->expects($this->once())
+        $indexerService->expects($this->exactly(2))
             ->method('execute')
             ->willReturn([
                 'attribute-code' => $mockSyncResult,
@@ -174,7 +190,7 @@ class SyncAttributesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [
-                '--api-key' => 'klevu-js-api-key',
+                '--api-keys' => $apiKey1 . ',' . $apiKey2,
             ],
             options: [
                 'verbosity' => OutputInterface::VERBOSITY_DEBUG,
@@ -184,11 +200,15 @@ class SyncAttributesCommandTest extends TestCase
         $this->assertSame(expected: 0, actual: $isFailure, message: 'Sync Failed');
         $output = $tester->getDisplay();
         $this->assertStringContainsString(
-            needle: 'Begin Attribute Sync',
+            needle: sprintf('Begin Attribute Sync with filters: API Keys = %s, %s.', $apiKey1, $apiKey2),
             haystack: $output,
         );
         $this->assertStringContainsString(
-            needle: sprintf('Attribute Sync for API Key: %s.', $apiKey),
+            needle: sprintf('Attribute Sync for API Key: %s.', $apiKey1),
+            haystack: $output,
+        );
+        $this->assertStringContainsString(
+            needle: sprintf('Attribute Sync for API Key: %s.', $apiKey2),
             haystack: $output,
         );
         $this->assertStringContainsString(
@@ -254,7 +274,7 @@ class SyncAttributesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [
-                '--attribute-type' => 'KLEVU_CATEGORY',
+                '--attribute-types' => 'KLEVU_CATEGORY',
             ],
             options: [
                 'verbosity' => OutputInterface::VERBOSITY_DEBUG,

@@ -50,6 +50,7 @@ class EntityTest extends TestCase
                 'storeIds' => [1, 2],
                 'customerGroupIds' => [],
                 'attributes' => [],
+                'entitySubtypes' => [],
             ],
         ];
         $this->objectManager = Bootstrap::getObjectManager();
@@ -79,6 +80,7 @@ class EntityTest extends TestCase
             'storeIds' => [1, 2],
             'customerGroupIds' => [1, 2],
             'attributes' => ["price", "stock", "categories"],
+            'entitySubtypes' => [],
         ];
         $data[$invalidKey] = $data[$key];
         unset($data[$key]);
@@ -115,6 +117,7 @@ class EntityTest extends TestCase
             'storeIds' => [1, 2],
             'customerGroupIds' => [1, 2],
             'attributes' => ["price", "stock", "categories"],
+            'entitySubtypes' => [],
         ];
         $data[$key] = $invalidValues;
 
@@ -127,6 +130,8 @@ class EntityTest extends TestCase
     /**
      * @testWith ["attributes", ["price", 1, "stock"]]
      *           ["attributes", ["stock", ["categories"]]]
+     *           ["entitySubtypes", ["simple", 1]]
+     *           ["entitySubtypes", ["simple", ["configurable"]]]
      *
      * @param string $key
      * @param mixed[] $invalidValues
@@ -149,6 +154,7 @@ class EntityTest extends TestCase
             'storeIds' => [1, 2],
             'customerGroupIds' => [1, 2],
             'attributes' => ["price", "stock", "categories"],
+            'entitySubtypes' => [],
         ];
         $data[$key] = $invalidValues;
 
@@ -166,6 +172,7 @@ class EntityTest extends TestCase
             'storeIds' => [1, 2],
             'customerGroupIds' => [10, 20],
             'attributes' => ["price", "stock", "categories"],
+            'entitySubtypes' => ["simple", "configurable_variant"],
         ];
 
         $modelFactory = $this->objectManager->get(EntityFactory::class);
@@ -179,5 +186,6 @@ class EntityTest extends TestCase
         $this->assertSame(expected: [1, 2], actual: $entityUpdate->getStoreIds());
         $this->assertSame(expected: [10, 20], actual: $entityUpdate->getCustomerGroupIds());
         $this->assertSame(expected: ["price", "stock", "categories"], actual: $entityUpdate->getAttributes());
+        $this->assertSame(expected: ["simple", "configurable_variant"], actual: $entityUpdate->getEntitySubtypes());
     }
 }

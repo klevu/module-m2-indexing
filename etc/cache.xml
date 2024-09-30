@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+
+<!-- Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details. -->
+
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Cache/etc/cache.xsd">
+    <type name="klevu_indexing_attributes"
+          translate="label description"
+          instance="Klevu\Indexing\Cache\Attributes">
+        <label>Klevu Indexing Attributes</label>
+        <description>Caches API Request to get list of attributes from Klevu.</description>
+    </type>
+</config>

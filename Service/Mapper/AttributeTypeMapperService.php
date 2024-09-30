@@ -19,6 +19,14 @@ class AttributeTypeMapperService implements AttributeTypeMapperServiceInterface
      * @var array<string, DataType>
      */
     private array $customMapping = [];
+    /**
+     * @var DataType[]
+     */
+    private array $supportedTypes = [
+        DataType::MULTIVALUE,
+        DataType::NUMBER,
+        DataType::STRING,
+    ];
 
     /**
      * @param array<string, string> $customMapping
@@ -37,17 +45,20 @@ class AttributeTypeMapperService implements AttributeTypeMapperServiceInterface
     {
         if ($this->hasCustomMapping($attribute)) {
             $return = $this->getCustomMapping($attribute);
-            if (in_array($return, [DataType::STRING, DataType::MULTIVALUE], true)) {
+            if (in_array($return, $this->supportedTypes, true)) {
                 return $return;
             }
         }
 
         return match (true) {
-//            $this->isDateAttribute($attribute) => DataType::DATETIME,
-//            $this->isBooleanAttribute($attribute) => DataType::NUMBER,
+            // update to DataType::DATETIME when supported in Klevu Indexing v3
+            $this->isDateAttribute($attribute) => DataType::STRING,
+            // update to DataType:: BOOLEAN when supported in Klevu Indexing v3
+            $this->isBooleanAttribute($attribute) => DataType::STRING,
             $this->isMultiValueAttribute($attribute) => DataType::MULTIVALUE,
-//            $this->isEnumAttribute($attribute) => DataType::ENUM,
-//            $this->isNumericAttribute($attribute) => DataType::NUMBER,
+            // update once supported in Klevu Indexing v3
+            $this->isEnumAttribute($attribute) => DataType::STRING,
+            $this->isNumericAttribute($attribute) => DataType::NUMBER,
             default => DataType::STRING,
         };
     }

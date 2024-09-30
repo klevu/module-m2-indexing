@@ -13,6 +13,7 @@ use Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Action\UpdateIndexingAttributeActionsActionInterface;
 use Magento\Framework\Api\SearchCriteria;
+use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\Exception\LocalizedException;
 use Psr\Log\LoggerInterface;
@@ -121,11 +122,19 @@ class UpdateIndexingAttributeActionsAction implements UpdateIndexingAttributeAct
      */
     private function getSearchCriteria(string $apiKey, ?int $targetId, ?string $targetCode): SearchCriteria
     {
+        /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
         $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
         $searchCriteriaBuilder->addFilter(
             field: IndexingAttribute::API_KEY,
             value: $apiKey,
         );
+        if ($this->lastAction === Actions::DELETE) {
+            $searchCriteriaBuilder->addFilter(
+                field: IndexingAttribute::LAST_ACTION,
+                value: [Actions::ADD->value, Actions::UPDATE->value],
+                conditionType: 'in',
+            );
+        }
         if ($targetId) {
             $searchCriteriaBuilder->addFilter(
                 field: IndexingAttribute::TARGET_ID,

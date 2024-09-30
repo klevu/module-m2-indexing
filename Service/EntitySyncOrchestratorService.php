@@ -66,21 +66,20 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
     }
 
     /**
-     * @param string|null $entityType
-     * @param string|null $apiKey
+     * @param string[] $entityTypes
+     * @param string[] $apiKeys
      * @param string|null $via
      *
      * @return IndexerResultInterface[]
      */
     public function execute(
-        ?string $entityType = null,
-        ?string $apiKey = null,
+        array $entityTypes = [],
+        array $apiKeys = [],
         ?string $via = null,
     ): array {
         $return = [];
-        $indexerServicesByType = $this->getIndexerServices($entityType);
-        $accountCredentialsArray = $this->getCredentialsArray($apiKey);
-        foreach ($accountCredentialsArray as $accountCredentials) {
+        $indexerServicesByType = $this->getIndexerServices($entityTypes);
+        foreach ($this->getCredentialsArray(apiKeys: $apiKeys) as $accountCredentials) {
             $apiKeyResponses = [];
             foreach ($indexerServicesByType as $key => $indexerService) {
                 $apiKeyResponses[$key] = $indexerService->execute(
@@ -88,7 +87,7 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
                     via: $via,
                 );
             }
-            $return[$accountCredentials->jsApiKey] = $this->createIndexerResult($apiKeyResponses);
+            $return[$accountCredentials->jsApiKey] = $this->createIndexerResult(indexerResults: $apiKeyResponses);
         }
         $this->logger->debug(
             message: 'IndexerService::execute completed',
@@ -99,8 +98,8 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
         $this->eventManager->dispatch(
             'klevu_indexing_entity_orchestrator_sync_after',
             [
-                'entityType' => $entityType,
-                'apiKey' => $apiKey,
+                'entityType' => $entityTypes,
+                'apiKeys' => $apiKeys,
                 'return' => $return,
             ],
         );
@@ -139,61 +138,71 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
     }
 
     /**
-     * @param string|null $entityType
+     * @param string[] $entityTypes
      *
      * @return EntityIndexerServiceInterface[]
      */
-    private function getIndexerServices(?string $entityType): array
+    private function getIndexerServices(array $entityTypes): array
     {
-        return $entityType
+        return $entityTypes
             ? array_filter(
                 array: $this->entityIndexerServices,
-                callback: static fn (string $key): bool => str_starts_with(haystack: $key, needle: $entityType . '::'),
+                callback: static function (string $key) use ($entityTypes): bool {
+                    foreach ($entityTypes as $entityType) {
+                        if (str_starts_with(haystack: $key, needle: $entityType . '::')) {
+                            return true;
+                        }
+                    }
+                    return false;
+                },
                 mode: ARRAY_FILTER_USE_KEY,
             )
             : $this->entityIndexerServices;
     }
 
     /**
-     * @param string|null $apiKey
+     * @param string[] $apiKeys
      *
      * @return AccountCredentials[]
      */
-    private function getAccountCredentials(?string $apiKey): array
+    private function getCredentialsArray(array $apiKeys): array
     {
-        $accountCredentials = $this->accountCredentialsProvider->get();
-        if ($apiKey) {
-            $credentials = $accountCredentials[$apiKey] ?? null;
-            $accountCredentials = $credentials
-                ? [$credentials]
-                : [];
-        }
-
-        return $accountCredentials;
-    }
-
-    /**
-     * @param string|null $apiKey
-     *
-     * @return AccountCredentials[]
-     */
-    private function getCredentialsArray(?string $apiKey): array
-    {
-        $accountCredentialsArray = $this->getAccountCredentials(apiKey: $apiKey);
-        if ($apiKey && !$accountCredentialsArray) {
+        $accountCredentialsArray = $this->getAccountCredentials(apiKeys: $apiKeys);
+        if ($apiKeys && !$accountCredentialsArray) {
             $this->logger->warning(
                 message: 'Method: {method}, Warning: {message}',
                 context: [
                     'method' => __METHOD__,
                     'message' => __(
-                        'No Account found for provided API Key. Check the JS API Key (%1) provided.',
-                        $apiKey,
+                        'No Account found for provided API Keys. Check the JS API Keys (%1) provided.',
+                        implode(', ', $apiKeys),
                     )->render(),
                 ],
             );
         }
 
         return $accountCredentialsArray;
+    }
+
+    /**
+     * @param string[] $apiKeys
+     *
+     * @return AccountCredentials[]
+     */
+    private function getAccountCredentials(array $apiKeys): array
+    {
+        $accountCredentials = $this->accountCredentialsProvider->get();
+        if ($apiKeys) {
+            $accountCredentials = array_filter(
+                array: $accountCredentials,
+                callback: static fn (string $apiKey): bool => (
+                    in_array(needle: $apiKey, haystack: $apiKeys, strict: true)
+                ),
+                mode: ARRAY_FILTER_USE_KEY,
+            );
+        }
+
+        return $accountCredentials;
     }
 
     /**
@@ -225,9 +234,11 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
     private function getResultStatuses(array $indexerResults): IndexerResultStatuses
     {
         $uniqueStatuses = array_unique(
-            array_map(
-                static fn (IndexerResultInterface $indexerResult): string => $indexerResult->getStatus()->value,
-                $indexerResults,
+            array: array_map(
+                callback: static fn (IndexerResultInterface $indexerResult): string => (
+                    $indexerResult->getStatus()->value
+                ),
+                array: $indexerResults,
             ),
         );
         $uniqueStatuses = array_filter(
@@ -251,8 +262,8 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
     private function getPipelineResult(array $indexerResults): array
     {
         return array_map(
-            static fn (IndexerResultInterface $indexerResult): mixed => $indexerResult->getPipelineResult(),
-            $indexerResults,
+            callback: static fn (IndexerResultInterface $indexerResult): mixed => $indexerResult->getPipelineResult(),
+            array: $indexerResults,
         );
     }
 
@@ -266,9 +277,9 @@ class EntitySyncOrchestratorService implements EntitySyncOrchestratorServiceInte
         return array_merge(
             [],
             ...array_values(
-                array_map(
-                    static fn (IndexerResultInterface $indexerResult): array => $indexerResult->getMessages(),
-                    $indexerResults,
+                array: array_map(
+                    callback: static fn (IndexerResultInterface $indexerResult): array => $indexerResult->getMessages(),
+                    array: $indexerResults,
                 ),
             ),
         );

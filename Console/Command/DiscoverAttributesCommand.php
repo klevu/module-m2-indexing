@@ -18,8 +18,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class DiscoverAttributesCommand extends Command
 {
     public const COMMAND_NAME = 'klevu:indexing:attribute-discovery';
-    public const OPTION_API_KEY = 'api-key';
-    public const OPTION_ATTRIBUTE_TYPE = 'attribute-type';
+    public const OPTION_API_KEYS = 'api-keys';
+    public const OPTION_ATTRIBUTE_TYPES = 'attribute-types';
 
     /**
      * @var AttributeDiscoveryOrchestratorServiceInterface
@@ -46,19 +46,27 @@ class DiscoverAttributesCommand extends Command
     {
         parent::configure();
 
-        $this->setName(static::COMMAND_NAME);
+        $this->setName(name: static::COMMAND_NAME);
         $this->setDescription(
-            (string)__('Find Attributes and add them to "klevu_indexing_attribute" table so they can be indexed.'),
+            description: (string)__(
+                'Find Attributes and add them to "klevu_indexing_attribute" table so they can be indexed.',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_API_KEY,
+            name: static::OPTION_API_KEYS,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Discover Attributes only for this API Key (optional).'),
+            description: (string)__(
+                'Discover Attributes only for these API Keys (optional). Comma separated list '
+                . 'e.g. --api-keys api-key-1,api-key-2',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_ATTRIBUTE_TYPE,
+            name: static::OPTION_ATTRIBUTE_TYPES,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Discover Attributes only for this Attribute Type (optional).'),
+            description: (string)__(
+                'Discover Attributes only for these Attribute Types (optional). Comma separated list '
+                . 'e.g. --attribute-types KLEVU_CMS,KLEVU_PRODUCTS',
+            ),
         );
     }
 
@@ -74,21 +82,19 @@ class DiscoverAttributesCommand extends Command
     ): int {
         $return = Cli::RETURN_SUCCESS;
         $output->writeln(
-            sprintf(
+            messages: sprintf(
                 '<comment>%s</comment>',
                 __('Begin Attribute Discovery.'),
             ),
         );
-        $apiKey = $input->getOption(static::OPTION_API_KEY);
-
         $success = $this->discoveryOrchestratorService->execute(
-            attributeType: $input->getOption(static::OPTION_ATTRIBUTE_TYPE),
-            apiKeys: $apiKey ? [$apiKey] : null,
+            attributeTypes: $this->getAttributeTypes(input: $input),
+            apiKeys: $this->getApiKeys(input: $input),
         );
 
         if ($success->isSuccess()) {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<comment>%s</comment>',
                     __('Attribute Discovery Completed Successfully.'),
                 ),
@@ -96,7 +102,7 @@ class DiscoverAttributesCommand extends Command
         } else {
             $return = Cli::RETURN_FAILURE;
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<error>%s</error>',
                     __('Attribute Discovery Failed. See Logs for more details.'),
                 ),
@@ -104,5 +110,33 @@ class DiscoverAttributesCommand extends Command
         }
 
         return $return;
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getApiKeys(InputInterface $input): array
+    {
+        $apiKeys = $input->getOption(name: static::OPTION_API_KEYS);
+
+        return $apiKeys
+            ? array_map(callback: 'trim', array: explode(',', $apiKeys))
+            : [];
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getAttributeTypes(InputInterface $input): array
+    {
+        $attributeTypes = $input->getOption(name: static::OPTION_ATTRIBUTE_TYPES);
+
+        return $attributeTypes
+            ? array_map(callback: 'trim', array: explode(',', $attributeTypes))
+            : [];
     }
 }

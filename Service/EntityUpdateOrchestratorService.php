@@ -57,10 +57,12 @@ class EntityUpdateOrchestratorService implements EntityUpdateOrchestratorService
         $apiKeys = $this->apiKeysProvider->get(
             storeIds: $entityUpdate->getStoreIds(),
         );
+        $entitySubtypes = $entityUpdate->getEntitySubtypes();
         $response = $this->discoveryOrchestratorService->execute(
-            entityType: $entityType,
+            entityTypes: [$entityType],
             apiKeys: $apiKeys,
             entityIds: $entityIds,
+            entitySubtypes: $entitySubtypes,
         );
         $this->eventManager->dispatch(
             'klevu_indexing_entity_update_after',
