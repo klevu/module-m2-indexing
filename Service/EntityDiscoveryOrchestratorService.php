@@ -140,21 +140,27 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
     }
 
     /**
-     * @param string|null $entityType
-     * @param string[]|null $apiKeys
+     * @param string[] $entityTypes
+     * @param string[] $apiKeys
      * @param int[]|null $entityIds
+     * @param string[]|null $entitySubtypes
      *
      * @return DiscoveryResultInterface
      */
     public function execute(
-        ?string $entityType = null,
-        ?array $apiKeys = [],
+        array $entityTypes = [],
+        array $apiKeys = [],
         ?array $entityIds = null,
+        ?array $entitySubtypes = [],
     ): DiscoveryResultInterface {
-        $discoveryProviders = $this->getDiscoveryProviders($entityType);
+        $discoveryProviders = $this->getDiscoveryProviders($entityTypes);
         foreach ($discoveryProviders as $discoveryProvider) {
             try {
-                $magentoEntitiesByApiKey = $discoveryProvider->getData(apiKeys: $apiKeys, entityIds: $entityIds ?? []);
+                $magentoEntitiesByApiKey = $discoveryProvider->getData(
+                    apiKeys: $apiKeys,
+                    entityIds: $entityIds ?? [],
+                    entitySubtypes: $entitySubtypes,
+                );
             } catch (LocalizedException $exception) {
                 $this->messages[] = $exception->getMessage();
                 $this->success = false;
@@ -176,7 +182,8 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
             // set next action to update for any entities that require an update
             $this->setEntitiesToUpdate(
                 type: $type,
-                apiKeys: array_keys($magentoEntitiesByApiKey),
+                magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
+                entitySubtypes: $entitySubtypes,
                 entityIds: $entityIds,
             );
             // set entities that are no longer indexable to and have been indexed to next action delete
@@ -184,12 +191,14 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
                 type: $type,
                 magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
                 entityIds: $entityIds ?? [],
+                entitySubtypes: $entitySubtypes,
             );
             // set entities that are no longer indexable and never synced to not indexable, next action none
             $this->setNonIndexableNonIndexedEntitiesToNotIndexable(
                 type: $type,
                 magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
                 entityIds: $entityIds ?? [],
+                entitySubtypes: $entitySubtypes,
             );
         }
 
@@ -211,26 +220,26 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
     }
 
     /**
-     * @param string|null $entityType
+     * @param string[] $entityTypes
      *
      * @return EntityDiscoveryProviderInterface[]
      */
-    private function getDiscoveryProviders(?string $entityType = null): array
+    private function getDiscoveryProviders(array $entityTypes): array
     {
         $this->validateDiscoveryProviders();
-        if (!$entityType) {
+        if (!$entityTypes) {
             return $this->discoveryProviders;
         }
 
         $return = array_filter(
             array: $this->discoveryProviders,
             callback: static fn (EntityDiscoveryProviderInterface $provider) => (
-                $provider->getEntityType() === $entityType
+                in_array(needle: $provider->getEntityType(), haystack: $entityTypes, strict: true)
             ),
         );
         if (!$return) {
             $this->success = false;
-            $this->messages[] = 'Supplied entity type did not match any providers.';
+            $this->messages[] = 'Supplied entity types did not match any providers.';
         }
 
         return $return;
@@ -309,23 +318,26 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
 
     /**
      * @param string $type
-     * @param string[] $apiKeys
+     * @param MagentoEntityInterface[][] $magentoEntitiesByApiKey
+     * @param string[] $entitySubtypes
      * @param int[] $entityIds
      *
      * @return void
      */
     private function setEntitiesToUpdate(
         string $type,
-        array $apiKeys,
+        array $magentoEntitiesByApiKey,
+        array $entitySubtypes,
         ?array $entityIds = null,
     ): void {
-        if (null === $entityIds) {
+        if (null === $entityIds && !$entitySubtypes) {
             return;
         }
         $klevuEntityIds = $this->filterEntitiesToUpdateService->execute(
             type: $type,
             entityIds: $entityIds,
-            apiKeys: array_unique($apiKeys),
+            apiKeys: array_unique(array_keys($magentoEntitiesByApiKey)),
+            entitySubtypes: $entitySubtypes,
         );
 
         try {
@@ -341,6 +353,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param string $type
      * @param MagentoEntityInterface[][] $magentoEntitiesByApiKey
      * @param int[] $entityIds
+     * @param string[] $entitySubtypes
      *
      * @return void
      */
@@ -348,11 +361,13 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         string $type,
         array $magentoEntitiesByApiKey,
         array $entityIds,
+        array $entitySubtypes,
     ): void {
         $klevuEntityIds = $this->filterEntitiesToDeleteService->execute(
             magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
             type: $type,
             entityIds: $entityIds,
+            entitySubtypes: $entitySubtypes,
         );
 
         try {
@@ -367,6 +382,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param string $type
      * @param MagentoEntityInterface[][] $magentoEntitiesByApiKey
      * @param int[] $entityIds
+     * @param string[] $entitySubtypes
      *
      * @return void
      */
@@ -374,11 +390,13 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         string $type,
         array $magentoEntitiesByApiKey,
         array $entityIds,
+        array $entitySubtypes,
     ): void {
         $klevuEntityIds = $this->filterEntitiesToSetToNotIndexableService->execute(
             magentoEntitiesByApiKey: $magentoEntitiesByApiKey,
             type: $type,
             entityIds: $entityIds,
+            entitySubtypes: $entitySubtypes,
         );
 
         try {

@@ -11,6 +11,7 @@ namespace Klevu\Indexing\Test\Integration\Service\Provider;
 use Klevu\Indexing\Service\Provider\DefaultIndexingAttributesProvider;
 use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
 use Klevu\IndexingApi\Service\Provider\DefaultIndexingAttributesProviderInterface;
+use Klevu\IndexingApi\Service\Provider\MagentoToKlevuAttributeMapperProviderInterface;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Magento\Framework\ObjectManagerInterface;
@@ -45,11 +46,21 @@ class DefaultIndexingAttributesProviderTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
+        $mockMagentoToKlevuAttributeMapperProvider = $this->getMockBuilder(
+            className: MagentoToKlevuAttributeMapperProviderInterface::class,
+        )
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockMagentoToKlevuAttributeMapperProvider->expects($this->once())
+            ->method('getByType')
+            ->with('KLEVU_CMS')
+            ->willReturn($mockMagentoToKlevuAttributeMapper);
+
         $this->implementationFqcn = DefaultIndexingAttributesProvider::class;
         $this->interfaceFqcn = DefaultIndexingAttributesProviderInterface::class;
         $this->constructorArgumentDefaults = [
             'entityType' => 'KLEVU_CMS',
-            'attributeToNameMapper' => $mockMagentoToKlevuAttributeMapper,
+            'attributeToNameMapperProvider' => $mockMagentoToKlevuAttributeMapperProvider,
         ];
         $this->objectManager = Bootstrap::getObjectManager();
     }

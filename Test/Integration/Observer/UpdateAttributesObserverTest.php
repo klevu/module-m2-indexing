@@ -22,6 +22,7 @@ use Klevu\TestFixtures\Catalog\Attribute\AttributeFixturePool;
 use Klevu\TestFixtures\Catalog\AttributeTrait;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
@@ -39,6 +40,7 @@ use PHPUnit\Framework\TestCase;
  */
 class UpdateAttributesObserverTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use AttributeTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
@@ -66,6 +68,8 @@ class UpdateAttributesObserverTest extends TestCase
         $this->objectManager = Bootstrap::getObjectManager();
         $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
         $this->attributeFixturePool = $this->objectManager->get(AttributeFixturePool::class);
+
+        $this->mockSdkAttributeGetApiCall();
     }
 
     /**
@@ -78,6 +82,8 @@ class UpdateAttributesObserverTest extends TestCase
 
         $this->attributeFixturePool->rollback();
         $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
     }
 
     public function testInvalidateCustomerDataObserver_IsConfigured(): void
@@ -93,9 +99,8 @@ class UpdateAttributesObserverTest extends TestCase
     }
 
     /**
+     * @magentoAppIsolation enabled
      * @magentoDbIsolation disabled
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
     public function testObserver_ChangesIndexingAttributeNewActionToUpdate(): void
     {

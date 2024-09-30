@@ -98,13 +98,17 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
     /**
      * @param string[]|null $apiKeys
      * @param int[]|null $entityIds
+     * @param string[]|null $entitySubtypes
      *
      * @return MagentoEntityInterface[][]
      * @throws NoSuchEntityException
      * @throws StoreApiKeyException
      */
-    public function getData(?array $apiKeys = [], ?array $entityIds = []): array
-    {
+    public function getData(
+        ?array $apiKeys = [],
+        ?array $entityIds = [],
+        ?array $entitySubtypes = [],
+    ): array {
         $return = [];
         $storeFound = false;
 
@@ -122,6 +126,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                 apiKey: $storeApiKey,
                 magentoEntities: $return[$storeApiKey] ?? [],
                 entityIds: $entityIds,
+                entitySubtypes: $entitySubtypes,
             );
         }
         if (!$storeFound) {
@@ -148,6 +153,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
      * @param string $apiKey
      * @param MagentoEntityInterface[] $magentoEntities
      * @param int[] $entityIds
+     * @param string[] $entitySubtypes
      *
      * @return MagentoEntityInterface[]
      */
@@ -156,8 +162,12 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
         string $apiKey,
         array $magentoEntities,
         array $entityIds,
+        array $entitySubtypes,
     ): array {
         foreach ($this->entityProviders as $entityProvider) {
+            if ($entitySubtypes && !in_array($entityProvider->getEntitySubtype(), $entitySubtypes, true)) {
+                continue;
+            }
             foreach ($entityProvider->get(store: $store, entityIds: $entityIds) as $entity) {
                 $isIndexable = $this->isIndexableDeterminer->execute(
                     entity: $entity,
@@ -169,6 +179,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                     apiKey: $apiKey,
                     entity: $entity,
                     isIndexable: $isIndexable,
+                    entitySubtype: $entityProvider->getEntitySubtype(),
                 );
             }
         }
@@ -181,6 +192,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
      * @param string $apiKey
      * @param ExtensibleDataInterface|PageInterface $entity
      * @param bool $isIndexable
+     * @param string|null $entitySubtype
      *
      * @return MagentoEntityInterface[]
      */
@@ -189,6 +201,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
         string $apiKey,
         ExtensibleDataInterface|PageInterface $entity,
         bool $isIndexable,
+        ?string $entitySubtype = null,
     ): array {
         $entityId = (int)$entity->getId(); // @phpstan-ignore-line
         $entityParentId = $this->getParentId($entity);
@@ -204,6 +217,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                 'entityParentId' => $entityParentId ? (int)$entityParentId : null,
                 'apiKey' => $apiKey,
                 'isIndexable' => $isIndexable,
+                'entitySubtype' => $entitySubtype,
             ]);
 
         return $magentoEntities;

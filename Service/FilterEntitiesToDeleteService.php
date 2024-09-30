@@ -33,14 +33,20 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
      * @param MagentoEntityInterface[][] $magentoEntitiesByApiKey
      * @param string $type
      * @param int[]|null $entityIds
+     * @param string[]|null $entitySubtypes
      *
      * @return int[]
      */
-    public function execute(array $magentoEntitiesByApiKey, string $type, ?array $entityIds = []): array
+    public function execute(
+        array $magentoEntitiesByApiKey,
+        string $type,
+        ?array $entityIds = [],
+        ?array $entitySubtypes = [],
+    ): array
     {
         $return = [];
         foreach ($magentoEntitiesByApiKey as $apiKey => $magentoEntities) {
-            $indexingEntities = $this->getIndexingEntities($type, $apiKey, $entityIds);
+            $indexingEntities = $this->getIndexingEntities($type, $apiKey, $entityIds, $entitySubtypes);
             $return[] = $this->getKlevuEntitiesNoLongerIndexable($type, $magentoEntities, $indexingEntities);
             $return[] = $this->getKlevuEntitiesNoLongerExist($type, $magentoEntities, $indexingEntities);
         }
@@ -52,15 +58,17 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
      * @param string $type
      * @param string $apiKey
      * @param int[] $entityIds
+     * @param string[] $entitySubtypes
      *
      * @return IndexingEntityInterface[]
      */
-    private function getIndexingEntities(string $type, string $apiKey, array $entityIds): array
+    private function getIndexingEntities(string $type, string $apiKey, array $entityIds, array $entitySubtypes): array
     {
         return $this->indexingEntityProvider->get(
             entityType: $type,
             apiKey: $apiKey,
             entityIds: $entityIds,
+            entitySubtypes: $entitySubtypes,
         );
     }
 

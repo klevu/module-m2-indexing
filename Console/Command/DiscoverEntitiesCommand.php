@@ -18,8 +18,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class DiscoverEntitiesCommand extends Command
 {
     public const COMMAND_NAME = 'klevu:indexing:entity-discovery';
-    public const OPTION_API_KEY = 'api-key';
-    public const OPTION_ENTITY_TYPE = 'entity-type';
+    public const OPTION_API_KEYS = 'api-keys';
+    public const OPTION_ENTITY_TYPES = 'entity-types';
 
     /**
      * @var EntityDiscoveryOrchestratorServiceInterface
@@ -46,19 +46,27 @@ class DiscoverEntitiesCommand extends Command
     {
         parent::configure();
 
-        $this->setName(static::COMMAND_NAME);
+        $this->setName(name: static::COMMAND_NAME);
         $this->setDescription(
-            (string)__('Find Entities and add them to "klevu_indexing_entity" table so they can be indexed.'),
+            description: (string)__(
+                'Find Entities and add them to "klevu_indexing_entity" table so they can be indexed.',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_API_KEY,
+            name: static::OPTION_API_KEYS,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Discover Entities only for this API Key (optional).'),
+            description: (string)__(
+                'Discover Entities only for these API Keys (optional). Comma separated list '
+                . 'e.g. --api-keys api-key-1,api-key-2',
+            ),
         );
         $this->addOption(
-            name: static::OPTION_ENTITY_TYPE,
+            name: static::OPTION_ENTITY_TYPES,
             mode: InputOption::VALUE_OPTIONAL,
-            description: (string)__('Discover Entities only for this Entity Type (optional).'),
+            description: (string)__(
+                'Discover Entities only for these Entity Types (optional). '
+                . 'Comma separated list e.g. --entity-types KLEVU_CMS,KLEVU_PRODUCTS',
+            ),
         );
     }
 
@@ -74,21 +82,20 @@ class DiscoverEntitiesCommand extends Command
     ): int {
         $return = Cli::RETURN_SUCCESS;
         $output->writeln(
-            sprintf(
+            messages: sprintf(
                 '<comment>%s</comment>',
                 __('Begin Entity Discovery.'),
             ),
         );
-        $apiKey = $input->getOption(static::OPTION_API_KEY);
 
         $success = $this->discoveryOrchestratorService->execute(
-            entityType: $input->getOption(static::OPTION_ENTITY_TYPE),
-            apiKeys: $apiKey ? [$apiKey] : null,
+            entityTypes: $this->getEntityTypes(input: $input),
+            apiKeys: $this->getApiKeys(input: $input),
         );
 
         if ($success->isSuccess()) {
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<comment>%s</comment>',
                     __('Entity Discovery Completed Successfully.'),
                 ),
@@ -96,7 +103,7 @@ class DiscoverEntitiesCommand extends Command
         } else {
             $return = Cli::RETURN_FAILURE;
             $output->writeln(
-                sprintf(
+                messages: sprintf(
                     '<error>%s</error>',
                     __('Entity Discovery Failed. See Logs for more details.'),
                 ),
@@ -104,5 +111,33 @@ class DiscoverEntitiesCommand extends Command
         }
 
         return $return;
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getApiKeys(InputInterface $input): array
+    {
+        $apiKeys = $input->getOption(static::OPTION_API_KEYS);
+
+        return $apiKeys
+            ? array_map(callback: 'trim', array: explode(',', $apiKeys))
+            : [];
+    }
+
+    /**
+     * @param InputInterface $input
+     *
+     * @return string[]
+     */
+    private function getEntityTypes(InputInterface $input): array
+    {
+        $entityTypes = $input->getOption(static::OPTION_ENTITY_TYPES);
+
+        return $entityTypes
+            ? array_map(callback: 'trim', array: explode(',', $entityTypes))
+            : [];
     }
 }

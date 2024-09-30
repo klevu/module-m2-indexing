@@ -1,0 +1,8 @@
+stages:
+    createRecord:
+        pipeline: Pipeline\CreateRecord
+        stages:
+            foo:
+                pipeline: Stage\Extract
+                args:
+                    extraction: getFoo()

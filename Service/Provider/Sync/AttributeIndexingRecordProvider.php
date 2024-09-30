@@ -117,12 +117,13 @@ class AttributeIndexingRecordProvider implements AttributeIndexingRecordProvider
             foreach ($attributes as $attribute) {
                 try {
                     yield $this->indexingRecordCreatorService->execute($attribute, $apiKey);
-                } catch (AttributeMappingMissingException $exception) {
+                } catch (AttributeMappingMissingException | \TypeError $exception) {
                     $this->logger->error(
-                        message: 'Method: {method}, Error: {message}',
+                        message: 'Method: {method}, Error: {message}, Attribute: {attribute_code}',
                         context: [
                             'method' => __METHOD__,
                             'message' => $exception->getMessage(),
+                            'attribute_code' => $attribute->getAttributeCode(),
                         ],
                     );
                 }
@@ -162,7 +163,10 @@ class AttributeIndexingRecordProvider implements AttributeIndexingRecordProvider
         $attributeCodes = $this->getAttributeCodesToDelete($apiKey);
         foreach ($attributeCodes as $attributeCode) {
             try {
-                yield $this->indexingDeleteRecordCreatorService->execute(attributeCode: $attributeCode);
+                yield $this->indexingDeleteRecordCreatorService->execute(
+                    attributeCode: $attributeCode,
+                    apiKey: $apiKey,
+                );
             } catch (AttributeMappingMissingException $exception) {
                 $this->logger->error(
                     message: 'Method: {method}, Error: {message}',

@@ -117,9 +117,6 @@ class AttributeTypeMapperServiceTest extends TestCase
         );
     }
 
-    /**
-     * @TODO change return type to Number when it is supported in Klevu Indexing
-     */
     public function testExecute_ReturnsNumber_ForPriceAttribute(): void
     {
         $this->createAttribute([
@@ -134,9 +131,33 @@ class AttributeTypeMapperServiceTest extends TestCase
         $dataType = $service->execute($magentoAttribute);
 
         $this->assertSame(
-            expected: DataType::STRING,
+            expected: DataType::NUMBER,
             actual: $dataType,
-            message: sprintf('Expected %s, Received %s', DataType::STRING->value, $dataType->value),
+            message: sprintf('Expected %s, Received %s', DataType::NUMBER->value, $dataType->value),
+        );
+    }
+
+    public function testExecute_ReturnsNumber_ForWeightAttribute(): void
+    {
+        $this->createAttribute([
+            'key' => 'klevu_test_weight_attribute',
+            'code' => 'klevu_test_weight_attribute',
+            'attribute_type' => 'custom',
+            'data' => [
+                'frontend_input' => 'weight',
+                'backend_type' => 'decimal',
+            ],
+        ]);
+        $attributeFixture = $this->attributeFixturePool->get('klevu_test_weight_attribute');
+        $magentoAttribute = $attributeFixture->getAttribute();
+
+        $service = $this->instantiateTestObject();
+        $dataType = $service->execute($magentoAttribute);
+
+        $this->assertSame(
+            expected: DataType::NUMBER,
+            actual: $dataType,
+            message: sprintf('Expected %s, Received %s', DataType::NUMBER->value, $dataType->value),
         );
     }
 
@@ -255,9 +276,6 @@ class AttributeTypeMapperServiceTest extends TestCase
         );
     }
 
-    /**
-     * @TODO change return type to NUMBER when it is supported in Klevu Indexing
-     */
     public function testExecute_ReturnsCustomMappingValues(): void
     {
         $this->createAttribute([
@@ -270,15 +288,15 @@ class AttributeTypeMapperServiceTest extends TestCase
 
         $service = $this->instantiateTestObject([
             'customMapping' => [
-                'klevu_test_text_attribute' => 'NUMBER',
+                'klevu_test_text_attribute' => DataType::NUMBER->value,
             ],
         ]);
         $dataType = $service->execute($magentoAttribute);
 
         $this->assertSame(
-            expected: DataType::STRING,
+            expected: DataType::NUMBER,
             actual: $dataType,
-            message: sprintf('Expected %s, Received %s', DataType::STRING->value, $dataType->value),
+            message: sprintf('Expected %s, Received %s', DataType::NUMBER->value, $dataType->value),
         );
     }
 }

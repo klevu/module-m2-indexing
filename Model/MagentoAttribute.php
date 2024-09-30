@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Model;
 
 use Klevu\IndexingApi\Model\MagentoAttributeInterface;
+use Klevu\PhpSDK\Model\Indexing\DataType;
 
 class MagentoAttribute implements MagentoAttributeInterface
 {
@@ -32,6 +33,30 @@ class MagentoAttribute implements MagentoAttributeInterface
      * @var string
      */
     private readonly string $klevuAttributeName;
+    /**
+     * @var DataType|null
+     */
+    private ?DataType $klevuAttributeType = null;
+    /**
+     * @var string[]
+     */
+    private array $generateConfigurationForEntitySubtypes = [];
+    /**
+     * @var bool|null
+     */
+    private ?bool $isGlobal = null;
+    /**
+     * @var bool|null
+     */
+    private ?bool $usesSourceModel = null;
+    /**
+     * @var bool|null
+     */
+    private ?bool $isHtmlAllowed = null;
+    /**
+     * @var bool|null
+     */
+    private ?bool $allowsMultipleValues = null;
 
     /**
      * @param int $attributeId
@@ -102,5 +127,110 @@ class MagentoAttribute implements MagentoAttributeInterface
     public function getKlevuAttributeName(): string
     {
         return $this->klevuAttributeName;
+    }
+
+    /**
+     * @param DataType $klevuAttributeType
+     *
+     * @return void
+     */
+    public function setKlevuAttributeType(DataType $klevuAttributeType): void
+    {
+        $this->klevuAttributeType = $klevuAttributeType;
+    }
+
+    /**
+     * @return DataType|null
+     */
+    public function getKlevuAttributeType(): ?DataType
+    {
+        return $this->klevuAttributeType;
+    }
+
+    /**
+     * @param string[] $generateConfigurationForEntitySubtypes
+     *
+     * @return void
+     */
+    public function setGenerateConfigurationForEntitySubtypes(array $generateConfigurationForEntitySubtypes): void
+    {
+        $this->generateConfigurationForEntitySubtypes = $generateConfigurationForEntitySubtypes;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getGenerateConfigurationForEntitySubtypes(): array
+    {
+        return $this->generateConfigurationForEntitySubtypes;
+    }
+
+    /**
+     * @param bool $isGlobal
+     *
+     * @return void
+     */
+    public function setIsGlobal(bool $isGlobal): void
+    {
+        $this->isGlobal = $isGlobal;
+    }
+
+    /**
+     * @return bool|null
+     */
+    public function isGlobal(): ?bool
+    {
+        return $this->isGlobal;
+    }
+
+    /**
+     * @param bool $usesSourceModel
+     *
+     * @return void
+     */
+    public function setUsesSourceModel(bool $usesSourceModel): void
+    {
+        $this->usesSourceModel = $usesSourceModel;
+    }
+
+    /**
+     * @return bool|null
+     */
+    public function usesSourceModel(): ?bool
+    {
+        return $this->usesSourceModel;
+    }
+
+    /**
+     * @param bool $isHtmlAllowed
+     *
+     * @return void
+     */
+    public function setIsHtmlAllowed(bool $isHtmlAllowed): void
+    {
+        $this->isHtmlAllowed = $isHtmlAllowed;
+    }
+
+    /**
+     * @return bool|null
+     */
+    public function isHtmlAllowed(): ?bool
+    {
+        return $this->isHtmlAllowed;
+    }
+
+    /**
+     * @param bool $allowsMultipleValues
+     *
+     * @return void
+     */
+    public function setAllowsMultipleValues(bool $allowsMultipleValues): void
+    {
+        $this->allowsMultipleValues = $allowsMultipleValues;
+    }
+
+    public function allowsMultipleValues(): ?bool
+    {
+        return $this->allowsMultipleValues;
     }
 }

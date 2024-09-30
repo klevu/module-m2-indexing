@@ -8,12 +8,15 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Console\Command;
 
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Console\Command\UpdateAttributesCommand;
 use Klevu\IndexingApi\Service\AttributeDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\Provider\AttributeDiscoveryProviderInterface;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
@@ -25,7 +28,9 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 class UpdateAttributesCommandTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
     use StoreTrait;
 
     /**
@@ -46,6 +51,8 @@ class UpdateAttributesCommandTest extends TestCase
 
         $this->objectManager = Bootstrap::getObjectManager();
         $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
+
+        $this->mockSdkAttributeGetApiCall();
     }
 
     /**
@@ -59,13 +66,18 @@ class UpdateAttributesCommandTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
     public function testExecute_Fails_ForMissingAttributeIds(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: 'klevu-js-api-key',
+            restAuthKey: 'klevu-rest-auth-key',
+        );
 
         $discoverAttributesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -88,13 +100,18 @@ class UpdateAttributesCommandTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
     public function testExecute_Fails_forNonExistentApiKey(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: 'klevu-js-api-key',
+            restAuthKey: 'klevu-rest-auth-key',
+        );
 
         $discoverAttributesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -103,7 +120,7 @@ class UpdateAttributesCommandTest extends TestCase
         $isFailure = $tester->execute(
             input: [
                 '--attribute-ids' => '1,2,3',
-                '--api-key' => 'klevu-api-key-with-no-store',
+                '--api-keys' => 'klevu-api-key-with-no-store',
             ],
         );
 
@@ -120,13 +137,18 @@ class UpdateAttributesCommandTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
     public function testExecute_Fails_forNonExistentAttributeType(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: 'klevu-js-api-key',
+            restAuthKey: 'klevu-rest-auth-key',
+        );
 
         $discoverAttributesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -135,7 +157,7 @@ class UpdateAttributesCommandTest extends TestCase
         $isFailure = $tester->execute(
             input: [
                 '--attribute-ids' => '1,2,3',
-                '--attribute-type' => 'something',
+                '--attribute-types' => 'something',
             ],
         );
 
@@ -152,13 +174,32 @@ class UpdateAttributesCommandTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
-    public function testExecute_Succeeds_WithApiKey(): void
+    public function testExecute_Succeeds_WithApiKeys(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: 'klevu-js-api-key-1',
+            restAuthKey: 'klevu-rest-auth-key-1',
+        );
+
+        $this->createStore([
+            'key' => 'test_store_2',
+            'code' => 'klevu_test_store_2',
+        ]);
+        $storeFixture2 = $this->storeFixturesPool->get('test_store_2');
+        $scopeProvider2 = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider2->setCurrentScope($storeFixture2->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: 'klevu-js-api-key-2',
+            restAuthKey: 'klevu-rest-auth-key-2',
+            removeApiKeys: false,
+        );
 
         $discoverAttributesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
@@ -167,7 +208,7 @@ class UpdateAttributesCommandTest extends TestCase
         $isFailure = $tester->execute(
             input: [
                 '--attribute-ids' => '1,2,3',
-                '--api-key' => 'klevu-js-api-key',
+                '--api-keys' => 'klevu-js-api-key-1, klevu-js-api-key-2',
             ],
         );
 
@@ -184,13 +225,18 @@ class UpdateAttributesCommandTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
-     * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
     public function testExecute_Succeeds_WithAttributeType(): void
     {
         $this->createStore();
-        $this->storeFixturesPool->get('test_store');
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: 'klevu-js-api-key',
+            restAuthKey: 'klevu-rest-auth-key',
+        );
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(AttributeDiscoveryProviderInterface::class)
             ->getMock();
@@ -215,8 +261,8 @@ class UpdateAttributesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [
-                '--attribute-ids' => '1,2,3',
-                '--attribute-type' => 'KLEVU_PRODUCT',
+                '--attribute-ids' => 'all',
+                '--attribute-types' => 'KLEVU_PRODUCT',
             ],
         );
 

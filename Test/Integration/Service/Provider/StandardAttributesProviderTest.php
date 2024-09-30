@@ -1,0 +1,800 @@
+<?php
+
+/**
+ * Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details.
+ */
+
+declare(strict_types=1);
+
+namespace Klevu\Indexing\Tests\Integration\Service\Provider;
+
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
+use Klevu\Indexing\Cache\Attributes as AttributesCache;
+use Klevu\Indexing\Exception\StoreApiKeyException;
+use Klevu\Indexing\Service\Provider\StandardAttributesProvider;
+use Klevu\IndexingApi\Service\Provider\Sdk\AttributesProviderInterface;
+use Klevu\IndexingApi\Service\Provider\StandardAttributesProviderInterface;
+use Klevu\PhpSDK\Exception\Api\BadRequestException;
+use Klevu\PhpSDK\Exception\Api\BadResponseException;
+use Klevu\PhpSDK\Model\AccountCredentials;
+use Klevu\PhpSDK\Model\Indexing\Attribute;
+use Klevu\PhpSDK\Model\Indexing\AttributeIterator;
+use Klevu\PhpSDK\Model\Indexing\DataType;
+use Klevu\PhpSDK\Service\Indexing\AttributesService;
+use Klevu\TestFixtures\Store\StoreFixturesPool;
+use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
+use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
+use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
+use Magento\Framework\App\Cache\StateInterface;
+use Magento\Framework\App\Cache\TypeList;
+use Magento\Framework\ObjectManagerInterface;
+use Magento\TestFramework\Helper\Bootstrap;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * @covers StandardAttributesProvider::class
+ * @method StandardAttributesProviderInterface instantiateTestObject(?array $arguments = null)
+ * @method StandardAttributesProviderInterface instantiateTestObjectFromInterface(?array $arguments = null)
+ */
+class StandardAttributesProviderTest extends TestCase
+{
+    use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
+    use StoreTrait;
+    use TestImplementsInterfaceTrait;
+    use TestInterfacePreferenceTrait;
+
+    /**
+     * @var ObjectManagerInterface|null
+     */
+    private ?ObjectManagerInterface $objectManager = null; // @phpstan-ignore-line
+
+    /**
+     * @return void
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->implementationFqcn = StandardAttributesProvider::class;
+        $this->interfaceFqcn = StandardAttributesProviderInterface::class;
+        $this->objectManager = Bootstrap::getObjectManager();
+
+        $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
+        $this->clearAttributesCache();
+    }
+
+    /**
+     * @return void
+     * @throws \Exception
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        $this->storeFixturesPool->rollback();
+    }
+
+    public function testGet_throwsException_ApiKeyDoesNotExistInMagento(): void
+    {
+        $this->expectException(StoreApiKeyException::class);
+        $this->expectExceptionMessage('API key "klevu-js-key" not integrated with any store.');
+
+        $jsApiKey = 'klevu-js-key';
+        $this->createStore();
+
+        $provider = $this->instantiateTestObject();
+        $provider->get(apiKey: $jsApiKey);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGet_throwsException_ApiKeyDoesNotExistInKlevu(): void
+    {
+        $this->expectException(BadRequestException::class);
+        $this->expectExceptionMessage('Authentication failed. Please ensure your credentials are valid and try again.');
+
+        $jsApiKey = 'klevu-123456789';
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $jsApiKey,
+            restAuthKey: 'ABCDEFGHI123456780',
+        );
+
+        $provider = $this->instantiateTestObject();
+        $provider->get(apiKey: $jsApiKey);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGet_throwsException_OnApiResponseFailure(): void
+    {
+        $this->expectException(BadResponseException::class);
+        $this->expectExceptionMessage('Something went wrong');
+
+        $jsApiKey = 'klevu-js-key';
+        $restAuthKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $accountCredentials = new AccountCredentials(
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $mockAttributesService = $this->getMockBuilder(AttributesService::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockAttributesService->expects($this->once())
+            ->method('get')
+            ->with($accountCredentials)
+            ->willThrowException(
+                new BadResponseException('Something went wrong', 500),
+            );
+
+        $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
+            'attributesService' => $mockAttributesService,
+        ]);
+
+        $provider = $this->instantiateTestObject([
+            'attributesProvider' => $attributesProvider,
+        ]);
+        $provider->get(apiKey: $jsApiKey);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGet_throwsException_OnApiRequestFailure(): void
+    {
+        $this->expectException(BadRequestException::class);
+        $this->expectExceptionMessage('Malformed request');
+
+        $jsApiKey = 'klevu-js-key';
+        $restAuthKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $accountCredentials = new AccountCredentials(
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $mockAttributesService = $this->getMockBuilder(AttributesService::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockAttributesService->expects($this->once())
+            ->method('get')
+            ->with($accountCredentials)
+            ->willThrowException(
+                new BadRequestException('Malformed request', 400),
+            );
+
+        $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
+            'attributesService' => $mockAttributesService,
+        ]);
+
+        $provider = $this->instantiateTestObject([
+            'attributesProvider' => $attributesProvider,
+        ]);
+        $provider->get(apiKey: $jsApiKey);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGet_OnlyReturnsImmutableAttributes(): void
+    {
+        $jsApiKey = 'klevu-js-key';
+        $restAuthKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $accountCredentials = new AccountCredentials(
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $attributeIterator = $this->objectManager->create(AttributeIterator::class);
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'description',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [
+                        'desc',
+                    ],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'name',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'sku',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_custom_attribute',
+                    'datatype' => DataType::NUMBER->value,
+                    'searchable' => false,
+                    'filterable' => true,
+                    'returnable' => false,
+                    'aliases' => [],
+                    'immutable' => false,
+                ],
+            ),
+        );
+
+        $mockAttributesService = $this->getMockBuilder(AttributesService::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockAttributesService->expects($this->once())
+            ->method('get')
+            ->with($accountCredentials)
+            ->willReturn($attributeIterator);
+
+        $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
+            'attributesService' => $mockAttributesService,
+        ]);
+
+        $provider = $this->instantiateTestObject([
+            'attributesProvider' => $attributesProvider,
+        ]);
+        $results = $provider->get(apiKey: $jsApiKey);
+
+        $attributeCodes = [];
+        foreach ($results as $attribute) {
+            $attributeCodes[] = $attribute->getAttributeName();
+        }
+
+        $this->assertContains(needle: 'description', haystack: $attributeCodes);
+        $this->assertContains(needle: 'name', haystack: $attributeCodes);
+        $this->assertContains(needle: 'sku', haystack: $attributeCodes);
+        $this->assertNotContains(needle: 'my_custom_attribute', haystack: $attributeCodes);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGetAttributeCodes_OnlyReturnsImmutableAttributeCodes(): void
+    {
+        $jsApiKey = 'klevu-js-key';
+        $restAuthKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $accountCredentials = new AccountCredentials(
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $attributeIterator = $this->objectManager->create(AttributeIterator::class);
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'description',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [
+                        'desc',
+                    ],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'name',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'sku',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_custom_attribute',
+                    'datatype' => DataType::NUMBER->value,
+                    'searchable' => false,
+                    'filterable' => true,
+                    'returnable' => false,
+                    'aliases' => [],
+                    'immutable' => false,
+                ],
+            ),
+        );
+
+        $mockAttributesService = $this->getMockBuilder(AttributesService::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockAttributesService->expects($this->once())
+            ->method('get')
+            ->with($accountCredentials)
+            ->willReturn($attributeIterator);
+
+        $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
+            'attributesService' => $mockAttributesService,
+        ]);
+
+        $provider = $this->instantiateTestObject([
+            'attributesProvider' => $attributesProvider,
+        ]);
+        $results = $provider->getAttributeCodes(apiKey: $jsApiKey, includeAliases: false);
+
+        $this->assertContains(needle: 'description', haystack: $results);
+        $this->assertNotContains(needle: 'desc', haystack: $results);
+        $this->assertContains(needle: 'name', haystack: $results);
+        $this->assertContains(needle: 'sku', haystack: $results);
+        $this->assertNotContains(needle: 'my_custom_attribute', haystack: $results);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGetAttributeCodes_OnlyReturnsImmutableAttributeCodes_IncludeAliases(): void
+    {
+        $jsApiKey = 'klevu-js-key';
+        $restAuthKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $accountCredentials = new AccountCredentials(
+            jsApiKey: $jsApiKey,
+            restAuthKey: $restAuthKey,
+        );
+
+        $attributeIterator = $this->objectManager->create(AttributeIterator::class);
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'description',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [
+                        'desc',
+                    ],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'name',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'sku',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_custom_attribute',
+                    'datatype' => DataType::NUMBER->value,
+                    'searchable' => false,
+                    'filterable' => true,
+                    'returnable' => false,
+                    'aliases' => [],
+                    'immutable' => false,
+                ],
+            ),
+        );
+
+        $mockAttributesService = $this->getMockBuilder(AttributesService::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockAttributesService->expects($this->once())
+            ->method('get')
+            ->with($accountCredentials)
+            ->willReturn($attributeIterator);
+
+        $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
+            'attributesService' => $mockAttributesService,
+        ]);
+
+        $provider = $this->instantiateTestObject([
+            'attributesProvider' => $attributesProvider,
+        ]);
+        $results = $provider->getAttributeCodes(apiKey: $jsApiKey, includeAliases: true);
+
+        $this->assertContains(needle: 'desc', haystack: $results);
+        $this->assertContains(needle: 'description', haystack: $results);
+        $this->assertContains(needle: 'name', haystack: $results);
+        $this->assertContains(needle: 'sku', haystack: $results);
+        $this->assertNotContains(needle: 'my_custom_attribute', haystack: $results);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGetForAllApiKeys(): void
+    {
+        $jsApiKey1 = 'klevu-js-key-1';
+        $restAuthKey1 = 'klevu-rest-key-1';
+        $this->createStore();
+        $storeFixture1 = $this->storeFixturesPool->get('test_store');
+        $scopeProvider1 = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider1->setCurrentScope($storeFixture1->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider1,
+            jsApiKey: $jsApiKey1,
+            restAuthKey: $restAuthKey1,
+        );
+        $accountCredentials1 = new AccountCredentials(
+            jsApiKey: $jsApiKey1,
+            restAuthKey: $restAuthKey1,
+        );
+
+        $jsApiKey2 = 'klevu-js-key-2';
+        $restAuthKey2 = 'klevu-rest-key-2';
+        $this->createStore([
+            'key' => 'test_store_2',
+            'code' => 'klevu_test_store_2',
+        ]);
+        $storeFixture2 = $this->storeFixturesPool->get('test_store_2');
+        $scopeProvider2 = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider2->setCurrentScope($storeFixture2->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider2,
+            jsApiKey: $jsApiKey2,
+            restAuthKey: $restAuthKey2,
+            removeApiKeys: false,
+        );
+        $accountCredentials2 = new AccountCredentials(
+            jsApiKey: $jsApiKey2,
+            restAuthKey: $restAuthKey2,
+        );
+
+        $attributeIterator1 = $this->objectManager->create(AttributeIterator::class);
+        $attributeIterator1->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_standard_attribute_1',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [
+                        'standard_att',
+                    ],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator1->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_standard_attribute_2',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator2 = $this->objectManager->create(AttributeIterator::class);
+        $attributeIterator2->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_standard_attribute_3',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator2->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_custom_attribute_4',
+                    'datatype' => DataType::NUMBER->value,
+                    'searchable' => false,
+                    'filterable' => true,
+                    'returnable' => false,
+                    'immutable' => false,
+                ],
+            ),
+        );
+
+        $mockAttributesService = $this->getMockBuilder(AttributesService::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockAttributesService->method('get')
+            ->withConsecutive([$accountCredentials1], [$accountCredentials2])
+            ->willReturnOnConsecutiveCalls($attributeIterator1, $attributeIterator2);
+
+        $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
+            'attributesService' => $mockAttributesService,
+        ]);
+
+        $provider = $this->instantiateTestObject([
+            'attributesProvider' => $attributesProvider,
+        ]);
+        $results = $provider->getAttributeCodesForAllApiKeys(includeAliases: false);
+
+        $this->assertNotContains(needle: 'name', haystack: $results);
+        $this->assertNotContains(needle: 'sku', haystack: $results);
+        $this->assertContains(needle: 'my_standard_attribute_1', haystack: $results);
+        $this->assertNotContains(needle: 'standard_att', haystack: $results);
+        $this->assertContains(needle: 'my_standard_attribute_2', haystack: $results);
+        $this->assertContains(needle: 'my_standard_attribute_3', haystack: $results);
+        $this->assertNotContains(needle: 'my_custom_attribute_4', haystack: $results);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGetForAllApiKeys_includeAliases(): void
+    {
+        $jsApiKey1 = 'klevu-js-key-1';
+        $restAuthKey1 = 'klevu-rest-key-1';
+        $this->createStore();
+        $storeFixture1 = $this->storeFixturesPool->get('test_store');
+        $scopeProvider1 = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider1->setCurrentScope($storeFixture1->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider1,
+            jsApiKey: $jsApiKey1,
+            restAuthKey: $restAuthKey1,
+        );
+        $accountCredentials1 = new AccountCredentials(
+            jsApiKey: $jsApiKey1,
+            restAuthKey: $restAuthKey1,
+        );
+
+        $jsApiKey2 = 'klevu-js-key-2';
+        $restAuthKey2 = 'klevu-rest-key-2';
+        $this->createStore([
+            'key' => 'test_store_2',
+            'code' => 'klevu_test_store_2',
+        ]);
+        $storeFixture2 = $this->storeFixturesPool->get('test_store_2');
+        $scopeProvider2 = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider2->setCurrentScope($storeFixture2->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider2,
+            jsApiKey: $jsApiKey2,
+            restAuthKey: $restAuthKey2,
+            removeApiKeys: false,
+        );
+        $accountCredentials2 = new AccountCredentials(
+            jsApiKey: $jsApiKey2,
+            restAuthKey: $restAuthKey2,
+        );
+
+        $attributeIterator1 = $this->objectManager->create(AttributeIterator::class);
+        $attributeIterator1->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_standard_attribute_1',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [
+                        'standard_att',
+                    ],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator1->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_standard_attribute_2',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator2 = $this->objectManager->create(AttributeIterator::class);
+        $attributeIterator2->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_standard_attribute_3',
+                    'datatype' => DataType::STRING->value,
+                    'searchable' => true,
+                    'filterable' => false,
+                    'returnable' => true,
+                    'aliases' => [],
+                    'immutable' => true,
+                ],
+            ),
+        );
+        $attributeIterator2->addItem(
+            item: $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_custom_attribute_4',
+                    'datatype' => DataType::NUMBER->value,
+                    'searchable' => false,
+                    'filterable' => true,
+                    'returnable' => false,
+                    'aliases' => [],
+                    'immutable' => false,
+                ],
+            ),
+        );
+
+        $mockAttributesService = $this->getMockBuilder(AttributesService::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockAttributesService->method('get')
+            ->withConsecutive([$accountCredentials1], [$accountCredentials2])
+            ->willReturnOnConsecutiveCalls($attributeIterator1, $attributeIterator2);
+
+        $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
+            'attributesService' => $mockAttributesService,
+        ]);
+
+        $provider = $this->instantiateTestObject([
+            'attributesProvider' => $attributesProvider,
+        ]);
+        $results = $provider->getAttributeCodesForAllApiKeys(includeAliases: true);
+
+        $this->assertNotContains(needle: 'name', haystack: $results);
+        $this->assertNotContains(needle: 'sku', haystack: $results);
+        $this->assertContains(needle: 'my_standard_attribute_1', haystack: $results);
+        $this->assertContains(needle: 'standard_att', haystack: $results);
+        $this->assertContains(needle: 'my_standard_attribute_2', haystack: $results);
+        $this->assertContains(needle: 'my_standard_attribute_3', haystack: $results);
+        $this->assertNotContains(needle: 'my_custom_attribute_4', haystack: $results);
+    }
+
+    /**
+     * @return void
+     */
+    private function clearAttributesCache(): void
+    {
+        $cacheState = $this->objectManager->get(type: StateInterface::class);
+        $cacheState->setEnabled(cacheType: AttributesCache::TYPE_IDENTIFIER, isEnabled: true);
+
+        $typeList = $this->objectManager->get(TypeList::class);
+        $typeList->cleanType(AttributesCache::TYPE_IDENTIFIER);
+    }
+}

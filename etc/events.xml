@@ -29,4 +29,25 @@
                   instance="Klevu\Indexing\Observer\UpdateAttributesObserver"/>
     </event>
 
+    <!-- Observing events thrown in the same module will enable is generally not recommended-->
+    <!-- however, this approach will allow us to replace these events in the upcoming optional rabbit MQ module -->
+    <event name="klevu_indexing_attributes_action_add_after">
+        <observer name="Klevu_Indexing_ClearCacheAfterSuccessfulAddAttributeApiCall"
+                  instance="Klevu\Indexing\Observer\ClearCacheAfterSuccessfulAttributeApiCallObserver" />
+    </event>
+
+    <!-- Observing events thrown in the same module will enable is generally not recommended-->
+    <!-- however, this approach will allow us to replace these events in the upcoming optional rabbit MQ module -->
+    <event name="klevu_indexing_attributes_action_update_after">
+        <observer name="Klevu_Indexing_ClearCacheAfterSuccessfulUpdateAttributeApiCall"
+                  instance="Klevu\Indexing\Observer\ClearCacheAfterSuccessfulAttributeApiCallObserver" />
+    </event>
+
+    <!-- Observing events thrown in the same module will enable is generally not recommended-->
+    <!-- however, this approach will allow us to replace these events in the upcoming optional rabbit MQ module -->
+    <event name="klevu_indexing_attributes_action_delete_after">
+        <observer name="Klevu_Indexing_ClearCacheAfterSuccessfulDeleteAttributeApiCall"
+                  instance="Klevu\Indexing\Observer\ClearCacheAfterSuccessfulAttributeApiCallObserver" />
+    </event>
+
 </config>

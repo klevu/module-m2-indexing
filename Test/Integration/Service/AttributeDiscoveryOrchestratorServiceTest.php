@@ -8,15 +8,18 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service;
 
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Model\ResourceModel\IndexingAttribute\Collection;
 use Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService;
+use Klevu\Indexing\Service\FilterAttributesToDeleteService;
 use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Api\Data\IndexingAttributeSearchResultsInterface;
 use Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoAttributeInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
+use Klevu\IndexingApi\Model\Source\IndexType;
 use Klevu\IndexingApi\Service\Action\AddIndexingAttributesActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToBeIndexableActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingAttributesToDeleteActionInterface;
@@ -26,7 +29,16 @@ use Klevu\IndexingApi\Service\AttributeDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\FilterAttributesToAddServiceInterface;
 use Klevu\IndexingApi\Service\FilterAttributesToDeleteServiceInterface;
 use Klevu\IndexingApi\Service\Provider\AttributeDiscoveryProviderInterface;
+use Klevu\IndexingProducts\Model\Source\Aspect;
+use Klevu\PhpSDK\Model\Indexing\Attribute;
+use Klevu\PhpSDK\Model\Indexing\DataType;
+use Klevu\TestFixtures\Catalog\Attribute\AttributeFixturePool;
+use Klevu\TestFixtures\Catalog\AttributeTrait;
+use Klevu\TestFixtures\Store\StoreFixturesPool;
+use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\ObjectManagerInterface;
@@ -42,8 +54,12 @@ use Psr\Log\LoggerInterface;
  */
 class AttributeDiscoveryOrchestratorServiceTest extends TestCase
 {
+    use AttributeApiCallTrait;
+    use AttributeTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
+    use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
 
@@ -60,6 +76,9 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         $this->interfaceFqcn = AttributeDiscoveryOrchestratorServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
 
+        $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
+        $this->attributeFixturePool = $this->objectManager->get(AttributeFixturePool::class);
+        $this->mockSdkAttributeGetApiCall();
         $this->cleanIndexingAttributes('klevu-api-key');
     }
 
@@ -68,6 +87,10 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         parent::tearDown();
 
         $this->cleanIndexingAttributes('klevu-api-key');
+        $this->attributeFixturePool->rollback();
+        $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
     }
 
     public function testExecute_NoProviders_ReturnsSuccessFalse(): void
@@ -122,12 +145,12 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_CMS');
+        $result = $service->execute(attributeTypes: ['KLEVU_CMS']);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
         $this->assertContains(
-            needle: 'Supplied attribute type did not match any providers.',
+            needle: 'Supplied attribute types did not match any providers.',
             haystack: $result->getMessages(),
         );
         $collection = $this->objectManager->create(Collection::class);
@@ -158,7 +181,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_PRODUCT');
+        $result = $service->execute(attributeTypes: ['KLEVU_PRODUCT']);
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -172,6 +195,20 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
 
     public function testExecute_Save_ReturnSuccessFalse_AnyAttributesFailToSave(): void
     {
+        $apiKey = 'klevu-api-key';
+        $authKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $mockProvider = $this->getMockBuilder(AttributeDiscoveryProviderInterface::class)
             ->getMock();
         $mockProvider->expects($this->exactly(2))
@@ -226,7 +263,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_PRODUCT');
+        $result = $service->execute(attributeTypes: ['KLEVU_PRODUCT']);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -321,7 +358,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_PRODUCT');
+        $result = $service->execute(attributeTypes: ['KLEVU_PRODUCT']);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -346,7 +383,7 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ->method('getData')
             ->with(
                 [$apiKey],
-                [1, 2],
+                [1, 2, 3, 4],
             )
             ->willReturn([
                 'klevu-api-key' => [
@@ -363,6 +400,20 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
                         'apiKey' => $apiKey,
                         'isIndexable' => false,
                         'klevuAttributeName' => 'name2',
+                    ]),
+                    $this->objectManager->create(MagentoAttributeInterface::class, [
+                        'attributeId' => 3,
+                        'attributeCode' => 'klevu_test_attribute_3',
+                        'apiKey' => $apiKey,
+                        'isIndexable' => false,
+                        'klevuAttributeName' => 'name3',
+                    ]),
+                    $this->objectManager->create(MagentoAttributeInterface::class, [
+                        'attributeId' => 4,
+                        'attributeCode' => 'klevu_test_attribute_4',
+                        'apiKey' => $apiKey,
+                        'isIndexable' => true,
+                        'klevuAttributeName' => 'name4',
                     ]),
                 ],
             ]);
@@ -383,12 +434,16 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         $attribute1->setId(1);
         $attribute2 = $this->objectManager->create(IndexingAttributeInterface::class);
         $attribute2->setId(2);
+        $attribute3 = $this->objectManager->create(IndexingAttributeInterface::class);
+        $attribute3->setId(3);
+        $attribute4 = $this->objectManager->create(IndexingAttributeInterface::class);
+        $attribute4->setId(4);
 
         $mockSearchResult = $this->getMockBuilder(IndexingAttributeSearchResultsInterface::class)
             ->getMock();
         $mockSearchResult->expects($this->once())
             ->method('getItems')
-            ->willReturn([$attribute1, $attribute2]);
+            ->willReturn([$attribute1, $attribute2, $attribute3, $attribute4]);
         $mockIndexingAttributeRepository = $this->getMockBuilder(IndexingAttributeRepositoryInterface::class)
             ->getMock();
         $mockIndexingAttributeRepository->expects($this->once())
@@ -415,6 +470,24 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             IndexingAttribute::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
             IndexingAttribute::IS_INDEXABLE => true,
         ]);
+        $this->createIndexingAttribute(data: [
+            IndexingAttribute::TARGET_ID => 3,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::NEXT_ACTION => Actions::ADD,
+            IndexingAttribute::LAST_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::LAST_ACTION_TIMESTAMP => null,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute(data: [
+            IndexingAttribute::TARGET_ID => 4,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::NEXT_ACTION => Actions::DELETE,
+            IndexingAttribute::LAST_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::LAST_ACTION_TIMESTAMP => null,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
 
         $setIndexingAttributesToUpdateAction = $this->objectManager->create(
             type: SetIndexingAttributesToUpdateActionInterface::class,
@@ -432,7 +505,11 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_PRODUCT', apiKeys: [$apiKey], attributeIds: [1, 2]);
+        $result = $service->execute(
+            attributeTypes: ['KLEVU_PRODUCT'],
+            apiKeys: [$apiKey],
+            attributeIds: [1, 2, 3, 4],
+        );
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -547,7 +624,11 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], attributeIds: [1, 2]);
+        $result = $service->execute(
+            attributeTypes: ['KLEVU_CATEGORY'],
+            apiKeys: [$apiKey],
+            attributeIds: [1, 2],
+        );
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -560,9 +641,23 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         );
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_SetExistingAttributesToBeIndexable(): void
     {
         $apiKey = 'klevu-api-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: 'klevu-rest-key',
+        );
+
         $mockProvider = $this->getMockBuilder(AttributeDiscoveryProviderInterface::class)
             ->getMock();
         $mockProvider->expects($this->exactly(2))
@@ -645,6 +740,16 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             IndexingAttribute::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
             IndexingAttribute::IS_INDEXABLE => false,
         ]);
+        $this->createIndexingAttribute(data: [
+            IndexingAttribute::TARGET_ID => 3,
+            IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_3',
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::LAST_ACTION => Actions::DELETE,
+            IndexingAttribute::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+            IndexingAttribute::IS_INDEXABLE => false,
+        ]);
 
         $setIndexingAttributesToBeIndexableAction = $this->objectManager->create(
             type: SetIndexingAttributesToBeIndexableActionInterface::class,
@@ -661,7 +766,11 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], attributeIds: [1, 2]);
+        $result = $service->execute(
+            attributeTypes: ['KLEVU_CATEGORY'],
+            apiKeys: [$apiKey],
+            attributeIds: [1, 2],
+        );
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -771,7 +880,11 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
             ],
             'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
         ]);
-        $result = $service->execute(attributeType: 'KLEVU_CATEGORY', apiKeys: [$apiKey], attributeIds: [1, 2]);
+        $result = $service->execute(
+            attributeTypes: ['KLEVU_CATEGORY'],
+            apiKeys: [$apiKey],
+            attributeIds: [1, 2],
+        );
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -784,11 +897,131 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         );
     }
 
+    public function testExecute_WillMarkAttributeToDelete_WhenAttributeTypeHasChanged(): void
+    {
+        $apiKey = 'klevu-js-api-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: 'klevu-rest-key',
+        );
+
+        $this->createAttribute([
+            'key' => 'test_attribute_1',
+            'code' => 'klevu_test_attribute_1',
+            'index_as' => IndexType::INDEX,
+            'aspect' => Aspect::ALL,
+        ]);
+        $attributeFixture1 = $this->attributeFixturePool->get('test_attribute_1');
+        $this->createAttribute([
+            'key' => 'test_attribute_2',
+            'code' => 'klevu_test_attribute_2',
+            'index_as' => IndexType::INDEX,
+            'aspect' => Aspect::ALL,
+        ]);
+        $attributeFixture2 = $this->attributeFixturePool->get('test_attribute_2');
+
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+
+        $this->createIndexingAttribute(data: [
+            IndexingAttribute::TARGET_ID => $attributeFixture1->getAttributeId(),
+            IndexingAttribute::TARGET_CODE => $attributeFixture1->getAttributeCode(),
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
+            IndexingAttribute::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute(data: [
+            IndexingAttribute::TARGET_ID => $attributeFixture2->getAttributeId(),
+            IndexingAttribute::TARGET_CODE => $attributeFixture2->getAttributeCode(),
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::LAST_ACTION => Actions::UPDATE,
+            IndexingAttribute::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->clearAttributeCache();
+        $this->objectManager->removeSharedInstance(
+            className: FilterAttributesToDeleteService::class,
+        );
+        $this->mockSdkAttributeGetApiCall(
+            attributes: [
+                $attributeFixture1->getAttributeCode() => $this->objectManager->create(
+                    type: Attribute::class,
+                    arguments: [
+                        'attributeName' => $attributeFixture1->getAttributeCode(),
+                        'datatype' => DataType::NUMBER->value,
+                        'label' => [
+                            'default' => 'Label 1',
+                        ],
+                        'searchable' => false,
+                        'filterable' => false,
+                        'returnable' => true,
+                        'abbreviate' => false,
+                        'rangeable' => false,
+                        'aliases' => [],
+                        'immutable' => false,
+                    ],
+                ),
+                $attributeFixture2->getAttributeCode() => $this->objectManager->create(
+                    type: Attribute::class,
+                    arguments: [
+                        'attributeName' => $attributeFixture2->getAttributeCode(),
+                        'datatype' => DataType::STRING->value,
+                        'label' => [
+                            'default' => 'Label 2',
+                        ],
+                        'searchable' => false,
+                        'filterable' => false,
+                        'returnable' => true,
+                        'abbreviate' => false,
+                        'rangeable' => false,
+                        'aliases' => [],
+                        'immutable' => false,
+                    ],
+                ),
+            ],
+        );
+
+        $service = $this->instantiateTestObject([
+            'attributeConflictHandlerService' => $this->getMockAttributeConflictHandlerService(),
+        ]);
+        $result = $service->execute(attributeTypes: ['KLEVU_PRODUCT']);
+
+        $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
+        $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
+
+        $indexingAttribute1 = $this->getIndexingAttributeForAttribute(
+            apiKey: $apiKey,
+            attribute: $attributeFixture1->getAttribute(),
+            type: 'KLEVU_PRODUCT',
+        );
+        $this->assertTrue($indexingAttribute1->getIsIndexable());
+        $this->assertSame(expected: Actions::DELETE, actual: $indexingAttribute1->getNextAction());
+
+        $indexingAttribute2 = $this->getIndexingAttributeForAttribute(
+            apiKey: $apiKey,
+            attribute: $attributeFixture2->getAttribute(),
+            type: 'KLEVU_PRODUCT',
+        );
+        $this->assertTrue($indexingAttribute2->getIsIndexable());
+        $this->assertSame(expected: Actions::NO_ACTION, actual: $indexingAttribute2->getNextAction());
+    }
+
     /**
      * @return MockObject&AttributeConflictHandlerServiceInterface
      */
-    private function getMockAttributeConflictHandlerService(): MockObject
+    private function getMockAttributeConflictHandlerService(): MockObject&AttributeConflictHandlerServiceInterface
     {
+        /** @var MockObject&AttributeConflictHandlerServiceInterface $mockAttributeConflictHandlerService */
         $mockAttributeConflictHandlerService = $this->getMockBuilder(AttributeConflictHandlerServiceInterface::class)
             ->getMock();
         $mockAttributeConflictHandlerService->expects($this->once())

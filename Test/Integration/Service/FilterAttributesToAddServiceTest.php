@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service;
 
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\FilterAttributesToAddService;
 use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
@@ -17,7 +18,13 @@ use Klevu\IndexingApi\Model\MagentoAttributeInterface;
 use Klevu\IndexingApi\Model\MagentoAttributeInterfaceFactory;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\FilterAttributesToAddServiceInterface;
+use Klevu\PhpSDK\Model\Indexing\Attribute;
+use Klevu\PhpSDK\Model\Indexing\DataType;
+use Klevu\TestFixtures\Store\StoreFixturesPool;
+use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\Exception\AlreadyExistsException;
@@ -26,6 +33,7 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * @covers \Klevu\Indexing\Service\FilterAttributesToAddService::class
@@ -34,8 +42,11 @@ use PHPUnit\Framework\TestCase;
  */
 class FilterAttributesToAddServiceTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
+    use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
 
@@ -55,7 +66,10 @@ class FilterAttributesToAddServiceTest extends TestCase
         $this->interfaceFqcn = FilterAttributesToAddServiceInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
 
+        $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
         $this->cleanIndexingAttributes('klevu-api-key%');
+
+        $this->clearAttributeCache();
     }
 
     /**
@@ -66,11 +80,74 @@ class FilterAttributesToAddServiceTest extends TestCase
         parent::tearDown();
 
         $this->cleanIndexingAttributes('klevu-api-key%');
+        $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testExecute_logsError_WhenApiExceptionInterfaceThrown(): void
+    {
+        $apiKey = 'klevu-123456789';
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: 'ABCDEFGHI1234567890',
+        );
+
+        $magentoAttributeInterfaceFactory = $this->objectManager->get(MagentoAttributeInterfaceFactory::class);
+        $magentoAttributes[$apiKey][1] = $magentoAttributeInterfaceFactory->create([
+            'attributeId' => 1,
+            'attributeCode' => 'klevu_test_attribute_1',
+            'apiKey' => $apiKey,
+            'isIndexable' => true,
+            'klevuAttributeName' => 'name1',
+        ]);
+
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockLogger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Method: {method}, Error: {message}',
+                [
+                    'method' => 'Klevu\Indexing\Service\FilterAttributesToAddService::execute',
+                    'message' => 'Authentication failed. Please ensure your credentials are valid and try again.',
+                ],
+            );
+
+        $service = $this->instantiateTestObject([
+            'logger' => $mockLogger,
+        ]);
+        $service->execute($magentoAttributes, 'KLEVU_PRODUCTS');
     }
 
     public function testExecute_RemovesMagentoAttributesAlreadyInKlevuAttributes(): void
     {
+        $this->mockSdkAttributeGetApiCall();
+
         $apiKey = 'klevu-api-key';
+        $authKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
             IndexingAttribute::API_KEY => $apiKey,
@@ -119,7 +196,22 @@ class FilterAttributesToAddServiceTest extends TestCase
 
     public function testExecute_RemovesKlevuStandardAttributes(): void
     {
+        $this->mockSdkAttributeGetApiCall();
+
         $apiKey = 'klevu-api-key';
+        $authKey = 'klevu-rest-key';
+
+        $this->createStore();
+        $storeFixture = $this->storeFixturesPool->get('test_store');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
+        );
+
         $this->createIndexingAttribute([
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCTS',
             IndexingAttribute::API_KEY => $apiKey,
@@ -147,8 +239,23 @@ class FilterAttributesToAddServiceTest extends TestCase
             'attributeCode' => 'klevu_test_attribute_3',
             'apiKey' => $apiKey,
             'isIndexable' => false,
-            'klevuAttributeName' => 'shortDescription',
+            'klevuAttributeName' => 'sku',
         ]);
+
+        $attributes = [
+            $this->objectManager->create(
+                type: Attribute::class,
+                arguments: [
+                    'attributeName' => 'my_custom_attribute',
+                    'datatype' => DataType::NUMBER->value,
+                    'searchable' => false,
+                    'filterable' => true,
+                    'returnable' => false,
+                    'immutable' => false,
+                ],
+            ),
+        ];
+        $this->mockSdkAttributeGetApiCall($attributes);
 
         $service = $this->instantiateTestObject();
         $result = $service->execute($magentoAttributes, 'KLEVU_PRODUCTS');

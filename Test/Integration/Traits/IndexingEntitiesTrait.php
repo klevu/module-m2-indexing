@@ -43,6 +43,7 @@ trait IndexingEntitiesTrait
                 : null,
         );
         $indexingEntity->setTargetEntityType($data[IndexingEntity::TARGET_ENTITY_TYPE] ?? 'KLEVU_PRODUCT');
+        $indexingEntity->setTargetEntitySubtype($data[IndexingEntity::TARGET_ENTITY_SUBTYPE] ?? null);
         $indexingEntity->setApiKey($data[IndexingEntity::API_KEY] ?? 'klevu-js-api-key');
         $indexingEntity->setNextAction($data[IndexingEntity::NEXT_ACTION] ?? Actions::NO_ACTION);
         $indexingEntity->setLastAction($data[IndexingEntity::LAST_ACTION] ?? Actions::NO_ACTION);
@@ -98,6 +99,32 @@ trait IndexingEntitiesTrait
             array: $productIndexingEntities,
             callback: static fn (IndexingEntityInterface $indexingEntity) => (
                 (int)$indexingEntity->getTargetId() === (int)$entity->getId()
+            )
+        );
+
+        return array_shift($productIndexingEntityArray);
+    }
+
+    /**
+     * @param string $apiKey
+     * @param ExtensibleDataInterface|PageInterface $entity
+     * @param ExtensibleDataInterface $parentEntity
+     * @param string|null $type
+     *
+     * @return IndexingEntityInterface|null
+     */
+    private function getIndexingEntityForVariant(
+        string $apiKey,
+        ExtensibleDataInterface|PageInterface $entity,
+        ExtensibleDataInterface $parentEntity,
+        ?string $type = null,
+    ): ?IndexingEntityInterface {
+        $productIndexingEntities = $this->getIndexingEntities($type, $apiKey);
+        $productIndexingEntityArray = array_filter(
+            array: $productIndexingEntities,
+            callback: static fn (IndexingEntityInterface $indexingEntity) => (
+                (int)$indexingEntity->getTargetId() === (int)$entity->getId()
+                && (int)$indexingEntity->getTargetParentId() === (int)$parentEntity->getId()
             )
         );
 

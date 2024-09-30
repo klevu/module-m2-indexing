@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+
+<!-- Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details. -->
+
+<form xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+
+    <fieldset name="klevu_indexing_integration"
+              sortOrder="50"
+              component="Klevu_Indexing/js/form/integration/provider">
+        <settings>
+            <label translate="true">Indexing</label>
+            <collapsible>true</collapsible>
+            <opened>false</opened>
+        </settings>
+
+        <htmlContent name="klevu_indexing_integration_info" sortOrder="10">
+            <argument name="block"
+                      xsi:type="object">Klevu\Indexing\Block\Adminhtml\Config\Integration\Info</argument>
+        </htmlContent>
+
+        <button name="klevu_indexing_integration_continue" sortOrder="100">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="buttonClasses" xsi:type="string">action action-primary</item>
+                    <item name="actions" xsi:type="array">
+                        <item name="0" xsi:type="array">
+                            <item name="targetName" xsi:type="string">${ $.parentName }</item>
+                            <item name="actionName" xsi:type="string">proceed</item>
+                        </item>
+                    </item>
+                </item>
+            </argument>
+            <settings>
+                <title translate="true">Continue</title>
+            </settings>
+        </button>
+
+    </fieldset>
+</form>
+

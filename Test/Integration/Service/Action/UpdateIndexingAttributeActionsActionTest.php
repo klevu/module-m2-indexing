@@ -331,7 +331,7 @@ class UpdateIndexingAttributeActionsActionTest extends TestCase
             IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
             IndexingAttribute::API_KEY => $apiKey,
             IndexingAttribute::NEXT_ACTION => Actions::DELETE,
-            IndexingAttribute::LAST_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::LAST_ACTION => Actions::ADD,
             IndexingAttribute::IS_INDEXABLE => true,
         ]);
 

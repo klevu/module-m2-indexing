@@ -89,6 +89,7 @@ class AddIndexingEntitiesAction implements AddIndexingEntitiesActionInterface
         $isIndexable = $magentoEntity->isIndexable();
         $indexingEntity = $this->indexingEntityRepository->create();
         $indexingEntity->setTargetEntityType(entityType: $type);
+        $indexingEntity->setTargetEntitySubtype(entitySubtype: $magentoEntity->getEntitySubtype());
         $indexingEntity->setTargetId(targetId: $magentoEntity->getEntityId());
         $indexingEntity->setTargetParentId(targetParentId: $magentoEntity->getEntityParentId());
         $indexingEntity->setApiKey(apiKey: $magentoEntity->getApiKey());

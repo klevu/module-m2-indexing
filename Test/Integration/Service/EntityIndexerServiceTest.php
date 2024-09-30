@@ -19,12 +19,16 @@ use Klevu\Pipelines\Exception\TransformationException;
 use Klevu\Pipelines\Exception\ValidationException;
 use Klevu\Pipelines\Pipeline\PipelineBuilderInterface;
 use Klevu\Pipelines\Pipeline\PipelineInterface;
+use Klevu\PlatformPipelines\Api\PipelineConfigurationOverridesFilepathsProviderInterface;
+use Klevu\PlatformPipelines\Api\PipelineConfigurationProviderInterface;
 use Klevu\PlatformPipelines\Pipeline\PipelineBuilder;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Magento\Framework\Exception\NotFoundException;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
+use PHPUnit\Framework\Exception as PHPUnitException;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -60,6 +64,7 @@ class EntityIndexerServiceTest extends TestCase
         $this->constructorArgumentDefaults = [
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
             'pipelineConfigurationFilepath' => 'Klevu_Indexing::etc/pipeline/process-batch-payload.yml',
+            'pipelineIdentifier' => 'KLEVU_PRODUCT::add',
         ];
         $this->objectManager = Bootstrap::getObjectManager();
     }
@@ -80,6 +85,7 @@ class EntityIndexerServiceTest extends TestCase
 
     public function testExecute_throwsException_WhenPipelineConfigurationFileIsMissing(): void
     {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'uerguerhg';
 
         $this->expectException(NotFoundException::class);
@@ -98,13 +104,19 @@ class EntityIndexerServiceTest extends TestCase
 
         $this->instantiateTestObject([
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
-            'pipelineConfigurationFilepath' => $filepath,
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'pipelineIdentifier' => $pipelineIdentifier,
         ]);
     }
 
     public function testExecute_ThrowsException_WhenPipelineConfigurationIsInvalid(): void
     {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/invalid_configuration.yml';
+        
         $this->expectException(InvalidPipelineConfigurationException::class);
         $this->expectExceptionMessageMatches(
             '#A YAML file cannot contain tabs as indentation in '
@@ -119,14 +131,20 @@ class EntityIndexerServiceTest extends TestCase
 
         $service = $this->instantiateTestObject([
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
-            'pipelineConfigurationFilepath' => $filepath,
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $service->execute(apiKey: '');
     }
 
     public function testExecute_ThrowsException_WhenPipelineConfigurationInvalidStages(): void
     {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/invalid_stages.yml';
+        
         $this->expectException(InvalidPipelineConfigurationException::class);
         $this->expectExceptionMessage(
             'array_map(): Argument #2 ($array) must be of type array, string given',
@@ -140,13 +158,20 @@ class EntityIndexerServiceTest extends TestCase
 
         $service = $this->instantiateTestObject([
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
-            'pipelineConfigurationFilepath' => $filepath,
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $service->execute(apiKey: '');
     }
 
     public function testExecute_HandlesValidationException(): void
     {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
+        $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
+        
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
@@ -179,7 +204,11 @@ class EntityIndexerServiceTest extends TestCase
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
-            'pipelineConfigurationFilepath' => 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml',
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
 
@@ -189,6 +218,9 @@ class EntityIndexerServiceTest extends TestCase
 
     public function testExecute_HandlesExtractionException(): void
     {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
+        $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
+        
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
@@ -219,7 +251,11 @@ class EntityIndexerServiceTest extends TestCase
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
-            'pipelineConfigurationFilepath' => 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml',
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
 
@@ -229,6 +265,9 @@ class EntityIndexerServiceTest extends TestCase
 
     public function testExecute_HandlesTransformationException(): void
     {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
+        $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
+        
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
@@ -263,7 +302,11 @@ class EntityIndexerServiceTest extends TestCase
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
-            'pipelineConfigurationFilepath' => 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml',
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
 
@@ -273,6 +316,8 @@ class EntityIndexerServiceTest extends TestCase
 
     public function testExecute_HandlesStageException(): void
     {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
+        $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
         $stageException = new \Exception('Something went wrong');
 
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
@@ -307,11 +352,50 @@ class EntityIndexerServiceTest extends TestCase
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
-            'pipelineConfigurationFilepath' => 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml',
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
 
         $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
         $this->assertContains(needle: 'Something went wrong', haystack: $result->getMessages(), message: 'Messages');
+    }
+
+    /**
+     * @param string $pipelineIdentifier
+     * @param string $pipelineConfigurationFilepath
+     * @param string[] $pipelineConfigurationOverridesFilepaths
+     *
+     * @return PipelineConfigurationProviderInterface
+     * @throws PHPUnitException
+     */
+    private function getPipelineConfigurationProvider(
+        string $pipelineIdentifier,
+        string $pipelineConfigurationFilepath,
+        array $pipelineConfigurationOverridesFilepaths = [],
+    ): PipelineConfigurationProviderInterface {
+        /** @var MockObject&PipelineConfigurationOverridesFilepathsProviderInterface $mockPipelineConfigurationOverridesFilepathsProvider */
+        $mockPipelineConfigurationOverridesFilepathsProvider = $this->getMockBuilder(
+            className: PipelineConfigurationOverridesFilepathsProviderInterface::class,
+        )->disableOriginalConstructor()
+            ->getMock();
+        $mockPipelineConfigurationOverridesFilepathsProvider
+            ->method('get')
+            ->willReturn($pipelineConfigurationOverridesFilepaths);
+
+        return $this->objectManager->create(
+            type: PipelineConfigurationProviderInterface::class,
+            arguments: [
+                'pipelineConfigurationFilepaths' => [
+                    $pipelineIdentifier => $pipelineConfigurationFilepath,
+                ],
+                'pipelineConfigurationOverridesFilepathsProviders' => [
+                    $pipelineIdentifier => $mockPipelineConfigurationOverridesFilepathsProvider,
+                ],
+            ],
+        );
     }
 }

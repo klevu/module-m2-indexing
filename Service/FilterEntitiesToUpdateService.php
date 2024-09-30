@@ -28,17 +28,23 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
     }
 
     /**
+     *
      * @param string $type
      * @param int[] $entityIds
      * @param string[] $apiKeys
+     * @param string[]|null $entitySubtypes
      *
      * @return int[]
      */
-    public function execute(string $type, array $entityIds, array $apiKeys): array
-    {
+    public function execute(
+        string $type,
+        array $entityIds,
+        array $apiKeys,
+        ?array $entitySubtypes = [],
+    ): array {
         $entityIdsByApiKey = [];
         foreach ($apiKeys as $apiKey) {
-            $entityIdsByApiKey[$apiKey] = $this->getIndexingEntities($type, $apiKey, $entityIds);
+            $entityIdsByApiKey[$apiKey] = $this->getIndexingEntities($type, $apiKey, $entityIds, $entitySubtypes);
         }
 
         return array_filter(
@@ -54,15 +60,17 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
      * @param string $type
      * @param string $apiKey
      * @param int[] $entityIds
+     * @param string[] $entitySubtypes
      *
      * @return int[]
      */
-    private function getIndexingEntities(string $type, string $apiKey, array $entityIds): array
+    private function getIndexingEntities(string $type, string $apiKey, array $entityIds, array $entitySubtypes): array
     {
         $klevuEntities = $this->indexingEntityProvider->get(
             entityType: $type,
             apiKey: $apiKey,
             entityIds: $entityIds,
+            entitySubtypes: $entitySubtypes,
         );
 
         return array_map(

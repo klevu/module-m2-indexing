@@ -13,11 +13,13 @@ use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Model\ResourceModel\IndexingAttribute\CollectionFactory as IndexingAttributeCollectionFactory;
 use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
-use Klevu\IndexingApi\Model\Source\StandardAttribute;
 use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
 use Klevu\IndexingApi\Service\Provider\DuplicateAttributeMappingProviderInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface;
+use Klevu\IndexingApi\Service\Provider\StandardAttributesProviderInterface;
+use Klevu\PhpSDK\Exception\ApiExceptionInterface;
 use Magento\Framework\DB\Select;
+use Psr\Log\LoggerInterface;
 
 class DuplicateAttributeMappingProvider implements DuplicateAttributeMappingProviderInterface
 {
@@ -30,6 +32,14 @@ class DuplicateAttributeMappingProvider implements DuplicateAttributeMappingProv
      */
     private readonly IndexingAttributeCollectionFactory $indexingAttributeCollectionFactory;
     /**
+     * @var StandardAttributesProviderInterface
+     */
+    private readonly StandardAttributesProviderInterface $standardAttributesProvider;
+    /**
+     * @var LoggerInterface
+     */
+    private readonly LoggerInterface $logger;
+    /**
      * @var array<string, MagentoToKlevuAttributeMapperInterface>
      */
     private array $attributeMappers = [];
@@ -37,15 +47,21 @@ class DuplicateAttributeMappingProvider implements DuplicateAttributeMappingProv
     /**
      * @param IndexingAttributeProviderInterface $indexingAttributeProvider
      * @param IndexingAttributeCollectionFactory $indexingAttributeCollectionFactory
+     * @param StandardAttributesProviderInterface $standardAttributesProvider
+     * @param LoggerInterface $logger
      * @param array<string, MagentoToKlevuAttributeMapperInterface> $attributeMappers
      */
     public function __construct(
         IndexingAttributeProviderInterface $indexingAttributeProvider,
         IndexingAttributeCollectionFactory $indexingAttributeCollectionFactory,
+        StandardAttributesProviderInterface $standardAttributesProvider,
+        LoggerInterface $logger,
         array $attributeMappers = [],
     ) {
         $this->indexingAttributeProvider = $indexingAttributeProvider;
         $this->indexingAttributeCollectionFactory = $indexingAttributeCollectionFactory;
+        $this->standardAttributesProvider = $standardAttributesProvider;
+        $this->logger = $logger;
         array_walk($attributeMappers, [$this, 'addAttributeMapper']);
     }
 
@@ -98,8 +114,9 @@ class DuplicateAttributeMappingProvider implements DuplicateAttributeMappingProv
             ),
         );
 
+        $standardAttributes = $this->getStandardAttributeCodes($apiKey);
         $attributeCodes = array_merge(
-            StandardAttribute::values(),
+            $standardAttributes,
             array_map(
                 callback: static fn (IndexingAttributeInterface $indexingAttribute): string => (
                     $indexingAttribute->getTargetCode()
@@ -109,10 +126,13 @@ class DuplicateAttributeMappingProvider implements DuplicateAttributeMappingProv
         );
 
         $mappedAttributeNames = array_map(
-            callback: function (string $targetCode) use ($attributeType): string {
+            callback: function (string $targetCode) use ($attributeType, $apiKey): string {
                 if (isset($this->attributeMappers[$attributeType])) {
                     try {
-                        $targetCode = $this->attributeMappers[$attributeType]->getByCode($targetCode);
+                        $targetCode = $this->attributeMappers[$attributeType]->getByCode(
+                            attributeCode: $targetCode,
+                            apiKey: $apiKey,
+                        );
                     } catch (AttributeMappingMissingException) {
                         // This is fine
                     }
@@ -159,5 +179,32 @@ class DuplicateAttributeMappingProvider implements DuplicateAttributeMappingProv
         string $entityType,
     ): void {
         $this->attributeMappers[$entityType] = $attributeMapper;
+    }
+
+    /**
+     * @param string $apiKey
+     *
+     * @return string[]
+     */
+    private function getStandardAttributeCodes(string $apiKey): array
+    {
+        $return = [];
+        try {
+            $return = $this->standardAttributesProvider->getAttributeCodes(
+                apiKey: $apiKey,
+                includeAliases: true,
+            );
+        } catch (ApiExceptionInterface $exception) {
+            $this->logger->error(
+                message: 'Method: {method}, Error: {message}, ApiKey: {apiKey}',
+                context: [
+                    'method' => __METHOD__,
+                    'message' => $exception->getMessage(),
+                    'apiKey' => $apiKey,
+                ],
+            );
+        }
+
+        return $return;
     }
 }

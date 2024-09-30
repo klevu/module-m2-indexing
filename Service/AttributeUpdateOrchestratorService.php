@@ -52,7 +52,7 @@ class AttributeUpdateOrchestratorService implements AttributeUpdateOrchestratorS
         );
 
         return $this->discoveryOrchestratorService->execute(
-            attributeType: $attributeType,
+            attributeTypes: [$attributeType],
             apiKeys: $apiKeys,
             attributeIds: $attributeIds,
         );

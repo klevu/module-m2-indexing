@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Test\Integration\Model;
 
 use Klevu\Indexing\Model\MagentoAttribute;
 use Klevu\IndexingApi\Model\MagentoAttributeInterface;
+use Klevu\PhpSDK\Model\Indexing\DataType;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Magento\Framework\ObjectManagerInterface;
@@ -89,5 +90,118 @@ class MagentoAttributeTest extends TestCase
         $this->assertSame(expected: 'klevu-js-api-key-test', actual: $attribute->getApiKey());
         $this->assertTrue(condition: $attribute->isIndexable(), message: 'IsIndexable after Change');
         $this->assertSame(expected: 'klevuAttributeName', actual: $attribute->getKlevuAttributeName());
+    }
+
+    public function testSetGetKlevuAttributeType(): void
+    {
+        $attribute = $this->instantiateTestObject([
+            'attributeId' => 456,
+            'attributeCode' => 'klevu_test_attribute_456',
+            'apiKey' => 'klevu-js-api-key-test',
+            'isIndexable' => false,
+            'klevuAttributeName' => 'klevuAttributeName',
+        ]);
+
+        $this->assertNull($attribute->getKlevuAttributeType());
+
+        $attribute->setKlevuAttributeType(
+            klevuAttributeType: DataType::BOOLEAN,
+        );
+        $this->assertSame(
+            expected: DataType::BOOLEAN,
+            actual: $attribute->getKlevuAttributeType(),
+        );
+    }
+
+    public function testSetGetGenerateConfigurationForEntitySubtypes(): void
+    {
+        $attribute = $this->instantiateTestObject([
+            'attributeId' => 456,
+            'attributeCode' => 'klevu_test_attribute_456',
+            'apiKey' => 'klevu-js-api-key-test',
+            'isIndexable' => false,
+            'klevuAttributeName' => 'klevuAttributeName',
+        ]);
+
+        $this->assertSame(
+            expected: [],
+            actual: $attribute->getGenerateConfigurationForEntitySubtypes(),
+        );
+
+        $attribute->setGenerateConfigurationForEntitySubtypes(
+            generateConfigurationForEntitySubtypes: [
+                'KLEVU_PRODUCT',
+            ],
+        );
+        $this->assertSame(
+            expected: [
+                'KLEVU_PRODUCT',
+            ],
+            actual: $attribute->getGenerateConfigurationForEntitySubtypes(),
+        );
+    }
+
+    public function testSetGetIsGlobal(): void
+    {
+        $attribute = $this->instantiateTestObject([
+            'attributeId' => 456,
+            'attributeCode' => 'klevu_test_attribute_456',
+            'apiKey' => 'klevu-js-api-key-test',
+            'isIndexable' => false,
+            'klevuAttributeName' => 'klevuAttributeName',
+        ]);
+
+        $this->assertNull($attribute->isGlobal());
+
+        $attribute->setIsGlobal(true);
+        $this->assertTrue($attribute->isGlobal());
+    }
+
+    public function testSetGetUsesSourceModel(): void
+    {
+        $attribute = $this->instantiateTestObject([
+            'attributeId' => 456,
+            'attributeCode' => 'klevu_test_attribute_456',
+            'apiKey' => 'klevu-js-api-key-test',
+            'isIndexable' => false,
+            'klevuAttributeName' => 'klevuAttributeName',
+        ]);
+
+        $this->assertNull($attribute->usesSourceModel());
+
+        $attribute->setUsesSourceModel(true);
+        $this->assertTrue($attribute->usesSourceModel());
+    }
+
+    public function testSetGetIsHtmlAllowed(): void
+    {
+        $attribute = $this->instantiateTestObject([
+            'attributeId' => 456,
+            'attributeCode' => 'klevu_test_attribute_456',
+            'apiKey' => 'klevu-js-api-key-test',
+            'isIndexable' => false,
+            'klevuAttributeName' => 'klevuAttributeName',
+        ]);
+
+        $this->assertNull($attribute->isHtmlAllowed());
+
+        $attribute->setIsHtmlAllowed(true);
+        $this->assertTrue($attribute->isHtmlAllowed());
+    }
+
+    public function testSetGetAllowsMultipleValues(): void
+    {
+        $attribute = $this->instantiateTestObject([
+            'attributeId' => 456,
+            'attributeCode' => 'klevu_test_attribute_456',
+            'apiKey' => 'klevu-js-api-key-test',
+            'isIndexable' => false,
+            'klevuAttributeName' => 'klevuAttributeName',
+        ]);
+
+        $this->assertNull($attribute->allowsMultipleValues());
+
+        $attribute->setAllowsMultipleValues(true);
+        $this->assertTrue($attribute->allowsMultipleValues());
     }
 }

@@ -29,5 +29,13 @@
             -->
             <frontend_model>Klevu\Indexing\Block\Adminhtml\Config\Information\IndexingAttributes</frontend_model>
         </field>
+        <group id="pipeline_configuration"
+               translate="label"
+               sortOrder="100"
+               showInDefault="1"
+               showInWebsite="1"
+               showInStore="1">
+            <label>Pipeline Configuration</label>
+        </group>
     </group>
 </config>

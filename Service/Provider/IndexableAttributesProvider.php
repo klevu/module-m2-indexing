@@ -70,33 +70,39 @@ class IndexableAttributesProvider implements IndexableAttributesProviderInterfac
     }
 
     /**
+     * @param string $apiKey
+     *
      * @return string[]
      */
-    public function getAttributeCodes(): array
+    public function getAttributeCodes(string $apiKey): array
     {
         return array_map(
             callback: static fn (AttributeInterface $attribute): string => ($attribute->getAttributeCode()),
-            array: $this->get(),
+            array: $this->get(apiKey: $apiKey),
         );
     }
 
     /**
+     * @param string $apiKey
+     *
      * @return AttributeInterface[]
      */
-    public function get(): array
+    public function get(string $apiKey): array
     {
         $searchResults = $this->attributeRepository->getList(
             entityTypeCode: ProductAttributeInterface::ENTITY_TYPE_CODE,
-            searchCriteria: $this->getSearchCriteria(),
+            searchCriteria: $this->getSearchCriteria(apiKey: $apiKey),
         );
 
         return $searchResults->getItems();
     }
 
     /**
+     * @param string $apiKey
+     *
      * @return SearchCriteriaInterface
      */
-    private function getSearchCriteria(): SearchCriteriaInterface
+    private function getSearchCriteria(string $apiKey): SearchCriteriaInterface
     {
         /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
         $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
@@ -105,7 +111,7 @@ class IndexableAttributesProvider implements IndexableAttributesProviderInterfac
         /** @var FilterGroupBuilder $filterGroupBuilder */
         $filterGroupBuilder = $this->filterGroupBuilderFactory->create();
         $filterGroupBuilder->addFilter(
-            filter: $this->getFilterForCoreAttributes(filterBuilder: $filterBuilder),
+            filter: $this->getFilterForCoreAttributes(filterBuilder: $filterBuilder, apiKey: $apiKey),
         );
         $filterGroupBuilder->addFilter(
             filter: $this->getFilterForIndexableCustomAttributes(filterBuilder: $filterBuilder),
@@ -119,13 +125,14 @@ class IndexableAttributesProvider implements IndexableAttributesProviderInterfac
 
     /**
      * @param FilterBuilder $filterBuilder
+     * @param string $apiKey
      *
      * @return Filter
      */
-    private function getFilterForCoreAttributes(FilterBuilder $filterBuilder): Filter
+    private function getFilterForCoreAttributes(FilterBuilder $filterBuilder, string $apiKey): Filter
     {
         $filterBuilder->setField(field: AttributeInterface::ATTRIBUTE_CODE);
-        $filterBuilder->setValue(value: $this->getStandardKlevuAttributes());
+        $filterBuilder->setValue(value: $this->getStandardKlevuAttributes(apiKey: $apiKey));
         $filterBuilder->setConditionType(conditionType: 'in');
 
         return $filterBuilder->create();
@@ -146,13 +153,15 @@ class IndexableAttributesProvider implements IndexableAttributesProviderInterfac
     }
 
     /**
+     * @param string $apiKey
+     *
      * @return string[]
      */
-    private function getStandardKlevuAttributes(): array
+    private function getStandardKlevuAttributes(string $apiKey): array
     {
         $standardAttributes = array_filter(
-            array: $this->defaultIndexingAttributesProvider->get(),
-            callback: static fn (IndexType $indexType) => (
+            array: $this->defaultIndexingAttributesProvider->get(apiKey: $apiKey),
+            callback: static fn (IndexType $indexType): bool => (
                 $indexType->value === IndexType::NO_INDEX->value
             ),
         );

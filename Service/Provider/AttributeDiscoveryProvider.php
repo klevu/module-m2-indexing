@@ -12,10 +12,9 @@ use Klevu\Configuration\Model\CurrentScopeFactory;
 use Klevu\Configuration\Service\Provider\ApiKeyProviderInterface;
 use Klevu\Indexing\Exception\AttributeMappingMissingException;
 use Klevu\Indexing\Exception\StoreApiKeyException;
+use Klevu\IndexingApi\Api\ConvertEavAttributeToIndexingAttributeActionInterface;
 use Klevu\IndexingApi\Model\MagentoAttributeInterface;
-use Klevu\IndexingApi\Model\MagentoAttributeInterfaceFactory;
 use Klevu\IndexingApi\Service\Determiner\IsAttributeIndexableDeterminerInterface;
-use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
 use Klevu\IndexingApi\Service\Provider\AttributeDiscoveryProviderInterface;
 use Klevu\IndexingApi\Service\Provider\AttributeProviderProviderInterface;
 use Magento\Eav\Api\Data\AttributeInterface;
@@ -39,10 +38,6 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
      */
     private readonly CurrentScopeFactory $currentScopeFactory;
     /**
-     * @var MagentoAttributeInterfaceFactory
-     */
-    private readonly MagentoAttributeInterfaceFactory $magentoAttributeInterfaceFactory;
-    /**
      * @var IsAttributeIndexableDeterminerInterface
      */
     private readonly IsAttributeIndexableDeterminerInterface $isIndexableDeterminer;
@@ -55,45 +50,43 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
      */
     private readonly string $attributeType;
     /**
-     * @var MagentoToKlevuAttributeMapperInterface[]
-     */
-    private array $attributeMappers;
-    /**
      * @var LoggerInterface
      */
     private readonly LoggerInterface $logger;
+    /**
+     * @var ConvertEavAttributeToIndexingAttributeActionInterface
+     */
+    private readonly ConvertEavAttributeToIndexingAttributeActionInterface $convertEavAttributeToIndexingAttributeAction; // phpcs:ignore Generic.Files.LineLength.TooLong
 
     /**
      * @param StoreManagerInterface $storeManager
      * @param ApiKeyProviderInterface $apiKeyProvider
      * @param CurrentScopeFactory $currentScopeFactory
-     * @param MagentoAttributeInterfaceFactory $magentoAttributeInterfaceFactory
      * @param IsAttributeIndexableDeterminerInterface $isIndexableDeterminer
      * @param AttributeProviderProviderInterface $attributeProviderProvider
      * @param string $attributeType
-     * @param MagentoToKlevuAttributeMapperInterface[] $attributeMappers
      * @param LoggerInterface $logger
+     * @param ConvertEavAttributeToIndexingAttributeActionInterface $convertEavAttributeToIndexingAttributeAction
+     *
      */
     public function __construct(
         StoreManagerInterface $storeManager,
         ApiKeyProviderInterface $apiKeyProvider,
         CurrentScopeFactory $currentScopeFactory,
-        MagentoAttributeInterfaceFactory $magentoAttributeInterfaceFactory,
         IsAttributeIndexableDeterminerInterface $isIndexableDeterminer,
         AttributeProviderProviderInterface $attributeProviderProvider,
         string $attributeType,
-        array $attributeMappers,
         LoggerInterface $logger,
+        ConvertEavAttributeToIndexingAttributeActionInterface $convertEavAttributeToIndexingAttributeAction,
     ) {
         $this->storeManager = $storeManager;
         $this->apiKeyProvider = $apiKeyProvider;
         $this->currentScopeFactory = $currentScopeFactory;
-        $this->magentoAttributeInterfaceFactory = $magentoAttributeInterfaceFactory;
         $this->isIndexableDeterminer = $isIndexableDeterminer;
         $this->attributeProviderProvider = $attributeProviderProvider;
         $this->attributeType = $attributeType;
-        array_walk($attributeMappers, [$this, 'setAttributeMapper']);
         $this->logger = $logger;
+        $this->convertEavAttributeToIndexingAttributeAction = $convertEavAttributeToIndexingAttributeAction;
     }
 
     /**
@@ -128,7 +121,6 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
             $storeFound = true;
             $return[$storeApiKey] = $this->createIndexingAttributes(
                 store: $store,
-                apiKey: $storeApiKey,
                 magentoAttributes: $return[$storeApiKey] ?? [],
                 attributeIds: $attributeIds,
             );
@@ -143,21 +135,7 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
     }
 
     /**
-     * @param MagentoToKlevuAttributeMapperInterface $attributeMapper
-     * @param string $entityType
-     *
-     * @return void
-     */
-    private function setAttributeMapper(
-        MagentoToKlevuAttributeMapperInterface $attributeMapper,
-        string $entityType,
-    ): void {
-        $this->attributeMappers[$entityType] = $attributeMapper;
-    }
-
-    /**
      * @param StoreInterface $store
-     * @param string $apiKey
      * @param mixed[] $magentoAttributes
      * @param int[] $attributeIds
      *
@@ -165,7 +143,6 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
      */
     private function createIndexingAttributes(
         StoreInterface $store,
-        string $apiKey,
         array $magentoAttributes,
         array $attributeIds,
     ): array {
@@ -177,10 +154,10 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
                 );
                 $magentoAttributes = $this->setMagentoAttribute(
                     magentoAttributes: $magentoAttributes,
-                    apiKey: $apiKey,
                     attribute: $attribute,
                     isIndexable: $isIndexable,
                     entityType: $entityType,
+                    store: $store,
                 );
             }
         }
@@ -189,20 +166,21 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
     }
 
     /**
-     * @param mixed[] $magentoAttributes
-     * @param string $apiKey
+     * @param MagentoAttributeInterface[] $magentoAttributes
      * @param AttributeInterface $attribute
      * @param bool $isIndexable
      * @param string $entityType
+     * @param StoreInterface $store
      *
      * @return MagentoAttributeInterface[]
+     * @throws NoSuchEntityException
      */
     private function setMagentoAttribute(
         array $magentoAttributes,
-        string $apiKey,
         AttributeInterface $attribute,
         bool $isIndexable,
         string $entityType,
+        StoreInterface $store,
     ): array {
         $attributeId = (int)$attribute->getId(); // @phpstan-ignore-line
 
@@ -212,13 +190,11 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
                     magentoAttribute: $magentoAttributes[$attributeId],
                     isIndexable: $isIndexable,
                 )
-                : $this->magentoAttributeInterfaceFactory->create([
-                    'attributeId' => $attributeId,
-                    'attributeCode' => $attribute->getAttributeCode(),
-                    'apiKey' => $apiKey,
-                    'isIndexable' => $isIndexable,
-                    'klevuAttributeName' => $this->getKlevuAttributeName($entityType, $attribute),
-                ]);
+                : $this->convertEavAttributeToIndexingAttributeAction->execute(
+                    entityType: $entityType,
+                    attribute: $attribute,
+                    store: $store,
+                );
         } catch (AttributeMappingMissingException $exception) {
             $this->logger->error(
                 message: 'Method: {method}, Error: {message}',
@@ -248,20 +224,5 @@ class AttributeDiscoveryProvider implements AttributeDiscoveryProviderInterface
         );
 
         return $magentoAttribute;
-    }
-
-    /**
-     * @param string $entityType
-     * @param AttributeInterface $attribute
-     *
-     * @return string
-     * @throws AttributeMappingMissingException
-     */
-    private function getKlevuAttributeName(string $entityType, AttributeInterface $attribute): string
-    {
-        $mapper = $this->attributeMappers[$entityType] ?? null;
-
-        return $mapper?->get($attribute)
-            ?: $attribute->getAttributeCode();
     }
 }

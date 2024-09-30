@@ -19,6 +19,7 @@ class IndexingEntity extends AbstractModel implements IndexingEntityInterface
 {
     public const ENTITY_ID = 'entity_id';
     public const TARGET_ENTITY_TYPE = 'target_entity_type';
+    public const TARGET_ENTITY_SUBTYPE = 'target_entity_subtype';
     public const TARGET_ID = 'target_id';
     public const TARGET_PARENT_ID = 'target_parent_id';
     public const API_KEY = 'api_key';
@@ -54,6 +55,26 @@ class IndexingEntity extends AbstractModel implements IndexingEntityInterface
     public function setTargetEntityType(string $entityType): void
     {
         $this->setData(key: static::TARGET_ENTITY_TYPE, value: $entityType);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getTargetEntitySubtype(): ?string
+    {
+        $subType = $this->getData(key: static::TARGET_ENTITY_SUBTYPE);
+
+        return $subType ? (string)$subType : null;
+    }
+
+    /**
+     * @param string|null $entitySubtype
+     *
+     * @return void
+     */
+    public function setTargetEntitySubtype(?string $entitySubtype): void
+    {
+        $this->setData(key: static::TARGET_ENTITY_SUBTYPE, value: $entitySubtype);
     }
 
     /**

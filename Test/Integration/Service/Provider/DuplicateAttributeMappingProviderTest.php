@@ -8,8 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service\Provider;
 
-use Klevu\Configuration\Service\Provider\ApiKeyProvider;
-use Klevu\Configuration\Service\Provider\AuthKeyProvider;
+use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\Provider\DuplicateAttributeMappingProvider;
 use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
@@ -19,13 +18,14 @@ use Klevu\IndexingCategories\Service\Mapper\MagentoToKlevuAttributeMapper as Cat
 use Klevu\IndexingProducts\Service\Mapper\MagentoToKlevuAttributeMapper as ProductAttributeMapperVirtualType;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\AttributeApiCallTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
-use TddWizard\Fixtures\Core\ConfigFixture;
 
 /**
  * @covers DuplicateAttributeMappingProvider::class
@@ -34,8 +34,10 @@ use TddWizard\Fixtures\Core\ConfigFixture;
  */
 class DuplicateAttributeMappingProviderTest extends TestCase
 {
+    use AttributeApiCallTrait;
     use IndexingAttributesTrait;
     use ObjectInstantiationTrait;
+    use SetAuthKeysTrait;
     use StoreTrait;
     use TestImplementsInterfaceTrait;
     use TestInterfacePreferenceTrait;
@@ -54,40 +56,41 @@ class DuplicateAttributeMappingProviderTest extends TestCase
 
         $this->implementationFqcn = DuplicateAttributeMappingProvider::class;
         $this->interfaceFqcn = DuplicateAttributeMappingProviderInterface::class;
-
         $this->objectManager = Bootstrap::getObjectManager();
 
         $this->storeFixturesPool = $this->objectManager->get(StoreFixturesPool::class);
+        $this->mockSdkAttributeGetApiCall();
     }
 
     /**
      * @return void
+     * @throws \Exception
      */
     protected function tearDown(): void
     {
         parent::tearDown();
 
         $this->storeFixturesPool->rollback();
+
+        $this->removeSharedApiInstances();
     }
 
     public function testGet_whenNoDuplicates(): void
     {
         $apiKey = 'klevu-1234567890';
+        $authKey = 'ABCDE1234567890';
 
         $this->createStore([
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
         $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: $apiKey,
-            storeCode: $storeFixture->getCode(),
-        );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: $storeFixture->getCode(),
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
         );
 
         $this->createIndexingAttribute([
@@ -158,21 +161,19 @@ class DuplicateAttributeMappingProviderTest extends TestCase
     public function testGet_DuplicateAttributesExistInKlevuDbTable(): void
     {
         $apiKey = 'klevu-1234567890';
+        $authKey = 'ABCDE1234567890';
 
         $this->createStore([
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
         $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: $apiKey,
-            storeCode: $storeFixture->getCode(),
-        );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: $storeFixture->getCode(),
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
         );
 
         $this->createIndexingAttribute([
@@ -274,20 +275,19 @@ class DuplicateAttributeMappingProviderTest extends TestCase
     public function testGet_DuplicatesCreatedViaXMLAttributeMapping(): void
     {
         $apiKey = 'klevu-1234567890';
+        $authKey = 'ABCDE1234567890';
 
         $this->createStore([
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: $apiKey,
-            storeCode: 'klevu_indexing_test_store_1',
-        );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: 'klevu_indexing_test_store_1',
+        $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
         );
 
         // Note, the same attribute code (klevu_test_attribute_1) is intentionally used for
@@ -345,23 +345,82 @@ class DuplicateAttributeMappingProviderTest extends TestCase
     /**
      * @magentoAppIsolation enabled
      */
-    public function testGet_DoesNotFlagConflictsBetweenEntityTypes(): void
+    public function testGet_DuplicatesCreatedViaXMLAttributeMapping_ForAttributeAlias(): void
     {
         $apiKey = 'klevu-1234567890';
+        $authKey = 'ABCDE1234567890';
 
         $this->createStore([
             'code' => 'klevu_indexing_test_store_1',
             'key' => 'klevu_indexing_test_store_1',
         ]);
-        ConfigFixture::setForStore(
-            path: ApiKeyProvider::CONFIG_XML_PATH_JS_API_KEY,
-            value: $apiKey,
-            storeCode: 'klevu_indexing_test_store_1',
+        $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
         );
-        ConfigFixture::setForStore(
-            path: AuthKeyProvider::CONFIG_XML_PATH_REST_AUTH_KEY,
-            value: 'ABCDE1234567890',
-            storeCode: 'klevu_indexing_test_store_1',
+
+        $this->createIndexingAttribute([
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_1',
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::NEXT_ACTION => Actions::ADD,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::TARGET_ID => 2,
+            IndexingAttribute::TARGET_CODE => 'klevu_test_attribute_2',
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+
+        // desc is an alias of description, so these should be flagged as duplication
+        $attributeMapperProduct = $this->objectManager->create(ProductAttributeMapperVirtualType::class, [
+            'attributeMapping' => [
+                'klevu_test_attribute_1' => 'description',
+                'klevu_test_attribute_2' => 'desc',
+            ],
+        ]);
+
+        $duplicateAttributeMappingProvider = $this->instantiateTestObject([
+            'attributeMappers' => [
+                'KLEVU_PRODUCT' => $attributeMapperProduct,
+            ],
+        ]);
+        $result = $duplicateAttributeMappingProvider->get(apiKey: $apiKey);
+
+        $this->assertArrayHasKey('KLEVU_PRODUCT', $result);
+        $this->assertArrayHasKey('description', $result['KLEVU_PRODUCT']);
+        $this->assertSame(2, $result['KLEVU_PRODUCT']['description']);
+        $this->assertArrayHasKey('desc', $result['KLEVU_PRODUCT']);
+        $this->assertSame(2, $result['KLEVU_PRODUCT']['desc']);
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testGet_DoesNotFlagConflictsBetweenEntityTypes(): void
+    {
+        $apiKey = 'klevu-1234567890';
+        $authKey = 'ABCDE1234567890';
+
+        $this->createStore([
+            'code' => 'klevu_indexing_test_store_1',
+            'key' => 'klevu_indexing_test_store_1',
+        ]);
+        $storeFixture = $this->storeFixturesPool->get('klevu_indexing_test_store_1');
+        $scopeProvider = $this->objectManager->get(ScopeProviderInterface::class);
+        $scopeProvider->setCurrentScope($storeFixture->get());
+        $this->setAuthKeys(
+            scopeProvider: $scopeProvider,
+            jsApiKey: $apiKey,
+            restAuthKey: $authKey,
         );
 
         $this->createIndexingAttribute([

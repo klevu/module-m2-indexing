@@ -10,7 +10,8 @@
             "lock_timestamp": true,
             "last_action": true,
             "last_action_timestamp": true,
-            "is_indexable": true
+            "is_indexable": true,
+            "target_entity_subtype": true
         },
         "constraint": {
             "PRIMARY": true,

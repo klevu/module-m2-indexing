@@ -96,6 +96,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
      * @param array<string, string>|null $sorting [SortOrder::DIRECTION => SortOrder::SORT_ASC, SortOrder::FIELD => '']
      * @param int|null $pageSize
      * @param int|null $currentPage
+     * @param string[]|null $entitySubtypes
      *
      * @return IndexingEntityInterface[]
      */
@@ -108,6 +109,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         ?array $sorting = [],
         ?int $pageSize = null,
         ?int $currentPage = null,
+        ?array $entitySubtypes = [],
     ): array {
         /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
         $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
@@ -131,6 +133,13 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
             $searchCriteriaBuilder->addFilter(
                 field: IndexingEntity::TARGET_ENTITY_TYPE,
                 value: $entityType,
+            );
+        }
+        if ($entitySubtypes) {
+            $searchCriteriaBuilder->addFilter(
+                field: IndexingEntity::TARGET_ENTITY_SUBTYPE,
+                value: $entitySubtypes,
+                conditionType: 'in',
             );
         }
         if ($apiKey) {
@@ -246,7 +255,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         }
         $select = $collection->getSelect();
         $select->where( // We have already escaped input
-        cond: implode(
+            cond: implode(
                 separator: ' OR ',
                 array: $conditions, // phpcs:ignore Security.Drupal7.DynQueries.D7DynQueriesDirectVar
             ),

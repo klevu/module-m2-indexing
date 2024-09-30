@@ -50,6 +50,6 @@ class DiscoverAttributesAfterIntegrationObserver implements ObserverInterface
         }
 
         $this->discoveryOrchestratorService->execute(apiKeys: [$apiKey]);
-        $this->syncOrchestratorService->execute(apiKey: $apiKey);
+        $this->syncOrchestratorService->execute(apiKeys: [$apiKey]);
     }
 }

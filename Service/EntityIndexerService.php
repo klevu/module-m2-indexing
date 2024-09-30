@@ -11,7 +11,6 @@ namespace Klevu\Indexing\Service;
 use Klevu\IndexingApi\Api\Data\IndexerResultInterface;
 use Klevu\IndexingApi\Api\Data\IndexerResultInterfaceFactory;
 use Klevu\IndexingApi\Model\Source\IndexerResultStatuses;
-use Klevu\IndexingApi\Service\Action\ParseFilepathActionInterface;
 use Klevu\IndexingApi\Service\EntityIndexerServiceInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
 use Klevu\PhpSDK\Exception\ValidationException as PhpSDKValidationException;
@@ -24,6 +23,8 @@ use Klevu\Pipelines\Exception\TransformationException;
 use Klevu\Pipelines\Pipeline\ContextFactory as PipelineContextFactory;
 use Klevu\Pipelines\Pipeline\PipelineBuilderInterface;
 use Klevu\Pipelines\Pipeline\PipelineInterface;
+use Klevu\PlatformPipelines\Api\ConfigurationOverridesHandlerInterface;
+use Klevu\PlatformPipelines\Api\PipelineConfigurationProviderInterface;
 use Klevu\PlatformPipelines\Api\PipelineContextProviderInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NotFoundException;
@@ -31,10 +32,6 @@ use Psr\Log\LoggerInterface;
 
 class EntityIndexerService implements EntityIndexerServiceInterface
 {
-    /**
-     * @var ParseFilepathActionInterface
-     */
-    private readonly ParseFilepathActionInterface $parseFilepathAction;
     /**
      * @var PipelineBuilderInterface
      */
@@ -66,33 +63,36 @@ class EntityIndexerService implements EntityIndexerServiceInterface
     /**
      * @var string[]
      */
-    private array $pipelineConfigurationOverrideFilepaths = [];
+    private readonly array $pipelineConfigurationOverridesFilepaths;
+    /**
+     * @var ConfigurationOverridesHandlerInterface
+     */
+    private ConfigurationOverridesHandlerInterface $configurationOverridesHandler;
 
     /**
-     * @param ParseFilepathActionInterface $parseFilepathAction
      * @param PipelineBuilderInterface $pipelineBuilder
      * @param EntityIndexingRecordProviderInterface $entityIndexingRecordProvider
      * @param PipelineContextFactory $pipelineContextFactory
-     * @param PipelineInterface[] $pipelineContextProviders
+     * @param PipelineContextProviderInterface[] $pipelineContextProviders
      * @param IndexerResultInterfaceFactory $indexerResultFactory
-     * @param string $pipelineConfigurationFilepath
      * @param LoggerInterface $logger
-     * @param string[] $pipelineConfigurationOverrideFilepaths
+     * @param string $pipelineIdentifier
+     * @param PipelineConfigurationProviderInterface $pipelineConfigurationProvider
+     * @param ConfigurationOverridesHandlerInterface $configurationOverridesHandler
      *
      * @throws NotFoundException
      */
     public function __construct(
-        ParseFilepathActionInterface $parseFilepathAction,
         PipelineBuilderInterface $pipelineBuilder,
         EntityIndexingRecordProviderInterface $entityIndexingRecordProvider,
         PipelineContextFactory $pipelineContextFactory,
         array $pipelineContextProviders,
         IndexerResultInterfaceFactory $indexerResultFactory,
-        string $pipelineConfigurationFilepath,
         LoggerInterface $logger,
-        array $pipelineConfigurationOverrideFilepaths = [],
+        string $pipelineIdentifier,
+        PipelineConfigurationProviderInterface $pipelineConfigurationProvider,
+        ConfigurationOverridesHandlerInterface $configurationOverridesHandler,
     ) {
-        $this->parseFilepathAction = $parseFilepathAction;
         $this->pipelineBuilder = $pipelineBuilder;
         $this->entityIndexingRecordProvider = $entityIndexingRecordProvider;
         $this->pipelineContextFactory = $pipelineContextFactory;
@@ -101,12 +101,13 @@ class EntityIndexerService implements EntityIndexerServiceInterface
             callback: [$this, 'addPipelineContextProvider'],
         );
         $this->indexerResultFactory = $indexerResultFactory;
-        $this->setPipelineConfigurationFilepath($pipelineConfigurationFilepath);
         $this->logger = $logger;
-        array_walk(
-            array: $pipelineConfigurationOverrideFilepaths,
-            callback: [$this, 'addPipelineConfigurationOverrideFilepath'],
-        );
+
+        $this->pipelineConfigurationFilepath = $pipelineConfigurationProvider
+            ->getPipelineConfigurationFilepathByIdentifier($pipelineIdentifier);
+        $this->pipelineConfigurationOverridesFilepaths = $pipelineConfigurationProvider
+            ->getPipelineConfigurationOverridesFilepathsByIdentifier($pipelineIdentifier);
+        $this->configurationOverridesHandler = $configurationOverridesHandler;
     }
 
     /**
@@ -205,44 +206,16 @@ class EntityIndexerService implements EntityIndexerServiceInterface
     }
 
     /**
-     * @param string $filepath
-     *
-     * @return void
-     * @throws NotFoundException
-     */
-    private function setPipelineConfigurationFilepath(string $filepath): void
-    {
-        $this->pipelineConfigurationFilepath = $this->parseFilepathAction->execute(
-            filepath: $filepath,
-        );
-    }
-
-    /**
-     * @param string $filepath
-     *
-     * @return void
-     * @throws NotFoundException
-     */
-    private function addPipelineConfigurationOverrideFilepath(string $filepath): void
-    {
-        $parsedFilepath = $this->parseFilepathAction->execute(
-            filepath: $filepath,
-        );
-        if (!in_array($parsedFilepath, $this->pipelineConfigurationOverrideFilepaths, true)) {
-            $this->pipelineConfigurationOverrideFilepaths[] = $parsedFilepath;
-        }
-    }
-
-    /**
      * @return PipelineInterface
      * @throws InvalidPipelineConfigurationException
      */
     private function buildPipeline(): PipelineInterface
     {
         try {
+            $this->configurationOverridesHandler->execute();
             $pipeline = $this->pipelineBuilder->buildFromFiles(
                 configurationFilepath: $this->pipelineConfigurationFilepath,
-                overridesFilepaths: $this->pipelineConfigurationOverrideFilepaths,
+                overridesFilepaths: $this->pipelineConfigurationOverridesFilepaths,
             );
         } catch (\TypeError $exception) { // @phpstan-ignore-line TypeError can be thrown by buildFromFiles
             throw new InvalidPipelineConfigurationException(

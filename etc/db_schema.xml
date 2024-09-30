@@ -20,6 +20,11 @@
                 length="63"
                 nullable="false"
                 comment="Entity type, eg KLEVU_PRODUCT, ACME_BLOG"/>
+        <column xsi:type="varchar"
+                name="target_entity_subtype"
+                length="63"
+                nullable="true"
+                comment="Entity subtype, eg simple, configurable"/>
         <column xsi:type="int"
                 name="target_id"
                 unsigned="true"
