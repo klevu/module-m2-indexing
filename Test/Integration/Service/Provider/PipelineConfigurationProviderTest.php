@@ -13,6 +13,7 @@ use Klevu\Indexing\Service\Provider\PipelineConfigurationProvider;
 use Klevu\IndexingApi\Service\Provider\PipelineConfigurationProviderInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
 use Klevu\PlatformPipelines\Service\Provider\PipelineConfigurationOverridesFilepathsProvider;
+use Klevu\PlatformPipelines\Service\Provider\PipelineConfigurationProvider as PlatformsPipelineConfigurationProvider;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
@@ -137,7 +138,7 @@ class PipelineConfigurationProviderTest extends TestCase
         );
 
         $pipelineConfigurationProvider = $this->objectManager->create(
-            type: PipelineConfigurationProvider::class,
+            type: PlatformsPipelineConfigurationProvider::class,
             arguments: [
                 'pipelineConfigurationFilepaths' => [
                     'foo' => $fixturesDirectory . DIRECTORY_SEPARATOR . 'foo.yml',
