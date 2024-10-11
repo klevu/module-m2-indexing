@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Console\Command;
 
+use Klevu\IndexingApi\Service\Provider\PipelineConfigurationOverridesHandlerProviderInterface;
 use Klevu\PlatformPipelines\Api\ConfigurationOverridesHandlerInterface;
 use Klevu\PlatformPipelines\Exception\CouldNotGenerateConfigurationOverridesException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
@@ -29,35 +30,24 @@ class ConfigurationOverridesRegenerateCommand extends Command
      */
     private readonly ScopeConfigInterface $scopeConfig;
     /**
-     * @var array<string, ConfigurationOverridesHandlerInterface[]>
+     * @var PipelineConfigurationOverridesHandlerProviderInterface
      */
-    private array $configurationOverridesHandlers = [];
+    private readonly PipelineConfigurationOverridesHandlerProviderInterface $pipelineConfigurationOverridesHandlerProvider; // phpcs:ignore Generic.Files.LineLength.TooLong
 
     /**
      * @param ScopeConfigInterface $scopeConfig
-     * @param array<string, ConfigurationOverridesHandlerInterface[]> $configurationOverridesHandlers
+     * @param PipelineConfigurationOverridesHandlerProviderInterface $pipelineConfigurationOverridesHandlerProvider
      * @param string|null $name
      *
      * @throws LogicException
      */
     public function __construct(
         ScopeConfigInterface $scopeConfig,
-        array $configurationOverridesHandlers,
+        PipelineConfigurationOverridesHandlerProviderInterface $pipelineConfigurationOverridesHandlerProvider,
         ?string $name = null,
     ) {
         $this->scopeConfig = $scopeConfig;
-
-        foreach ($configurationOverridesHandlers as $entityType => $configurationOverridesHandlersForEntityType) {
-            array_walk(
-                $configurationOverridesHandlersForEntityType,
-                function (ConfigurationOverridesHandlerInterface $configurationOverridesHandler) use ($entityType): void { // phpcs:ignore Generic.Files.LineLength.TooLong
-                    $this->addConfigurationOverridesHandler(
-                        configurationOverridesHandler: $configurationOverridesHandler,
-                        entityType: $entityType,
-                    );
-                },
-            );
-        }
+        $this->pipelineConfigurationOverridesHandlerProvider = $pipelineConfigurationOverridesHandlerProvider;
 
         parent::__construct($name);
     }
@@ -121,7 +111,7 @@ class ConfigurationOverridesRegenerateCommand extends Command
         $output->writeln(
             __('Starting regeneration of pipelines configuration overrides')->render(),
         );
-        foreach ($this->configurationOverridesHandlers as $entityType => $configurationOverridesHandlersForEntityType) {
+        foreach ($this->pipelineConfigurationOverridesHandlerProvider->get() as $entityType => $configurationOverridesHandlersForEntityType) { // phpcs:ignore Generic.Files.LineLength.TooLong
             if ($entityTypes && !in_array($entityType, $entityTypes, true)) {
                 continue;
             }
@@ -137,19 +127,5 @@ class ConfigurationOverridesRegenerateCommand extends Command
         }
 
         return $return;
-    }
-
-    /**
-     * @param ConfigurationOverridesHandlerInterface $configurationOverridesHandler
-     * @param string $entityType
-     *
-     * @return void
-     */
-    private function addConfigurationOverridesHandler(
-        ConfigurationOverridesHandlerInterface $configurationOverridesHandler,
-        string $entityType,
-    ): void {
-        $this->configurationOverridesHandlers[$entityType] ??= [];
-        $this->configurationOverridesHandlers[$entityType][] = $configurationOverridesHandler;
     }
 }

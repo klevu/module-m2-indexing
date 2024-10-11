@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Service\Provider;
 
 use Klevu\Configuration\Exception\ApiKeyNotFoundException;
 use Klevu\IndexingApi\Model\Source\IndexType;
+use Klevu\IndexingApi\Model\Source\StandardAttribute;
 use Klevu\IndexingApi\Service\Mapper\MagentoToKlevuAttributeMapperInterface;
 use Klevu\IndexingApi\Service\Provider\DefaultIndexingAttributesProviderInterface;
 use Klevu\IndexingApi\Service\Provider\MagentoToKlevuAttributeMapperProviderInterface;
@@ -101,15 +102,15 @@ class DefaultIndexingAttributesProvider implements DefaultIndexingAttributesProv
      * @param string|null $apiKey
      *
      * @return string[]
+     * @throws ApiKeyNotFoundException
      */
     private function getStandardAttributes(?string $apiKey = null): array
     {
-        $return = [];
         try {
             $return = $apiKey
                 ? $this->standardAttributesProvider->getAttributeCodes(apiKey: $apiKey, includeAliases: false)
                 : $this->standardAttributesProvider->getAttributeCodesForAllApiKeys(includeAliases: false);
-        } catch (ApiKeyNotFoundException | ApiExceptionInterface $exception) {
+        } catch (ApiExceptionInterface $exception) {
             $this->logger->error(
                 message: 'Method: {method}, Error: {message}',
                 context: [
@@ -117,6 +118,7 @@ class DefaultIndexingAttributesProvider implements DefaultIndexingAttributesProv
                     'message' => $exception->getMessage(),
                 ],
             );
+            $return = StandardAttribute::values();
         }
 
         return $return;

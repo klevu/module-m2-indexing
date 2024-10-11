@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Test\Integration\Console\Command;
 
 use Klevu\Indexing\Console\Command\ConfigurationDumpPipelineCommand;
 use Klevu\Indexing\Service\EntityIndexerService;
+use Klevu\IndexingApi\Service\Provider\PipelineConfigurationProviderInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
 use Klevu\PlatformPipelines\Service\Provider\PipelineConfigurationOverridesFilepathsProvider;
 use Klevu\PlatformPipelines\Service\Provider\PipelineConfigurationProvider;
@@ -77,10 +78,14 @@ class ConfigurationDumpPipelineCommandTest extends TestCase
 
     public function testExecute(): void
     {
-        $configurationDumpPipelineCommand = $this->instantiateTestObject([
+        $pipelineConfigurationProvider = $this->objectManager->create(PipelineConfigurationProviderInterface::class, [
             'entityIndexerServices' => [
                 'foo' => $this->getEntityIndexerService(),
             ],
+        ]);
+
+        $configurationDumpPipelineCommand = $this->instantiateTestObject([
+            'pipelineConfigurationProvider' => $pipelineConfigurationProvider,
         ]);
 
         $tester = new CommandTester(
