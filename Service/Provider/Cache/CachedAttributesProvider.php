@@ -80,6 +80,43 @@ class CachedAttributesProvider implements CachedAttributesProviderInterface
             $attributes[] = $this->attributeFactory->create($attributeData);
         }
 
-        return $this->attributeIteratorFactory->create(['data' => $attributes]);
+        return $this->attributeIteratorFactory->create([
+            'data' => $this->addCategoryPathAttribute($attributes),
+        ]);
+    }
+
+    /**
+     * Temp work around until the GET /attributes endpoint returns categoryPath
+     *
+     * @param AttributeInterface[] $attributes
+     *
+     * @return AttributeInterface[]
+     */
+    private function addCategoryPathAttribute(array $attributes): array
+    {
+        $categoryPathAttributes = array_filter(
+            array: $attributes,
+            callback: static fn (AttributeInterface $attribute): bool => (
+                $attribute->getAttributeName() === 'categoryPath'
+            ),
+        );
+        if (!count($categoryPathAttributes)) {
+            $attributes[] = $this->attributeFactory->create([
+                'abbreviate' => false,
+                'alias' => [],
+                'attributeName' => 'categoryPath',
+                'datatype' => 'STRING',
+                'filterable' => false,
+                'immutable' => true,
+                'label' => [
+                    'default' => 'Category Path',
+                ],
+                'rangeable' => false,
+                'returnable' => false,
+                'searchable' => false,
+            ]);
+        }
+
+        return $attributes;
     }
 }

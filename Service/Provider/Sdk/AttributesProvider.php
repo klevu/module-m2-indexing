@@ -100,6 +100,7 @@ class AttributesProvider implements AttributesProviderInterface
                 attributeIterator: $return,
                 apiKey: $apiKey,
             );
+            $return = $this->cachedAttributesProvider->get(apiKey: $apiKey);
         }
 
         return $return;

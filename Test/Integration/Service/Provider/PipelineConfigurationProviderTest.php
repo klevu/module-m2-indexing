@@ -6,33 +6,36 @@
 
 declare(strict_types=1);
 
-namespace Klevu\Indexing\Test\Integration\Console\Command;
+namespace Klevu\Indexing\Test\Integration\Service\Provider;
 
-use Klevu\Indexing\Console\Command\ConfigurationDumpPipelineCommand;
 use Klevu\Indexing\Service\EntityIndexerService;
+use Klevu\Indexing\Service\Provider\PipelineConfigurationProvider;
 use Klevu\IndexingApi\Service\Provider\PipelineConfigurationProviderInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
 use Klevu\PlatformPipelines\Service\Provider\PipelineConfigurationOverridesFilepathsProvider;
-use Klevu\PlatformPipelines\Service\Provider\PipelineConfigurationProvider;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
+use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
+use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\Module\Dir as ModuleDir;
 use Magento\Framework\ObjectManagerInterface;
-use Magento\TestFramework\ObjectManager;
+use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Console\Tester\CommandTester;
 
 /**
- * @covers \Klevu\Indexing\Console\Command\ConfigurationDumpPipelineCommand::class
- * @method ConfigurationDumpPipelineCommand instantiateTestObject(?array $arguments = null)
+ * @covers PipelineConfigurationProvider::class
+ * @method PipelineConfigurationProviderInterface instantiateTestObject(?array $arguments = null)
+ * @method PipelineConfigurationProviderInterface instantiateTestObjectFromInterface(?array $arguments = null)
  */
-class ConfigurationDumpPipelineCommandTest extends TestCase
+class PipelineConfigurationProviderTest extends TestCase
 {
     use ObjectInstantiationTrait;
+    use TestImplementsInterfaceTrait;
+    use TestInterfacePreferenceTrait;
 
     /**
      * @var ObjectManagerInterface|null
      */
-    private ?ObjectManagerInterface $objectManager = null; // @phpstan-ignore-line Used by traits
+    private ?ObjectManagerInterface $objectManager = null;
     /**
      * @var ModuleDir|null
      */
@@ -45,83 +48,67 @@ class ConfigurationDumpPipelineCommandTest extends TestCase
     {
         parent::setUp();
 
-        $this->objectManager = ObjectManager::getInstance();
+        $this->implementationFqcn = PipelineConfigurationProvider::class;
+        $this->interfaceFqcn = PipelineConfigurationProviderInterface::class;
+        $this->constructorArgumentDefaults = [
+            'entityIndexerServices' => [],
+        ];
 
-        $this->implementationFqcn = ConfigurationDumpPipelineCommand::class;
-        // newrelic-describe-commands globs onto Console commands
-        $this->expectPlugins = true;
-
+        $this->objectManager = Bootstrap::getObjectManager();
         $this->moduleDir = $this->objectManager->get(ModuleDir::class);
     }
 
-    public function testExecute_ReturnsFailure_WhenNoRegisteredPipelineConfiguration(): void
+    /**
+     * @testWith [""]
+     *           [" "]
+     */
+    public function testGet_ReturnsNull_WhenNoIdentifierSupplied(string $identifier): void
     {
-        $configurationDumpPipelineCommand = $this->instantiateTestObject();
-
-        $tester = new CommandTester(
-            command: $configurationDumpPipelineCommand,
-        );
-        $responseCode = $tester->execute(
-            input: [
-                'pipelineIdentifier' => 'foo',
-            ],
-        );
-
-        $this->assertSame(1, $responseCode);
-
-        $output = $tester->getDisplay();
-        $this->assertStringContainsString(
-            needle: 'Could not build configuration for identifier foo',
-            haystack: $output,
-        );
+        $provider = $this->instantiateTestObject();
+        $this->assertNull(actual: $provider->get($identifier));
     }
 
-    public function testExecute(): void
+    public function testGet_ReturnsNull_WhenNoRegisteredPipelineConfiguration(): void
     {
-        $pipelineConfigurationProvider = $this->objectManager->create(PipelineConfigurationProviderInterface::class, [
+        $provider = $this->instantiateTestObject();
+        $this->assertNull(actual: $provider->get('foo'));
+    }
+
+    public function testGet_ReturnsPipelineConfiguration(): void
+    {
+        $provider = $this->instantiateTestObject([
             'entityIndexerServices' => [
                 'foo' => $this->getEntityIndexerService(),
             ],
         ]);
-
-        $configurationDumpPipelineCommand = $this->instantiateTestObject([
-            'pipelineConfigurationProvider' => $pipelineConfigurationProvider,
-        ]);
-
-        $tester = new CommandTester(
-            command: $configurationDumpPipelineCommand,
-        );
-        $responseCode = $tester->execute(
-            input: [
-                'pipelineIdentifier' => 'foo',
-            ],
-        );
-
-        $this->assertSame(0, $responseCode);
-
-        $output = $tester->getDisplay();
-
         $this->assertSame(
-            expected: <<<'YAML'
-pipeline: Pipeline
-args: {  }
-stages:
-  createRecord:
-    pipeline: Pipeline\CreateRecord
-    args: {  }
-    stages:
-      foo:
-        pipeline: Stage\Extract
-        args:
-          extraction: getFoo()
-        stages: {  }
-      bar:
-        pipeline: Stage\Extract
-        args:
-          extraction: bar
-        stages: {  }
-YAML,
-            actual: rtrim($output),
+            expected: [
+                'pipeline' => 'Pipeline',
+                'args' => [],
+                'stages' => [
+                    'createRecord' => [
+                        'pipeline' => 'Pipeline\CreateRecord',
+                        'args' => [],
+                        'stages' => [
+                            'foo' => [
+                                'pipeline' => 'Stage\Extract',
+                                'args' => [
+                                    'extraction' => 'getFoo()',
+                                ],
+                                'stages' => [],
+                            ],
+                            'bar' => [
+                                'pipeline' => 'Stage\Extract',
+                                'args' => [
+                                    'extraction' => 'bar',
+                                ],
+                                'stages' => [],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            actual: $provider->get('foo'),
         );
     }
 
@@ -165,8 +152,8 @@ YAML,
             type: EntityIndexerService::class,
             arguments: [
                 'entityIndexingRecordProvider' => $this->getMockBuilder(
-                        className: EntityIndexingRecordProviderInterface::class,
-                    )->disableOriginalConstructor()
+                    className: EntityIndexingRecordProviderInterface::class,
+                )->disableOriginalConstructor()
                     ->getMock(),
                 'pipelineIdentifier' => 'foo',
                 'pipelineConfigurationProvider' => $pipelineConfigurationProvider,

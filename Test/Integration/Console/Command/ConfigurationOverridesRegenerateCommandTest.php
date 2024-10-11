@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Console\Command;
 
 use Klevu\Indexing\Console\Command\ConfigurationOverridesRegenerateCommand;
+use Klevu\IndexingApi\Service\Provider\PipelineConfigurationOverridesHandlerProviderInterface;
 use Klevu\PlatformPipelines\Api\ConfigurationOverridesHandlerInterface;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Magento\Framework\ObjectManagerInterface;
@@ -52,7 +53,7 @@ class ConfigurationOverridesRegenerateCommandTest extends TestCase
             value: 0,
         );
 
-        $configurationOverridesRegenerateCommand = $this->instantiateTestObject([
+        $handlerProvider = $this->objectManager->create(PipelineConfigurationOverridesHandlerProviderInterface::class, [
             'configurationOverridesHandlers' => [
                 'foo' => [
                     $this->getMockConfigurationOverridesHandlerExpectsNotToExecute(),
@@ -67,6 +68,10 @@ class ConfigurationOverridesRegenerateCommandTest extends TestCase
                     $this->getMockConfigurationOverridesHandlerExpectsNotToExecute(),
                 ],
             ],
+        ]);
+
+        $configurationOverridesRegenerateCommand = $this->instantiateTestObject([
+            'pipelineConfigurationOverridesHandlerProvider' => $handlerProvider,
         ]);
 
         $tester = new CommandTester(
@@ -91,7 +96,7 @@ class ConfigurationOverridesRegenerateCommandTest extends TestCase
             value: 1,
         );
 
-        $configurationOverridesRegenerateCommand = $this->instantiateTestObject([
+        $handlerProvider = $this->objectManager->create(PipelineConfigurationOverridesHandlerProviderInterface::class, [
             'configurationOverridesHandlers' => [
                 'foo' => [
                     $this->getMockConfigurationOverridesHandlerExpectsExecute(),
@@ -106,6 +111,10 @@ class ConfigurationOverridesRegenerateCommandTest extends TestCase
                     $this->getMockConfigurationOverridesHandlerExpectsExecute(),
                 ],
             ],
+        ]);
+
+        $configurationOverridesRegenerateCommand = $this->instantiateTestObject([
+            'pipelineConfigurationOverridesHandlerProvider' => $handlerProvider,
         ]);
 
         $tester = new CommandTester(
@@ -123,6 +132,9 @@ class ConfigurationOverridesRegenerateCommandTest extends TestCase
         $this->assertSame(0, $responseCode);
     }
 
+    /**
+     * @return MockObject
+     */
     private function getMockConfigurationOverridesHandler(): MockObject
     {
         return $this->getMockBuilder(ConfigurationOverridesHandlerInterface::class)
@@ -130,6 +142,9 @@ class ConfigurationOverridesRegenerateCommandTest extends TestCase
             ->getMock();
     }
 
+    /**
+     * @return MockObject
+     */
     private function getMockConfigurationOverridesHandlerExpectsNotToExecute(): MockObject
     {
         $mockConfigurationOverridesHandler = $this->getMockConfigurationOverridesHandler();
@@ -140,6 +155,9 @@ class ConfigurationOverridesRegenerateCommandTest extends TestCase
         return $mockConfigurationOverridesHandler;
     }
 
+    /**
+     * @return MockObject
+     */
     private function getMockConfigurationOverridesHandlerExpectsExecute(): MockObject
     {
         $mockConfigurationOverridesHandler = $this->getMockConfigurationOverridesHandler();
