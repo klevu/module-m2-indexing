@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Service\Determiner;
 
+use Klevu\IndexingApi\Service\Determiner\IsIndexableConditionInterface;
 use Klevu\IndexingApi\Service\Determiner\IsIndexableDeterminerInterface;
 use Klevu\LoggerApi\Service\IsLoggingEnabledServiceInterface;
 use Magento\Cms\Api\Data\PageInterface;
@@ -23,20 +24,20 @@ class IsIndexableDeterminer implements IsIndexableDeterminerInterface
      */
     private readonly IsLoggingEnabledServiceInterface $isLoggingEnabledService;
     /**
-     * @var IsIndexableDeterminerInterface[]
+     * @var IsIndexableConditionInterface[]
      */
-    private array $isIndexableDeterminers = [];
+    private array $isIndexableConditions = [];
 
     /**
      * @param IsLoggingEnabledServiceInterface $isLoggingEnabledService
-     * @param IsIndexableDeterminerInterface[] $isIndexableDeterminers
+     * @param IsIndexableConditionInterface[] $isIndexableConditions
      */
     public function __construct(
         IsLoggingEnabledServiceInterface $isLoggingEnabledService,
-        array $isIndexableDeterminers = [],
+        array $isIndexableConditions = [],
     ) {
         $this->isLoggingEnabledService = $isLoggingEnabledService;
-        array_walk($isIndexableDeterminers, [$this, 'addIndexableDeterminer']);
+        array_walk($isIndexableConditions, [$this, 'addIndexableCondition']);
     }
 
     /**
@@ -53,12 +54,12 @@ class IsIndexableDeterminer implements IsIndexableDeterminerInterface
     ): bool {
         $isIndexable = true;
         $isDebuggingEnabled = $this->isDebugLoggingEnabled($store);
-        foreach ($this->isIndexableDeterminers as $isIndexableDeterminer) {
-            $isIndexable = $isIndexable && $isIndexableDeterminer->execute(
-                entity: $entity,
-                store: $store,
-                entitySubtype: $entitySubtype,
-            );
+        foreach ($this->isIndexableConditions as $isIndexableCondition) {
+            $isIndexable = $isIndexable && $isIndexableCondition->execute(
+                    entity: $entity,
+                    store: $store,
+                    entitySubtype: $entitySubtype,
+                );
             if (!$isIndexable && !$isDebuggingEnabled) {
                 break;
             }
@@ -68,13 +69,13 @@ class IsIndexableDeterminer implements IsIndexableDeterminerInterface
     }
 
     /**
-     * @param IsIndexableDeterminerInterface $isIndexableDeterminer
+     * @param IsIndexableConditionInterface $isIndexableCondition
      *
      * @return void
      */
-    private function addIndexableDeterminer(IsIndexableDeterminerInterface $isIndexableDeterminer): void
+    private function addIndexableCondition(IsIndexableConditionInterface $isIndexableCondition): void
     {
-        $this->isIndexableDeterminers[] = $isIndexableDeterminer;
+        $this->isIndexableConditions[] = $isIndexableCondition;
     }
 
     /**

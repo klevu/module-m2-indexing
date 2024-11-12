@@ -36,7 +36,7 @@ $escaper = $escaperViewModel->getEscaper();
                         '%1Attribute Sync%2 has been triggered upon saving your Auth Keys.',
                         '<strong>',
                         '</strong>',
-                    ),
+                    )->render(),
                     allowedTags: ['strong'],
                 ) ?>
             </p>
@@ -49,7 +49,7 @@ $escaper = $escaperViewModel->getEscaper();
                         '%1Entity Discovery%2 has been scheduled to run via cron in 5 minutes.',
                         '<strong>',
                         '</strong>',
-                    ),
+                    )->render(),
                     allowedTags: ['strong'],
                 ) ?>
             </p>
@@ -59,7 +59,7 @@ $escaper = $escaperViewModel->getEscaper();
                         '%1Entity Sync%2 will be handled via the cron schedule.',
                         '<strong>',
                         '</strong>',
-                    ),
+                    )->render(),
                     allowedTags: ['strong'],
                 ) ?>
             </p>

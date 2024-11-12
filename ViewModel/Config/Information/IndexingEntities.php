@@ -110,7 +110,7 @@ class IndexingEntities implements IndexingEntitiesInterface
                 continue;
             }
             $return[$storeApiKey] = [];
-            $indexingEntities = $this->indexingEntityProvider->get(apiKey: $storeApiKey);
+            $indexingEntities = $this->indexingEntityProvider->get(apiKeys: [$storeApiKey]);
             foreach ($this->getEntityTypes($indexingEntities) as $entityType) {
                 $indexingEntitiesByType = $this->filterIndexingEntityByType(
                     indexingEntities: $indexingEntities,

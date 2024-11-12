@@ -16,7 +16,7 @@ use Klevu\IndexingApi\Model\EntityIndexingRecordInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\EntityIndexingDeleteRecordCreatorServiceInterface;
 use Klevu\IndexingApi\Service\EntityIndexingRecordCreatorServiceInterface;
-use Klevu\IndexingApi\Service\Provider\EntityProviderInterface;
+use Klevu\IndexingApi\Service\Provider\EntityProviderProviderInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
 use Magento\Cms\Api\Data\PageInterface;
@@ -51,9 +51,9 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      */
     private readonly ScopeProviderInterface $scopeProvider;
     /**
-     * @var EntityProviderInterface[]
+     * @var EntityProviderProviderInterface
      */
-    private array $entityProviders;
+    private readonly EntityProviderProviderInterface $entityProviderProvider;
     /**
      * @var Actions
      */
@@ -74,7 +74,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      * @param LoggerInterface $logger
      * @param StoresProviderInterface $storesProvider
      * @param ScopeProviderInterface $scopeProvider
-     * @param EntityProviderInterface[] $entityProviders
+     * @param EntityProviderProviderInterface $entityProviderProvider
      * @param string $entityType
      * @param string $action
      * @param int|null $batchSize
@@ -86,7 +86,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         LoggerInterface $logger,
         StoresProviderInterface $storesProvider,
         ScopeProviderInterface $scopeProvider,
-        array $entityProviders,
+        EntityProviderProviderInterface $entityProviderProvider,
         string $entityType,
         string $action,
         ?int $batchSize = null,
@@ -97,7 +97,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         $this->logger = $logger;
         $this->storesProvider = $storesProvider;
         $this->scopeProvider = $scopeProvider;
-        array_walk($entityProviders, [$this, 'setEntityProvider']);
+        $this->entityProviderProvider = $entityProviderProvider;
         $this->setAction($action);
         $this->entityType = $entityType;
         $this->batchSize = $batchSize;
@@ -117,9 +117,9 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         $store = array_shift($stores);
         $this->scopeProvider->setCurrentScope($store);
 
-        $currentPage = 1;
+        $lastRecordId = 0;
         while (true) {
-            $entityIds = $this->getEntityIdsToSync(apiKey: $apiKey, currentPage: $currentPage);
+            $entityIds = $this->getEntityIdsToSync(apiKey: $apiKey, lastRecordId: $lastRecordId + 1);
             if (!$entityIds) {
                 break;
             }
@@ -127,7 +127,6 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
                 store: $store,
                 entityIds: $entityIds,
             );
-
             foreach ($entityIds as $entity) {
                 try {
                     yield $this->generateIndexingRecord($entity, $entitiesCache);
@@ -141,19 +140,12 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
                     );
                 }
             }
-            $currentPage++;
+            $lastRecord = array_pop($entityIds);
+            $lastRecordId = $lastRecord['record_id'] ?? null;
+            if (!$lastRecordId) {
+                break;
+            }
         }
-    }
-
-    /**
-     * @param EntityProviderInterface $entityProvider
-     * @param string $providerType
-     *
-     * @return void
-     */
-    private function setEntityProvider(EntityProviderInterface $entityProvider, string $providerType): void
-    {
-        $this->entityProviders[$providerType] = $entityProvider;
     }
 
     /**
@@ -168,19 +160,19 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
 
     /**
      * @param string $apiKey
-     * @param int|null $currentPage
+     * @param int|null $lastRecordId
      *
      * @return array<array<string, int|null>>
      */
-    private function getEntityIdsToSync(string $apiKey, ?int $currentPage = null): array
+    private function getEntityIdsToSync(string $apiKey, ?int $lastRecordId = null): array
     {
         $indexingEntities = $this->indexingEntityProvider->get(
             entityType: $this->entityType,
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             nextAction: $this->action,
             isIndexable: true,
             pageSize: $this->batchSize,
-            currentPage: $currentPage,
+            startFrom: $lastRecordId,
         );
 
         return array_map(
@@ -204,17 +196,17 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         if ($this->action === Actions::DELETE) {
             return [];
         }
-        $entitiesByType = [];
-        foreach ($this->entityProviders as $providerType => $entityProvider) {
-            $entitiesByType[$providerType] = $entityProvider->get(
+        $return = [];
+        foreach ($this->entityProviderProvider->get() as $entityProvider) {
+            /** @var \Generator<PageInterface[]>|null $entitiesGenerator */
+            $entitiesGenerator = $entityProvider->get(
                 store: $store,
                 entityIds: $this->getUniqueEntityIds($entityIds),
             );
-        }
-        $return = [];
-        foreach ($entitiesByType as $entities) {
-            foreach ($entities as $entity) {
-                $return[(string)$entity->getId()] = $entity;
+            foreach ($entitiesGenerator as $entityBatch) {
+                foreach ($entityBatch as $key => $entity) {
+                    $return[$key] = $entity;
+                }
             }
         }
 
@@ -229,10 +221,13 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
     private function getUniqueEntityIds(array $entityIds): array
     {
         $entityIdsToLoad = [];
-        array_walk_recursive(
+        array_walk(
             array: $entityIds,
-            callback: static function ($entityId) use (&$entityIdsToLoad): void { //phpcs:ignore SlevomatCodingStandard.PHP.DisallowReference.DisallowedInheritingVariableByReference, Generic.Files.LineLength.TooLong
-                $entityIdsToLoad[] = (int)$entityId;
+            callback: static function (array $entity) use (&$entityIdsToLoad): void { //phpcs:ignore SlevomatCodingStandard.PHP.DisallowReference.DisallowedInheritingVariableByReference, Generic.Files.LineLength.TooLong
+                $entityIdsToLoad[] = (int)$entity['entity_id'];
+                if ($entity['parent_id'] ?? null) {
+                    $entityIdsToLoad[] = (int)$entity['parent_id'];
+                }
             },
         );
 

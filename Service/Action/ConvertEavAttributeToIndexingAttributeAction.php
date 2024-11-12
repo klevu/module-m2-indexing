@@ -21,6 +21,7 @@ use Klevu\PhpSDK\Model\Indexing\DataType;
 use Magento\Eav\Api\Data\AttributeInterface;
 use Magento\Eav\Model\Entity\Attribute\Backend\ArrayBackend;
 use Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface;
+use Magento\Framework\DataObject;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Store\Api\Data\StoreInterface;
 
@@ -89,6 +90,7 @@ class ConvertEavAttributeToIndexingAttributeAction implements ConvertEavAttribut
         AttributeInterface $attribute,
         ?StoreInterface $store,
     ): MagentoAttributeInterface {
+        /** @var AttributeInterface&DataObject $attribute */
         $generateConfigurationForEntitySubtypes = $attribute->getData(
             key: MagentoAttributeInterface::ATTRIBUTE_PROPERTY_GENERATE_CONFIGURATION_FOR_ENTITY_SUBTYPES,
         );
@@ -205,6 +207,7 @@ class ConvertEavAttributeToIndexingAttributeAction implements ConvertEavAttribut
         ?StoreInterface $store,
     ): bool {
         if (null === $store) {
+            /** @var AttributeInterface&DataObject $attribute */
             return (bool)$attribute->getDataUsingMethod(
                 MagentoAttributeInterface::ATTRIBUTE_PROPERTY_IS_INDEXABLE,
             );

@@ -13,6 +13,7 @@ use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\Provider\EntityDiscoveryProviderInterface;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
@@ -25,6 +26,7 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 class DiscoverEntitiesCommandTest extends TestCase
 {
+    use GeneratorTrait;
     use ObjectInstantiationTrait;
     use StoreTrait;
 
@@ -164,12 +166,12 @@ class DiscoverEntitiesCommandTest extends TestCase
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProductDiscoveryProvider->expects($this->exactly(2))
+        $mockProductDiscoveryProvider->expects($this->exactly(3))
             ->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
         $mockProductDiscoveryProvider->expects($this->once())
             ->method('getData')
-            ->willReturn([]);
+            ->willReturn($this->generate([]));
 
         $discoveryOrchestrator = $this->objectManager->create(EntityDiscoveryOrchestratorServiceInterface::class, [
             'discoveryProviders' => [
@@ -211,12 +213,12 @@ class DiscoverEntitiesCommandTest extends TestCase
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProductDiscoveryProvider->expects($this->once())
+        $mockProductDiscoveryProvider->expects($this->exactly(2))
             ->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
         $mockProductDiscoveryProvider->expects($this->once())
             ->method('getData')
-            ->willReturn([]);
+            ->willReturn($this->generate([]));
 
         $discoveryOrchestrator = $this->objectManager->create(EntityDiscoveryOrchestratorServiceInterface::class, [
             'discoveryProviders' => [

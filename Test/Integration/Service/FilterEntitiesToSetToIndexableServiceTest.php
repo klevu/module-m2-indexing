@@ -108,35 +108,36 @@ class FilterEntitiesToSetToIndexableServiceTest extends TestCase
         ]);
 
         $magentoEntityInterfaceFactory = $this->objectManager->get(MagentoEntityInterfaceFactory::class);
-        $magentoEntities[$apiKey][1] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities = [];
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 1,
             'apiKey' => $apiKey,
             'isIndexable' => true,
         ]);
-        $magentoEntities[$apiKey][2] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 2,
             'apiKey' => $apiKey,
             'isIndexable' => true,
         ]);
-        $magentoEntities[$apiKey][3] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 3,
             'apiKey' => $apiKey,
             'isIndexable' => false,
         ]);
-        $magentoEntities[$apiKey][4] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 4,
             'entityParentId' => 99,
             'apiKey' => $apiKey,
             'isIndexable' => true,
         ]);
-        $magentoEntities[$apiKey][5] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 5,
             'apiKey' => $apiKey,
             'isIndexable' => true,
         ]);
 
         $service = $this->instantiateTestObject();
-        $result = $service->execute($magentoEntities, 'KLEVU_PRODUCT');
+        $result = $service->execute(magentoEntities: $magentoEntities, type: 'KLEVU_PRODUCT', apiKey: $apiKey);
 
         $this->assertCount(expectedCount: 4, haystack: $result);
         $this->assertContains(needle: (int)$indexingEntity1->getId(), haystack: $result);

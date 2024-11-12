@@ -88,27 +88,30 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
     }
 
     /**
+     * Note: as sortOrder is required for pagination to work correctly,
+     *  if $pageSize is provided then $sorting is ignored and collection is sorted by IndexingEntity::ENTITY_ID
+     *
      * @param string|null $entityType
-     * @param string|null $apiKey
+     * @param string[]|null $apiKeys
      * @param int[]|null $entityIds
      * @param Actions|null $nextAction
      * @param bool|null $isIndexable
      * @param array<string, string>|null $sorting [SortOrder::DIRECTION => SortOrder::SORT_ASC, SortOrder::FIELD => '']
      * @param int|null $pageSize
-     * @param int|null $currentPage
+     * @param int|null $startFrom
      * @param string[]|null $entitySubtypes
      *
      * @return IndexingEntityInterface[]
      */
     public function get(
         ?string $entityType = null,
-        ?string $apiKey = null,
+        ?array $apiKeys = [],
         ?array $entityIds = [],
         ?Actions $nextAction = null,
         ?bool $isIndexable = null,
         ?array $sorting = [],
         ?int $pageSize = null,
-        ?int $currentPage = null,
+        ?int $startFrom = 1,
         ?array $entitySubtypes = [],
     ): array {
         /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
@@ -124,16 +127,11 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
             /** @var FilterGroupBuilder $filterGroupBuilder */
             $filterGroupBuilder = $this->filterGroupBuilderFactory->create();
             $filterGroupBuilder->addFilter($filter1);
+
             /** @var FilterGroup $filterOr */
             $filterOr = $filterGroupBuilder->create();
 
             $searchCriteriaBuilder->setFilterGroups([$filterOr]);
-        }
-        if ($entityType) {
-            $searchCriteriaBuilder->addFilter(
-                field: IndexingEntity::TARGET_ENTITY_TYPE,
-                value: $entityType,
-            );
         }
         if ($entitySubtypes) {
             $searchCriteriaBuilder->addFilter(
@@ -142,10 +140,17 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
                 conditionType: 'in',
             );
         }
-        if ($apiKey) {
+        if ($entityType) {
+            $searchCriteriaBuilder->addFilter(
+                field: IndexingEntity::TARGET_ENTITY_TYPE,
+                value: $entityType,
+            );
+        }
+        if ($apiKeys) {
             $searchCriteriaBuilder->addFilter(
                 field: IndexingEntity::API_KEY,
-                value: $apiKey,
+                value: $apiKeys,
+                conditionType: 'in',
             );
         }
         if ($nextAction) {
@@ -160,34 +165,29 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
                 value: $isIndexable,
             );
         }
-        if (($sorting[SortOrder::FIELD] ?? null) && ($sorting[SortOrder::DIRECTION] ?? null)) {
+        if (null !== $pageSize) {
+            $searchCriteriaBuilder->setPageSize($pageSize);
+            $searchCriteriaBuilder->addFilter(
+                field: IndexingEntity::ENTITY_ID,
+                value: $startFrom,
+                conditionType: 'gteq',
+            );
+            /** @var SortOrderBuilder $sortOrderBuilder */
+            $sortOrderBuilder = $this->sortOrderBuilderFactory->create();
+            $sortOrderBuilder->setField(IndexingEntity::ENTITY_ID);
+            $sortOrderBuilder->setDirection(SortOrder::SORT_ASC);
+            $searchCriteriaBuilder->addSortOrder(sortOrder: $sortOrderBuilder->create());
+        } elseif (($sorting[SortOrder::FIELD] ?? null) && ($sorting[SortOrder::DIRECTION] ?? null)) {
             /** @var SortOrderBuilder $sortOrderBuilder */
             $sortOrderBuilder = $this->sortOrderBuilderFactory->create();
             $sortOrderBuilder->setField($sorting[SortOrder::FIELD]);
             $sortOrderBuilder->setDirection(strtoupper($sorting[SortOrder::DIRECTION]));
             $searchCriteriaBuilder->addSortOrder(sortOrder: $sortOrderBuilder->create());
         }
-        if (null !== $pageSize && null !== $currentPage) {
-            $searchCriteriaBuilder->setPageSize($pageSize);
-            $searchCriteriaBuilder->setCurrentPage($currentPage);
-        }
-
         $searchCriteria = $searchCriteriaBuilder->create();
         $klevuEntitySearchResult = $this->indexingEntityRepository->getList($searchCriteria);
-        $totalRecords = $klevuEntitySearchResult->getTotalCount();
 
-        /**
-         * Magento will return page 1 if the request is out of bounds.
-         * This can result in an infinite loop if called in a while loop.
-         * Therefore, we return an empty array when out of bounds.
-         */
-        return $this->isInBounds(
-            totalRecords: $totalRecords,
-            pageSize: $pageSize,
-            currentPage: $currentPage,
-        )
-            ? $klevuEntitySearchResult->getItems()
-            : [];
+        return $klevuEntitySearchResult->getItems();
     }
 
     /**
@@ -204,7 +204,7 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
     ): Collection {
         // Can't use repository and searchCriteria here due to nature of required query structure.
         // Required: (a=b AND c=d) OR (e=f AND g=h).
-        // both "(a=b OR c=d) AND (e=f OR g=h)" + "a=b AND c=d AND e=f AND g=h" are possible with searchCriteria.
+        // only "(a=b OR c=d) AND (e=f OR g=h)" and "a=b AND c=d AND e=f AND g=h" are possible with searchCriteria.
 
         /** @var Collection $collection */
         $collection = $this->collectionFactory->create();
@@ -222,22 +222,6 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         }
 
         return $collection;
-    }
-
-    /**
-     * @param int $totalRecords
-     * @param int|null $pageSize
-     * @param int|null $currentPage
-     *
-     * @return bool
-     */
-    private function isInBounds(int $totalRecords, ?int $pageSize, ?int $currentPage): bool
-    {
-        return match (true) {
-            (null === $pageSize && null === $currentPage) => true,
-            (null === $pageSize && 1 !== $currentPage), ($totalRecords <= ($pageSize * ($currentPage - 1))) => false,
-            default => true,
-        };
     }
 
     /**

@@ -64,22 +64,23 @@ class FilterEntitiesToAddServiceTest extends TestCase
         ]);
 
         $magentoEntityInterfaceFactory = $this->objectManager->get(MagentoEntityInterfaceFactory::class);
-        $magentoEntities[$apiKey][1] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities = [];
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 1,
             'apiKey' => $apiKey,
             'isIndexable' => true,
         ]);
-        $magentoEntities[$apiKey][2] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 2,
             'apiKey' => $apiKey,
             'isIndexable' => true,
         ]);
-        $magentoEntities[$apiKey][3] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 3,
             'apiKey' => $apiKey,
             'isIndexable' => false,
         ]);
-        $magentoEntities[$apiKey][4] = $magentoEntityInterfaceFactory->create([
+        $magentoEntities[] = $magentoEntityInterfaceFactory->create([
             'entityId' => 4,
             'entityParentId' => 99,
             'apiKey' => $apiKey,
@@ -87,15 +88,15 @@ class FilterEntitiesToAddServiceTest extends TestCase
         ]);
 
         $service = $this->instantiateTestObject();
-        $result = $service->execute($magentoEntities, 'KLEVU_PRODUCTS');
+        $generator = $service->execute(magentoEntities: $magentoEntities, type: 'KLEVU_PRODUCTS', apiKey: $apiKey);
+        $result = iterator_to_array($generator);
 
-        $this->assertCount(expectedCount: 1, haystack: $result);
-        $this->assertCount(expectedCount: 3, haystack: $result[$apiKey]);
+        $this->assertCount(expectedCount: 3, haystack: $result);
         $magentoEntityIds = array_map(
             callback: static function (MagentoEntityInterface $magentoEntity): string {
                 return $magentoEntity->getEntityId() . '-' . ($magentoEntity->getEntityParentId() ?: '0');
             },
-            array: $result[$apiKey],
+            array: $result,
         );
         $this->assertContains(needle: '1-0', haystack: $magentoEntityIds);
         $this->assertNotContains(needle: '2-0', haystack: $magentoEntityIds);

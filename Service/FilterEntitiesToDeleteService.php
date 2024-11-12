@@ -10,118 +10,119 @@ namespace Klevu\Indexing\Service;
 
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterface;
-use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\FilterEntitiesToDeleteServiceInterface;
-use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
+use Klevu\IndexingApi\Service\Provider\EntityDiscoveryProviderInterface;
+use Magento\Framework\Exception\LocalizedException;
+use Psr\Log\LoggerInterface;
 
 class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInterface
 {
     /**
-     * @var IndexingEntityProviderInterface
+     * @var LoggerInterface
      */
-    private readonly IndexingEntityProviderInterface $indexingEntityProvider;
+    private readonly LoggerInterface $logger;
+    /**
+     * @var EntityDiscoveryProviderInterface[]
+     */
+    private array $discoveryProviders = [];
 
     /**
-     * @param IndexingEntityProviderInterface $indexingEntityProvider
+     * @param LoggerInterface $logger
+     * @param EntityDiscoveryProviderInterface[] $discoveryProviders
      */
-    public function __construct(IndexingEntityProviderInterface $indexingEntityProvider)
-    {
-        $this->indexingEntityProvider = $indexingEntityProvider;
+    public function __construct(
+        LoggerInterface $logger,
+        array $discoveryProviders = [],
+    ) {
+        array_walk($discoveryProviders, [$this, 'addDiscoveryProvider']);
+        $this->logger = $logger;
     }
 
     /**
-     * @param MagentoEntityInterface[][] $magentoEntitiesByApiKey
+     * @param IndexingEntityInterface[] $klevuIndexingEntities
      * @param string $type
-     * @param int[]|null $entityIds
-     * @param string[]|null $entitySubtypes
+     * @param string[] $apiKeys
+     * @param string[] $entitySubtypes
      *
      * @return int[]
      */
     public function execute(
-        array $magentoEntitiesByApiKey,
+        array $klevuIndexingEntities,
         string $type,
-        ?array $entityIds = [],
-        ?array $entitySubtypes = [],
-    ): array
-    {
+        array $apiKeys = [],
+        array $entitySubtypes = [],
+    ): array {
         $return = [];
-        foreach ($magentoEntitiesByApiKey as $apiKey => $magentoEntities) {
-            $indexingEntities = $this->getIndexingEntities($type, $apiKey, $entityIds, $entitySubtypes);
-            $return[] = $this->getKlevuEntitiesNoLongerIndexable($type, $magentoEntities, $indexingEntities);
-            $return[] = $this->getKlevuEntitiesNoLongerExist($type, $magentoEntities, $indexingEntities);
+        $klevuEntityIds = array_filter(
+            array_map(
+                callback: static fn (IndexingEntityInterface $indexingEntity): int => $indexingEntity->getTargetId(),
+                array: $klevuIndexingEntities,
+            ),
+        );
+        if (!$klevuEntityIds) {
+            return $return;
+        }
+        $discoveryProvider = $this->getDiscoveryProvider($type);
+        if (null === $discoveryProvider) {
+            return $return;
+        }
+        try {
+            /** @var \Generator<string, \Generator<MagentoEntityInterface[]>> $magentoEntitiesByApiKey */
+            $magentoEntitiesByApiKey = $discoveryProvider->getData(
+                apiKeys: $apiKeys,
+                entityIds: $klevuEntityIds,
+                entitySubtypes: $entitySubtypes,
+            );
+            $entitiesFound = false;
+            foreach ($magentoEntitiesByApiKey as $apiKey => $magentoEntitiesById) {
+                foreach ($magentoEntitiesById as $magentoEntities) {
+                    $return[] = $this->getKlevuEntitiesNoLongerExist(
+                        type: $type,
+                        magentoEntities: $magentoEntities,
+                        indexingEntities: $klevuIndexingEntities,
+                        apiKey: $apiKey,
+                    );
+                    $entitiesFound = true;
+                }
+            }
+            if (!$entitiesFound) {
+                // requested entities have been deleted.
+                // generator above never enters final foreach loop
+                $return[] = $this->getKlevuEntitiesNoLongerExist(
+                    type: $type,
+                    magentoEntities: [],
+                    indexingEntities: $klevuIndexingEntities,
+                );
+            }
+        } catch (LocalizedException $exception) {
+            $this->logger->error(
+                message: 'Method: {method}, Error: {message}',
+                context: [
+                    'method' => __METHOD__,
+                    'message' => $exception->getMessage(),
+                ],
+            );
         }
 
         return array_filter(array_values(array_merge(...$return)));
     }
 
     /**
-     * @param string $type
-     * @param string $apiKey
-     * @param int[] $entityIds
-     * @param string[] $entitySubtypes
+     * @param EntityDiscoveryProviderInterface $discoveryProvider
+     * @param string $entityType
      *
-     * @return IndexingEntityInterface[]
+     * @return void
      */
-    private function getIndexingEntities(string $type, string $apiKey, array $entityIds, array $entitySubtypes): array
+    private function addDiscoveryProvider(EntityDiscoveryProviderInterface $discoveryProvider, string $entityType): void
     {
-        return $this->indexingEntityProvider->get(
-            entityType: $type,
-            apiKey: $apiKey,
-            entityIds: $entityIds,
-            entitySubtypes: $entitySubtypes,
-        );
+        $this->discoveryProviders[$entityType] = $discoveryProvider;
     }
 
     /**
      * @param string $type
      * @param MagentoEntityInterface[] $magentoEntities
      * @param IndexingEntityInterface[] $indexingEntities
-     *
-     * @return int[]
-     */
-    private function getKlevuEntitiesNoLongerIndexable(
-        string $type,
-        array $magentoEntities,
-        array $indexingEntities,
-    ): array {
-        $magentoEntityIds = array_map(
-            callback: static fn (MagentoEntityInterface $magentoEntity) => (
-                $magentoEntity->getEntityId()
-                . '-' . ($magentoEntity->getEntityParentId() ?: 0)
-                . '-' . $magentoEntity->getApiKey()
-                . '-' . $type
-            ),
-            array: array_filter(
-                array: $magentoEntities,
-                callback: static fn (MagentoEntityInterface $magentoEntity) => (!$magentoEntity->isIndexable()),
-            ),
-        );
-        $klevuEntities = array_filter(
-            array: $indexingEntities,
-            callback: static function (IndexingEntityInterface $indexingEntity) use ($magentoEntityIds): bool {
-                $klevuId = $indexingEntity->getTargetId()
-                    . '-' . ($indexingEntity->getTargetParentId() ?: 0)
-                    . '-' . $indexingEntity->getApiKey()
-                    . '-' . $indexingEntity->getTargetEntityType();
-
-                return in_array(needle: $klevuId, haystack: $magentoEntityIds, strict: true)
-                    && $indexingEntity->getIsIndexable()
-                    && $indexingEntity->getLastAction() !== Actions::NO_ACTION;
-            },
-        );
-
-        return array_map(
-            callback: static fn (IndexingEntityInterface $indexingEntity) => (
-                (int)$indexingEntity->getId()
-            ),
-            array: $klevuEntities,
-        );
-    }
-
-    /**
-     * @param string $type
-     * @param MagentoEntityInterface[] $magentoEntities
-     * @param IndexingEntityInterface[] $indexingEntities
+     * @param string|null $apiKey
      *
      * @return int[]
      */
@@ -129,6 +130,7 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
         string $type,
         array $magentoEntities,
         array $indexingEntities,
+        ?string $apiKey = null,
     ): array {
         $magentoEntityIds = array_map(
             callback: static fn (MagentoEntityInterface $magentoEntity): string => (
@@ -139,19 +141,26 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
             ),
             array: $magentoEntities,
         );
-        $klevuEntities = array_filter(
-            array: $indexingEntities,
-            callback: static function (IndexingEntityInterface $indexingEntity) use ($magentoEntityIds): bool {
-                $klevuId = $indexingEntity->getTargetId()
-                    . '-' . ($indexingEntity->getTargetParentId() ?: 0)
-                    . '-' . $indexingEntity->getApiKey()
-                    . '-' . $indexingEntity->getTargetEntityType();
+        $klevuEntities = $magentoEntityIds
+            ? array_filter(
+                array: $indexingEntities,
+                callback: static function (IndexingEntityInterface $indexingEntity) use (
+                    $magentoEntityIds,
+                    $apiKey,
+                ): bool {
+                    if ($apiKey && $apiKey !== $indexingEntity->getApiKey()) {
+                        return false;
+                    }
+                    $klevuId = $indexingEntity->getTargetId()
+                        . '-' . ($indexingEntity->getTargetParentId() ?: 0)
+                        . '-' . $indexingEntity->getApiKey()
+                        . '-' . $indexingEntity->getTargetEntityType();
 
-                return !in_array(needle: $klevuId, haystack: $magentoEntityIds, strict: true)
-                    && $indexingEntity->getIsIndexable()
-                    && $indexingEntity->getLastAction() !== Actions::NO_ACTION;
-            },
-        );
+                    return $indexingEntity->getIsIndexable()
+                        && !in_array(needle: $klevuId, haystack: $magentoEntityIds, strict: true);
+                },
+            )
+            : $indexingEntities;
 
         return array_map(
             callback: static fn (IndexingEntityInterface $indexingEntity): int => (
@@ -159,5 +168,22 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
             ),
             array: $klevuEntities,
         );
+    }
+
+    /**
+     * @param string $type
+     *
+     * @return EntityDiscoveryProviderInterface|null
+     */
+    private function getDiscoveryProvider(string $type): ?EntityDiscoveryProviderInterface
+    {
+        $discoveryProviders = array_filter(
+            array: $this->discoveryProviders,
+            callback: static fn (EntityDiscoveryProviderInterface $entityDiscoveryProvider): bool => (
+                $entityDiscoveryProvider->getEntityType() === $type
+            ),
+        );
+
+        return array_shift($discoveryProviders);
     }
 }

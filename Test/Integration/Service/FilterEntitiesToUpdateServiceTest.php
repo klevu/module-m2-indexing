@@ -125,7 +125,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $result = $service->execute(
             type: 'KLEVU_PRODUCTS',
             entityIds: [1, 3, 4, 5, 6, 7, 999],
-            apiKeys: [$apiKey],
+            apiKey: $apiKey,
         );
 
         $this->assertCount(expectedCount: 1, haystack: $result);
@@ -205,7 +205,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $result = $service->execute(
             type: 'KLEVU_PRODUCT',
             entityIds: [],
-            apiKeys: [$apiKey],
+            apiKey: $apiKey,
             entitySubtypes: [
                 'simple',
             ],
