@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Service\Determiner;
 
+use Klevu\IndexingApi\Service\Determiner\IsAttributeIndexableConditionInterface;
 use Klevu\IndexingApi\Service\Determiner\IsAttributeIndexableDeterminerInterface;
 use Klevu\LoggerApi\Service\IsLoggingEnabledServiceInterface;
 use Magento\Eav\Api\Data\AttributeInterface;
@@ -24,18 +25,18 @@ class IsAttributeIndexableDeterminer implements IsAttributeIndexableDeterminerIn
     /**
      * @var IsAttributeIndexableDeterminerInterface[]
      */
-    private array $isIndexableDeterminers = [];
+    private array $isIndexableConditions = [];
 
     /**
      * @param IsLoggingEnabledServiceInterface $isLoggingEnabledService
-     * @param IsAttributeIndexableDeterminerInterface[] $isIndexableDeterminers
+     * @param IsAttributeIndexableDeterminerInterface[] $isIndexableConditions
      */
     public function __construct(
         IsLoggingEnabledServiceInterface $isLoggingEnabledService,
-        array $isIndexableDeterminers = [],
+        array $isIndexableConditions = [],
     ) {
         $this->isLoggingEnabledService = $isLoggingEnabledService;
-        array_walk($isIndexableDeterminers, [$this, 'addIndexableDeterminer']);
+        array_walk($isIndexableConditions, [$this, 'addIndexableCondition']);
     }
 
     /**
@@ -50,8 +51,8 @@ class IsAttributeIndexableDeterminer implements IsAttributeIndexableDeterminerIn
     ): bool {
         $isIndexable = true;
         $isDebuggingEnabled = $this->isDebugLoggingEnabled($store);
-        foreach ($this->isIndexableDeterminers as $isIndexableDeterminer) {
-            $isIndexable = $isIndexable && $isIndexableDeterminer->execute(attribute: $attribute, store: $store);
+        foreach ($this->isIndexableConditions as $isIndexableCondition) {
+            $isIndexable = $isIndexable && $isIndexableCondition->execute(attribute: $attribute, store: $store);
             if (!$isIndexable && !$isDebuggingEnabled) {
                 break;
             }
@@ -61,13 +62,13 @@ class IsAttributeIndexableDeterminer implements IsAttributeIndexableDeterminerIn
     }
 
     /**
-     * @param IsAttributeIndexableDeterminerInterface $isIndexableDeterminer
+     * @param IsAttributeIndexableConditionInterface $isIndexableCondition
      *
      * @return void
      */
-    private function addIndexableDeterminer(IsAttributeIndexableDeterminerInterface $isIndexableDeterminer): void
+    private function addIndexableCondition(IsAttributeIndexableConditionInterface $isIndexableCondition): void
     {
-        $this->isIndexableDeterminers[] = $isIndexableDeterminer;
+        $this->isIndexableConditions[] = $isIndexableCondition;
     }
 
     /**

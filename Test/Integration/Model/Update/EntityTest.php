@@ -172,7 +172,7 @@ class EntityTest extends TestCase
             'storeIds' => [1, 2],
             'customerGroupIds' => [10, 20],
             'attributes' => ["price", "stock", "categories"],
-            'entitySubtypes' => ["simple", "configurable_variant"],
+            'entitySubtypes' => ["simple", "configurable_variants"],
         ];
 
         $modelFactory = $this->objectManager->get(EntityFactory::class);
@@ -186,6 +186,6 @@ class EntityTest extends TestCase
         $this->assertSame(expected: [1, 2], actual: $entityUpdate->getStoreIds());
         $this->assertSame(expected: [10, 20], actual: $entityUpdate->getCustomerGroupIds());
         $this->assertSame(expected: ["price", "stock", "categories"], actual: $entityUpdate->getAttributes());
-        $this->assertSame(expected: ["simple", "configurable_variant"], actual: $entityUpdate->getEntitySubtypes());
+        $this->assertSame(expected: ["simple", "configurable_variants"], actual: $entityUpdate->getEntitySubtypes());
     }
 }

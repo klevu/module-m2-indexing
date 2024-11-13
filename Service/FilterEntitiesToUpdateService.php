@@ -31,7 +31,7 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
      *
      * @param string $type
      * @param int[] $entityIds
-     * @param string[] $apiKeys
+     * @param string $apiKey
      * @param string[]|null $entitySubtypes
      *
      * @return int[]
@@ -39,20 +39,13 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
     public function execute(
         string $type,
         array $entityIds,
-        array $apiKeys,
+        string $apiKey,
         ?array $entitySubtypes = [],
     ): array {
-        $entityIdsByApiKey = [];
-        foreach ($apiKeys as $apiKey) {
-            $entityIdsByApiKey[$apiKey] = $this->getIndexingEntities($type, $apiKey, $entityIds, $entitySubtypes);
-        }
+        $entityIdsByApiKey = $this->getIndexingEntities($type, $apiKey, $entityIds, $entitySubtypes);
 
         return array_filter(
-            array_unique(
-                array_merge(
-                    ...array_values($entityIdsByApiKey),
-                ),
-            ),
+            array_unique($entityIdsByApiKey),
         );
     }
 
@@ -68,13 +61,13 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
     {
         $klevuEntities = $this->indexingEntityProvider->get(
             entityType: $type,
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             entityIds: $entityIds,
             entitySubtypes: $entitySubtypes,
         );
 
         return array_map(
-            callback: static fn (IndexingEntityInterface $indexingEntity): int => ($indexingEntity->getId()),
+            callback: static fn (IndexingEntityInterface $indexingEntity): int => $indexingEntity->getId(),
             array: array_filter(
                 array: $klevuEntities,
                 callback: static fn (IndexingEntityInterface $indexingEntity): bool => (

@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Test\Integration\Service\Provider\Sync;
 
+use Klevu\Indexing\Service\Provider\EntityProviderProvider;
 use Klevu\Indexing\Service\Provider\Sync\EntityIndexingRecordProvider;
 use Klevu\IndexingApi\Service\EntityIndexingRecordCreatorServiceInterface;
 use Klevu\IndexingApi\Service\Provider\EntityProviderInterface;
@@ -41,6 +42,8 @@ class EntityIndexingRecordProviderTest extends TestCase
     {
         parent::setUp();
 
+        $this->objectManager = Bootstrap::getObjectManager();
+
         $mockIndexingEntityProvider = $this->getMockBuilder(IndexingEntityProviderInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
@@ -48,17 +51,20 @@ class EntityIndexingRecordProviderTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
         $mockIndexingRecordCreatorService = $this->getMockBuilder(EntityIndexingRecordCreatorServiceInterface::class)
-        ->disableOriginalConstructor()
-        ->getMock();
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockEntityProviderProvider = $this->objectManager->create(EntityProviderProvider::class, [
+            'entityProviders' => ['KLEVU_PRODUCT' => $mockEntityProvider],
+        ]);
+
         $this->implementationFqcn = EntityIndexingRecordProvider::class;
         $this->interfaceFqcn = EntityIndexingRecordProviderInterface::class;
         $this->constructorArgumentDefaults = [
             'indexingEntityProvider' => $mockIndexingEntityProvider,
-            'entityProviders' => ['KLEVU_PRODUCT' => $mockEntityProvider],
+            'entityProviderProvider' => $mockEntityProviderProvider,
             'indexingRecordCreatorService' => $mockIndexingRecordCreatorService,
             'action' => 'Add',
             'entityType' => 'KLEVU_PRODUCT',
         ];
-        $this->objectManager = Bootstrap::getObjectManager();
     }
 }

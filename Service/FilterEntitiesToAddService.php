@@ -30,43 +30,58 @@ class FilterEntitiesToAddService implements FilterEntitiesToAddServiceInterface
     }
 
     /**
-     * @param MagentoEntityInterface[][] $magentoEntitiesByApiKey
+     * @param MagentoEntityInterface[] $magentoEntities
      * @param string $type
+     * @param string $apiKey
+     * @param string[] $entitySubtypes
      *
-     * @return MagentoEntityInterface[][]
+     * @return \Generator<MagentoEntityInterface>
      */
-    public function execute(array $magentoEntitiesByApiKey, string $type): array
-    {
-        $return = [];
-        foreach ($magentoEntitiesByApiKey as $apiKey => $magentoEntities) {
-            $klevuEntityIds = $this->getKlevuEntityIds($type, $apiKey);
-
-            $return[$apiKey] = array_filter(
-                array: $magentoEntities,
-                callback: static fn (MagentoEntityInterface $magentoEntity) => (
-                    !in_array(
-                        needle: $magentoEntity->getEntityId() . '-' . ($magentoEntity->getEntityParentId() ?? 0),
-                        haystack: $klevuEntityIds,
-                        strict: true,
-                    )
-                ),
-            );
+    public function execute(
+        array $magentoEntities,
+        string $type,
+        string $apiKey,
+        array $entitySubtypes = [],
+    ): \Generator {
+        $entityIds = array_map(
+            callback: static fn (MagentoEntityInterface $magentoEntity): int => $magentoEntity->getEntityId(),
+            array: $magentoEntities,
+        );
+        $klevuEntityIds = $this->getKlevuEntityIds(
+            type: $type,
+            apiKey: $apiKey,
+            entityIds: $entityIds,
+            entitySubtypes: $entitySubtypes,
+        );
+        foreach ($magentoEntities as $magentoEntity) {
+            if (
+                !$klevuEntityIds
+                || !in_array(
+                    needle: $magentoEntity->getEntityId() . '-' . ($magentoEntity->getEntityParentId() ?? 0),
+                    haystack: $klevuEntityIds,
+                    strict: true,
+                )
+            ) {
+                yield $magentoEntity;
+            }
         }
-
-        return $return;
     }
 
     /**
      * @param string $type
      * @param string $apiKey
+     * @param int[] $entityIds
+     * @param string[] $entitySubtypes
      *
      * @return string[]
      */
-    private function getKlevuEntityIds(string $type, string $apiKey): array
+    private function getKlevuEntityIds(string $type, string $apiKey, array $entityIds, array $entitySubtypes): array
     {
         $klevuEntities = $this->indexingEntityProvider->get(
             entityType: $type,
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
+            entityIds: $entityIds,
+            entitySubtypes: $entitySubtypes,
         );
 
         return array_map(

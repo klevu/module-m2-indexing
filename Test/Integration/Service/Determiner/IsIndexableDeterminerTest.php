@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Service\Determiner;
 
 use Klevu\Indexing\Service\Determiner\IsIndexableDeterminer;
+use Klevu\IndexingApi\Service\Determiner\IsIndexableConditionInterface;
 use Klevu\IndexingApi\Service\Determiner\IsIndexableDeterminerInterface;
 use Klevu\TestFixtures\Catalog\ProductTrait;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
@@ -88,16 +89,16 @@ class IsIndexableDeterminerTest extends TestCase
         $mockEntity = $this->getMockBuilder(ProductInterface::class)
             ->getMock();
 
-        $mockDeterminer = $this->getMockBuilder(IsIndexableDeterminerInterface::class)
+        $mockCondition = $this->getMockBuilder(IsIndexableConditionInterface::class)
             ->getMock();
-        $mockDeterminer->expects($this->once())
+        $mockCondition->expects($this->once())
             ->method('execute')
             ->with($mockEntity, $storeFixture->get())
             ->willReturn(false);
 
         $determiner = $this->instantiateTestObject([
-            'isIndexableDeterminers' => [
-                'oosProductsIsIndexableDeterminer' => $mockDeterminer,
+            'isIndexableConditions' => [
+                'oosProductsIsIndexableCondition' => $mockCondition,
             ],
         ]);
         $this->assertFalse(

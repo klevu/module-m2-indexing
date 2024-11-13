@@ -87,7 +87,7 @@ class IndexingEntityProviderTest extends TestCase
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
             entityType: 'KLEVU_PRODUCT',
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
         );
         $this->assertCount(expectedCount: 4, haystack: $results);
         $targetIds = array_map(
@@ -145,7 +145,7 @@ class IndexingEntityProviderTest extends TestCase
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
-            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable_variant',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable_variants',
             IndexingEntity::TARGET_ID => 3,
             IndexingEntity::TARGET_PARENT_ID => 6,
             IndexingEntity::API_KEY => $apiKey,
@@ -154,7 +154,7 @@ class IndexingEntityProviderTest extends TestCase
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
             entityType: 'KLEVU_PRODUCT',
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             entitySubtypes: [
                 'simple',
                 'virtual',
@@ -217,7 +217,7 @@ class IndexingEntityProviderTest extends TestCase
 
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
-            apiKey: $apiKey2,
+            apiKeys: [$apiKey2],
         );
         $this->assertCount(expectedCount: 3, haystack: $results);
         $targetIds = array_map(
@@ -278,7 +278,7 @@ class IndexingEntityProviderTest extends TestCase
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
             entityType: 'KLEVU_CATEGORY',
-            apiKey: 'klevu-js-api-key-filter-test',
+            apiKeys: ['klevu-js-api-key-filter-test'],
         );
         $this->assertCount(expectedCount: 2, haystack: $results);
         $targetIds = array_map(
@@ -352,7 +352,7 @@ class IndexingEntityProviderTest extends TestCase
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
             entityType: 'KLEVU_PRODUCT',
-            apiKey: 'klevu-js-api-key-filter-test',
+            apiKeys: ['klevu-js-api-key-filter-test'],
             nextAction: Actions::ADD,
             isIndexable: true,
         );
@@ -470,7 +470,7 @@ class IndexingEntityProviderTest extends TestCase
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
             entityType: 'KLEVU_PRODUCT',
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             sorting: [
                 SortOrder::FIELD => IndexingEntity::TARGET_ID,
                 SortOrder::DIRECTION => SortOrder::SORT_DESC,
@@ -514,12 +514,12 @@ class IndexingEntityProviderTest extends TestCase
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
-            IndexingEntity::TARGET_ID => 789,
+            IndexingEntity::TARGET_ID => 654,
             IndexingEntity::API_KEY => $apiKey,
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
-            IndexingEntity::TARGET_ID => 654,
+            IndexingEntity::TARGET_ID => 789,
             IndexingEntity::API_KEY => $apiKey,
         ]);
         $this->createIndexingEntity([
@@ -529,12 +529,7 @@ class IndexingEntityProviderTest extends TestCase
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
-            IndexingEntity::TARGET_ID => 623532,
-            IndexingEntity::API_KEY => $apiKey,
-        ]);
-        $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
-            IndexingEntity::TARGET_ID => 359839,
+            IndexingEntity::TARGET_ID => 1211,
             IndexingEntity::API_KEY => $apiKey,
         ]);
         $this->createIndexingEntity([
@@ -544,19 +539,31 @@ class IndexingEntityProviderTest extends TestCase
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
-            IndexingEntity::TARGET_ID => 1211,
+            IndexingEntity::TARGET_ID => 359839,
+            IndexingEntity::API_KEY => $apiKey,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ID => 623532,
             IndexingEntity::API_KEY => $apiKey,
         ]);
 
+        $indexingEntities = $this->getIndexingEntities(type: 'KLEVU_PRODUCT', apiKey: $apiKey);
+        $entityIds = array_map(
+            callback: static fn (IndexingEntityInterface $indexingEntity): int => $indexingEntity->getId(),
+            array: $indexingEntities,
+        );
+        sort($entityIds);
+
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             sorting: [
                 SortOrder::FIELD => IndexingEntity::TARGET_ID,
                 SortOrder::DIRECTION => SortOrder::SORT_ASC,
             ],
             pageSize: 2,
-            currentPage: 2,
+            startFrom: $entityIds[2],
         );
         $this->assertCount(expectedCount: 2, haystack: $results);
         $targetIds = array_map(
@@ -574,13 +581,13 @@ class IndexingEntityProviderTest extends TestCase
         $this->assertSame(expected: 987, actual: $secondItem->getTargetId());
 
         $results = $provider->get(
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             sorting: [
                 SortOrder::FIELD => IndexingEntity::TARGET_ID,
                 SortOrder::DIRECTION => SortOrder::SORT_ASC,
             ],
             pageSize: 2,
-            currentPage: 4,
+            startFrom: $entityIds[6],
         );
         $this->assertCount(expectedCount: 2, haystack: $results);
         $targetIds = array_map(
@@ -600,10 +607,7 @@ class IndexingEntityProviderTest extends TestCase
         $this->cleanIndexingEntities($apiKey);
     }
 
-    /**
-     * @dataProvider testGet_ReturnsEmptyArray_WhenPageNumberExceedsLimit_DataProvider
-     */
-    public function testGet_ReturnsEmptyArray_WhenPageNumberExceedsLimit(?int $pageSize, ?int $pageNumber): void
+    public function testGet_ReturnsEmptyArray_WhenPageNumberExceedsLimit(): void
     {
         $apiKey = 'klevu-js-api-key';
         $this->cleanIndexingEntities($apiKey);
@@ -659,11 +663,18 @@ class IndexingEntityProviderTest extends TestCase
             IndexingEntity::API_KEY => $apiKey,
         ]);
 
+        $indexingEntities = $this->getIndexingEntities(type: 'KLEVU_PRODUCT', apiKey: $apiKey);
+        $entityIds = array_map(
+            callback: static fn (IndexingEntityInterface $indexingEntity): int => $indexingEntity->getId(),
+            array: $indexingEntities,
+        );
+        sort($entityIds);
+
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
-            apiKey: $apiKey,
-            pageSize: $pageSize,
-            currentPage: $pageNumber,
+            apiKeys: [$apiKey],
+            pageSize: 20,
+            startFrom: $entityIds[9] + 10000,
         );
         $this->assertCount(expectedCount: 0, haystack: $results);
 
@@ -671,23 +682,11 @@ class IndexingEntityProviderTest extends TestCase
     }
 
     /**
-     * @return int[][]
-     */
-    public function testGet_ReturnsEmptyArray_WhenPageNumberExceedsLimit_DataProvider(): array
-    {
-        return[
-            [3, 999999],
-            [3, 5],
-            [10, 2],
-        ];
-    }
-
-    /**
      * @dataProvider testGet_ReturnsIndexingEntities_ForFinalPage_DataProvider
      */
     public function testGet_ReturnsIndexingEntities_ForFinalPage(
         ?int $pageSize,
-        ?int $pageNumber,
+        ?int $startFrom,
         int $expectedCount,
     ): void {
         $apiKey = 'klevu-js-api-key';
@@ -744,11 +743,18 @@ class IndexingEntityProviderTest extends TestCase
             IndexingEntity::API_KEY => $apiKey,
         ]);
 
+        $indexingEntities = $this->getIndexingEntities(type: 'KLEVU_PRODUCT', apiKey: $apiKey);
+        $entityIds = array_map(
+            callback: static fn (IndexingEntityInterface $indexingEntity): int => $indexingEntity->getId(),
+            array: $indexingEntities,
+        );
+        sort($entityIds);
+
         $provider = $this->instantiateTestObject();
         $results = $provider->get(
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             pageSize: $pageSize,
-            currentPage: $pageNumber,
+            startFrom: $entityIds[$startFrom] ?? null,
         );
         $this->assertCount(expectedCount: $expectedCount, haystack: $results);
 
@@ -761,8 +767,8 @@ class IndexingEntityProviderTest extends TestCase
     public function testGet_ReturnsIndexingEntities_ForFinalPage_DataProvider(): array
     {
         return[
-            [3, 4, 1],
-            [10, 1, 10],
+            [3, 9, 1],
+            [10, 0, 10],
             [null, null, 10],
         ];
     }

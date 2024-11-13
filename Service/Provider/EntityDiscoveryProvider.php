@@ -16,6 +16,7 @@ use Klevu\IndexingApi\Model\MagentoEntityInterfaceFactory;
 use Klevu\IndexingApi\Service\Determiner\IsIndexableDeterminerInterface;
 use Klevu\IndexingApi\Service\Provider\EntityDiscoveryProviderInterface;
 use Klevu\IndexingApi\Service\Provider\EntityProviderInterface;
+use Klevu\IndexingApi\Service\Provider\EntityProviderProviderInterface;
 use Magento\Cms\Api\Data\PageInterface;
 use Magento\Framework\Api\ExtensibleDataInterface;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -45,9 +46,9 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
      */
     private readonly IsIndexableDeterminerInterface $isIndexableDeterminer;
     /**
-     * @var EntityProviderInterface[]
+     * @var EntityProviderProviderInterface
      */
-    private array $entityProviders;
+    private readonly EntityProviderProviderInterface $entityProviderProvider;
     /**
      * @var string
      */
@@ -56,6 +57,13 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
      * @var bool
      */
     private readonly bool $isParentRelationSynced;
+    /**
+     * Setting this flag to true will significantly increase discovery time as data is retrieved for each store
+     * during isIndexable calculation
+     *
+     * @var bool
+     */
+    private readonly bool $isCheckIsIndexableAtStoreScope;
 
     /**
      * @param StoreManagerInterface $storeManager
@@ -63,9 +71,10 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
      * @param CurrentScopeFactory $currentScopeFactory
      * @param MagentoEntityInterfaceFactory $magentoEntityInterfaceFactory
      * @param IsIndexableDeterminerInterface $isIndexableDeterminer ,
-     * @param EntityProviderInterface[] $entityProviders
+     * @param EntityProviderProviderInterface $entityProviderProvider
      * @param string $entityType
      * @param bool $isParentRelationSynced
+     * @param bool $isCheckIsIndexableAtStoreScope
      */
     public function __construct(
         StoreManagerInterface $storeManager,
@@ -73,9 +82,10 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
         CurrentScopeFactory $currentScopeFactory,
         MagentoEntityInterfaceFactory $magentoEntityInterfaceFactory,
         IsIndexableDeterminerInterface $isIndexableDeterminer,
-        array $entityProviders,
+        EntityProviderProviderInterface $entityProviderProvider,
         string $entityType,
         bool $isParentRelationSynced = false,
+        bool $isCheckIsIndexableAtStoreScope = false,
     ) {
         $this->storeManager = $storeManager;
         $this->apiKeyProvider = $apiKeyProvider;
@@ -83,8 +93,9 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
         $this->magentoEntityInterfaceFactory = $magentoEntityInterfaceFactory;
         $this->isIndexableDeterminer = $isIndexableDeterminer;
         $this->entityType = $entityType;
-        array_walk($entityProviders, [$this, 'addEntityProvider']);
+        $this->entityProviderProvider = $entityProviderProvider;
         $this->isParentRelationSynced = $isParentRelationSynced;
+        $this->isCheckIsIndexableAtStoreScope = $isCheckIsIndexableAtStoreScope;
     }
 
     /**
@@ -100,7 +111,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
      * @param int[]|null $entityIds
      * @param string[]|null $entitySubtypes
      *
-     * @return MagentoEntityInterface[][]
+     * @return \Generator<string, \Generator<MagentoEntityInterface[]>>
      * @throws NoSuchEntityException
      * @throws StoreApiKeyException
      */
@@ -108,83 +119,141 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
         ?array $apiKeys = [],
         ?array $entityIds = [],
         ?array $entitySubtypes = [],
-    ): array {
-        $return = [];
-        $storeFound = false;
-
-        $stores = $this->storeManager->getStores();
-        foreach ($stores as $store) {
-            $storeApiKey = $this->apiKeyProvider->get(
-                scope: $this->currentScopeFactory->create(data: ['scopeObject' => $store]),
-            );
-            if (!$storeApiKey || ($apiKeys && !in_array($storeApiKey, $apiKeys, true))) {
-                continue;
-            }
-            $storeFound = true;
-            $return[$storeApiKey] = $this->createIndexingEntities(
-                store: $store,
+    ): \Generator {
+        $storesByApiKey = $this->getStoresByApiKeys($apiKeys);
+        foreach ($storesByApiKey as $storeApiKey => $stores) {
+            yield $storeApiKey => $this->createIndexingEntities(
+                stores: $stores,
                 apiKey: $storeApiKey,
-                magentoEntities: $return[$storeApiKey] ?? [],
                 entityIds: $entityIds,
                 entitySubtypes: $entitySubtypes,
             );
         }
-        if (!$storeFound) {
-            throw new StoreApiKeyException(
-                __('No store found with the provided API Key.'),
-            );
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getEntityProviderTypes(): array
+    {
+        $return = [];
+        foreach ($this->entityProviderProvider->get() as $entityProvider) {
+            $return[] = $entityProvider->getEntitySubtype();
         }
 
         return $return;
     }
 
     /**
-     * @param EntityProviderInterface $entityProvider
-     *
-     * @return void
-     */
-    private function addEntityProvider(EntityProviderInterface $entityProvider): void
-    {
-        $this->entityProviders[] = $entityProvider;
-    }
-
-    /**
-     * @param StoreInterface $store
+     * @param StoreInterface[] $stores
      * @param string $apiKey
-     * @param MagentoEntityInterface[] $magentoEntities
      * @param int[] $entityIds
      * @param string[] $entitySubtypes
      *
-     * @return MagentoEntityInterface[]
+     * @return \Generator<MagentoEntityInterface[]>
      */
     private function createIndexingEntities(
-        StoreInterface $store,
+        array $stores,
         string $apiKey,
-        array $magentoEntities,
         array $entityIds,
         array $entitySubtypes,
-    ): array {
-        foreach ($this->entityProviders as $entityProvider) {
+    ): \Generator {
+        foreach ($this->entityProviderProvider->get() as $entityProvider) {
             if ($entitySubtypes && !in_array($entityProvider->getEntitySubtype(), $entitySubtypes, true)) {
                 continue;
             }
-            foreach ($entityProvider->get(store: $store, entityIds: $entityIds) as $entity) {
-                $isIndexable = $this->isIndexableDeterminer->execute(
+            foreach ($this->getEntityData($entityProvider, $stores, $entityIds) as $entities) {
+                $isIndexable = $this->generateIsIndexableData(
+                    entityProvider: $entityProvider,
+                    stores: $stores,
+                    entities: $entities,
+                );
+                $magentoEntities = [];
+                /** @var ExtensibleDataInterface|PageInterface $entity */
+                foreach ($entities as $entity) {
+                    $key = $this->getMagentoEntityId(entity: $entity);
+
+                    $magentoEntities = $this->setMagentoEntity(
+                        magentoEntities: $magentoEntities,
+                        apiKey: $apiKey,
+                        entity: $entity,
+                        isIndexable: $isIndexable[$key] ?? false,
+                        entitySubtype: $entityProvider->getEntitySubtype(),
+                    );
+                }
+                yield $magentoEntities;
+            }
+        }
+    }
+
+    /**
+     * @param EntityProviderInterface $entityProvider
+     * @param StoreInterface[] $stores
+     * @param int[] $entityIds
+     *
+     * @return \Generator|null
+     */
+    private function getEntityData(
+        EntityProviderInterface $entityProvider,
+        array $stores,
+        array $entityIds,
+    ): ?\Generator {
+        if (!$this->isCheckIsIndexableAtStoreScope || count($stores) === 1) {
+            $store = array_shift($stores);
+
+            return $entityProvider->get(store: $store, entityIds: $entityIds);
+        }
+
+        return $entityProvider->get(entityIds: $entityIds);
+    }
+
+    /**
+     * @param EntityProviderInterface $entityProvider
+     * @param storeInterface[] $stores
+     * @param array<ExtensibleDataInterface|PageInterface> $entities
+     *
+     * @return bool[]
+     */
+    private function generateIsIndexableData(
+        EntityProviderInterface $entityProvider,
+        array $stores,
+        array $entities,
+    ): array {
+        $isIndexable = [];
+        if ($this->isCheckIsIndexableAtStoreScope && count($stores) > 1) {
+            $batchEntityIds = array_map(
+                callback: static fn (ExtensibleDataInterface|PageInterface $magentoEntity): int => (
+                    (int)$magentoEntity->getId()
+                ),
+                array: $entities,
+            );
+            foreach ($stores as $store) {
+                foreach ($entityProvider->get(store: $store, entityIds: $batchEntityIds) as $storeEntities) {
+                    /** @var ExtensibleDataInterface|PageInterface $storeEntity */
+                    foreach ($storeEntities as $storeEntity) {
+                        $key = $this->getMagentoEntityId(entity: $storeEntity);
+                        $isIndexable[$key] = ($isIndexable[$key] ?? false)
+                            || $this->isIndexableDeterminer->execute(
+                                entity: $storeEntity,
+                                store: $store,
+                                entitySubtype: $entityProvider->getEntitySubtype() ?? '',
+                            );
+                    }
+                }
+            }
+        } else {
+            $store = array_shift($stores);
+            foreach ($entities as $entity) {
+                $key = $this->getMagentoEntityId(entity: $entity);
+                $isIndexable[$key] = $this->isIndexableDeterminer->execute(
                     entity: $entity,
                     store: $store,
-                    entitySubtype: $entityProvider->getEntitySubtype(),
-                );
-                $magentoEntities = $this->setMagentoEntity(
-                    magentoEntities: $magentoEntities,
-                    apiKey: $apiKey,
-                    entity: $entity,
-                    isIndexable: $isIndexable,
-                    entitySubtype: $entityProvider->getEntitySubtype(),
+                    entitySubtype: $entityProvider->getEntitySubtype() ?? '',
                 );
             }
         }
 
-        return $magentoEntities;
+        return $isIndexable;
     }
 
     /**
@@ -207,12 +276,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
         $entityParentId = $this->getParentId($entity);
 
         $key = $entityId . '-' . $entityParentId;
-        $magentoEntities[$key] = ($magentoEntities[$key] ?? null)
-            ? $this->updateIsIndexableForMagentoEntity(
-                magentoEntity: $magentoEntities[$key],
-                isIndexable: $isIndexable,
-            )
-            : $this->magentoEntityInterfaceFactory->create([
+        $magentoEntities[$key] = $this->magentoEntityInterfaceFactory->create([
                 'entityId' => $entityId,
                 'entityParentId' => $entityParentId ? (int)$entityParentId : null,
                 'apiKey' => $apiKey,
@@ -224,21 +288,16 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
     }
 
     /**
-     * @param MagentoEntityInterface $magentoEntity
-     * @param bool $isIndexable
+     * @param ExtensibleDataInterface|PageInterface $entity
      *
-     * @return MagentoEntityInterface
+     * @return string
      */
-    private function updateIsIndexableForMagentoEntity(
-        MagentoEntityInterface $magentoEntity,
-        bool $isIndexable,
-    ): MagentoEntityInterface {
-        // if entity is indexable in ANY store the apiKey is assigned to, set as indexable
-        $magentoEntity->setIsIndexable(
-            isIndexable: $magentoEntity->isIndexable() || $isIndexable,
-        );
+    private function getMagentoEntityId(ExtensibleDataInterface|PageInterface $entity): string
+    {
+        $entityId = (int)$entity->getId(); // @phpstan-ignore-line
+        $entityParentId = $this->getParentId($entity);
 
-        return $magentoEntity;
+        return $entityId . '-' . $entityParentId;
     }
 
     /**
@@ -257,5 +316,34 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
             method_exists($entity, 'getData') => (int)$entity->getData('parent_id'),
             default => 0,
         };
+    }
+
+    /**
+     * @param string[]|null $apiKeys
+     *
+     * @return array<string, StoreInterface[]>
+     * @throws NoSuchEntityException
+     * @throws StoreApiKeyException
+     */
+    private function getStoresByApiKeys(?array $apiKeys): array
+    {
+        $storesByApiKey = [];
+        $stores = $this->storeManager->getStores();
+        foreach ($stores as $store) {
+            $storeApiKey = $this->apiKeyProvider->get(
+                scope: $this->currentScopeFactory->create(data: ['scopeObject' => $store]),
+            );
+            if (!$storeApiKey || ($apiKeys && !in_array($storeApiKey, $apiKeys, true))) {
+                continue;
+            }
+            $storesByApiKey[$storeApiKey][] = $store;
+        }
+        if (!$storesByApiKey && $apiKeys) {
+            throw new StoreApiKeyException(
+                __('No store found with the provided API Keys.'),
+            );
+        }
+
+        return $storesByApiKey;
     }
 }

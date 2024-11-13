@@ -111,21 +111,25 @@ class SyncEntitiesCommand extends Command
         $return = $this->processResponse(output: $output, results: $results);
 
         $endTime = microtime(true);
-        $output->writeln(
-            messages: sprintf('<comment>%s</comment>',
-                 __(
-                    'Sync operations complete in %1 seconds.',
-                    number_format($endTime - $startTime, 2),
-                )),
-        );
-        $output->writeln(
-            messages: sprintf('<comment>%s</comment>',
-                __(
-                    "Peak memory usage during sync: %1Mb",
-                    number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        'Sync operations complete in %1 seconds.',
+                        number_format($endTime - $startTime, 2),
+                    )),
+            );
+        }
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        "Peak memory usage during sync: %1Mb",
+                        number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
+                    ),
                 ),
-            ),
-        );
+            );
+        }
 
         return $return;
     }

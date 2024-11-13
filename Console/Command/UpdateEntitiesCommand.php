@@ -91,6 +91,8 @@ class UpdateEntitiesCommand extends Command
         InputInterface $input,
         OutputInterface $output,
     ): int {
+        $startTime = microtime(true);
+
         $return = Cli::RETURN_SUCCESS;
         $output->writeln(
             messages: sprintf(
@@ -130,6 +132,26 @@ class UpdateEntitiesCommand extends Command
                     ),
                 );
             }
+        }
+        $endTime = microtime(true);
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        'Update operations complete in %1 seconds.',
+                        number_format($endTime - $startTime, 2),
+                    )),
+            );
+        }
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        "Peak memory usage during update: %1Mb",
+                        number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
+                    ),
+                ),
+            );
         }
 
         return $return;

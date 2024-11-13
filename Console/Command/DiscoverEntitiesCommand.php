@@ -80,6 +80,8 @@ class DiscoverEntitiesCommand extends Command
         InputInterface $input,
         OutputInterface $output,
     ): int {
+        $startTime = microtime(true);
+
         $return = Cli::RETURN_SUCCESS;
         $output->writeln(
             messages: sprintf(
@@ -106,6 +108,26 @@ class DiscoverEntitiesCommand extends Command
                 messages: sprintf(
                     '<error>%s</error>',
                     __('Entity Discovery Failed. See Logs for more details.'),
+                ),
+            );
+        }
+        $endTime = microtime(true);
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        'Discovery operations complete in %1 seconds.',
+                        number_format($endTime - $startTime, 2),
+                    )),
+            );
+        }
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        "Peak memory usage during discovery: %1Mb",
+                        number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
+                    ),
                 ),
             );
         }
