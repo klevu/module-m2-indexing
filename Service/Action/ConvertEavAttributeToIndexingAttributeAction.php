@@ -215,7 +215,7 @@ class ConvertEavAttributeToIndexingAttributeAction implements ConvertEavAttribut
 
         $isIndexableDeterminer = $this->isIndexableDeterminers[$entityType] ?? null;
         if (!$isIndexableDeterminer) {
-            return false;
+            return true;
         }
 
         return $isIndexableDeterminer->execute(

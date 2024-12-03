@@ -64,16 +64,16 @@ class PipelineConfigurationOverridesHandlerProviderTest extends TestCase
         $provider = $this->instantiateTestObject([
             'configurationOverridesHandlers' => [
                 'foo' => [
-                    $this->getMockConfigurationOverridesHandler(),
-                    $this->getMockConfigurationOverridesHandler(),
+                    'add_update' => $this->getMockConfigurationOverridesHandler(),
+                    'delete' => $this->getMockConfigurationOverridesHandler(),
                 ],
                 'KLEVU_PRODUCT' => [
-                    $this->getMockConfigurationOverridesHandler(),
+                    'add_update' => $this->getMockConfigurationOverridesHandler(),
                 ],
                 'bar' => [
-                    $this->getMockConfigurationOverridesHandler(),
-                    $this->getMockConfigurationOverridesHandler(),
-                    $this->getMockConfigurationOverridesHandler(),
+                    'add_update' => $this->getMockConfigurationOverridesHandler(),
+                    'delete' => $this->getMockConfigurationOverridesHandler(),
+                    'something_else' => $this->getMockConfigurationOverridesHandler(),
                 ],
             ],
         ]);

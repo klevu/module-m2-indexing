@@ -72,14 +72,14 @@ class IndexingAttributeRepositoryTest extends TestCase
 
     }
 
-    public function testCreate_ReturnsIndexingEntityModel(): void
+    public function testCreate_ReturnsIndexingAttributeModel(): void
     {
         $repository = $this->instantiateTestObject();
-        $indexingEntity = $repository->create();
+        $IndexingAttribute = $repository->create();
 
         $this->assertInstanceOf(
             expected: IndexingAttributeInterface::class,
-            actual: $indexingEntity,
+            actual: $IndexingAttribute,
         );
     }
 
@@ -121,7 +121,7 @@ class IndexingAttributeRepositoryTest extends TestCase
         $this->assertSame(
             expected: 'KLEVU_PRODUCT',
             actual: $loadedIndexingAttribute->getData(IndexingAttribute::TARGET_ATTRIBUTE_TYPE),
-            message: "getData('target_entity_type')",
+            message: "getData('TARGET_ATTRIBUTE_TYPE')",
         );
         $this->assertSame(
             expected: 1,
@@ -225,9 +225,9 @@ class IndexingAttributeRepositoryTest extends TestCase
         $indexingAttribute->setNextAction(Actions::ADD);
         $indexingAttribute->setLockTimestamp(null);
         $indexingAttribute->setIsIndexable(true);
-        $savedIndexingEntity = $repository->save($indexingAttribute);
+        $savedIndexingAttribute = $repository->save($indexingAttribute);
 
-        $this->assertNotNull($savedIndexingEntity->getId());
+        $this->assertNotNull($savedIndexingAttribute->getId());
     }
 
     public function testSave_Update(): void
@@ -289,7 +289,7 @@ class IndexingAttributeRepositoryTest extends TestCase
 
     public function testSave_HandlesAlreadyExistsException(): void
     {
-        $indexingEntity = $this->createIndexingAttribute();
+        $IndexingAttribute = $this->createIndexingAttribute();
 
         $mockMessage = 'Attribute Already Exists';
         $this->expectException(AlreadyExistsException::class);
@@ -306,12 +306,12 @@ class IndexingAttributeRepositoryTest extends TestCase
         $repository = $this->instantiateTestObject([
             'indexingAttributeResourceModel' => $mockResourceModel,
         ]);
-        $repository->save($indexingEntity);
+        $repository->save($IndexingAttribute);
     }
 
     public function testSave_HandlesException(): void
     {
-        $indexingEntity = $this->createIndexingAttribute();
+        $IndexingAttribute = $this->createIndexingAttribute();
 
         $mockMessage = 'Some core exception message.';
         $this->expectException(CouldNotSaveException::class);
@@ -328,7 +328,7 @@ class IndexingAttributeRepositoryTest extends TestCase
         $repository = $this->instantiateTestObject([
             'indexingAttributeResourceModel' => $mockResourceModel,
         ]);
-        $repository->save($indexingEntity);
+        $repository->save($IndexingAttribute);
     }
 
     public function testDelete_RemovesIndexingAttribute(): void
@@ -346,7 +346,7 @@ class IndexingAttributeRepositoryTest extends TestCase
 
     public function testDelete_HandlesLocalizedException(): void
     {
-        $indexingEntity = $this->createIndexingAttribute();
+        $IndexingAttribute = $this->createIndexingAttribute();
 
         $mockMessage = 'A localized exception message';
         $this->expectException(LocalizedException::class);
@@ -363,12 +363,12 @@ class IndexingAttributeRepositoryTest extends TestCase
         $repository = $this->instantiateTestObject([
             'indexingAttributeResourceModel' => $mockResourceModel,
         ]);
-        $repository->delete($indexingEntity);
+        $repository->delete($IndexingAttribute);
     }
 
     public function testDelete_HandlesException(): void
     {
-        $indexingEntity = $this->createIndexingAttribute();
+        $IndexingAttribute = $this->createIndexingAttribute();
 
         $mockMessage = 'Some core exception message.';
         $this->expectException(CouldNotDeleteException::class);
@@ -391,11 +391,11 @@ class IndexingAttributeRepositoryTest extends TestCase
                 [
                     'exception' => \Exception::class,
                     'method' => 'Klevu\Indexing\Model\IndexingAttributeRepository::delete',
-                    'indexingEntity' => [
-                        'entityId' => $indexingEntity->getId(),
-                        'targetId' => $indexingEntity->getTargetId(),
-                        'targetAttributeType' => $indexingEntity->getTargetAttributeType(),
-                        'apiKey' => $indexingEntity->getApiKey(),
+                    'indexingAttribute' => [
+                        'entityId' => $IndexingAttribute->getId(),
+                        'targetId' => $IndexingAttribute->getTargetId(),
+                        'targetAttributeType' => $IndexingAttribute->getTargetAttributeType(),
+                        'apiKey' => $IndexingAttribute->getApiKey(),
                     ],
                 ],
             );
@@ -404,7 +404,7 @@ class IndexingAttributeRepositoryTest extends TestCase
             'indexingAttributeResourceModel' => $mockResourceModel,
             'logger' => $mockLogger,
         ]);
-        $repository->delete($indexingEntity);
+        $repository->delete($IndexingAttribute);
     }
 
     public function testDeleteById_NotExists(): void
@@ -517,7 +517,7 @@ class IndexingAttributeRepositoryTest extends TestCase
         $searchCriteria = $searchCriteriaBuilder->create();
 
         $repository = $this->instantiateTestObject();
-        $searchResult = $repository->getList($searchCriteria);
+        $searchResult = $repository->getList($searchCriteria, true);
 
         $this->assertSame($searchCriteria, $searchResult->getSearchCriteria());
         // total number of items available
@@ -532,6 +532,103 @@ class IndexingAttributeRepositoryTest extends TestCase
         $this->assertContains(3, $targetIds);
         $this->assertContains(4, $targetIds);
 
+        $searchResult = $repository->getList($searchCriteria, false);
+        $this->assertSame($searchCriteria, $searchResult->getSearchCriteria());
+        // number of items in results
+        $this->assertEquals(2, $searchResult->getTotalCount());
+
         $this->cleanIndexingAttributes($apiKey);
+    }
+
+    public function testGetUniqueAttributeTypes_ReturnsEmptyArray_WhenTableIsEmpty(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+
+        $repository = $this->instantiateTestObject();
+        $result = $repository->getUniqueAttributeTypes(apiKey: $apiKey);
+
+        $this->assertCount(0, $result);
+    }
+
+    public function testGetUniqueAttribiuteTypes_ReturnsArrayOfTypesForApiKey(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::NEXT_ACTION => Actions::ADD,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::TARGET_ID => 2,
+            IndexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'CUSTOM_TYPE',
+            IndexingAttribute::TARGET_ID => 4,
+            IndexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::NEXT_ACTION => Actions::ADD,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 2,
+            IndexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CMS',
+            IndexingAttribute::TARGET_ID => 3,
+            IndexingAttribute::NEXT_ACTION => Actions::DELETE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 4,
+            IndexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey . '2',
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'OTHER_CUSTOM_TYPE',
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+
+        $repository = $this->instantiateTestObject();
+
+        $result = $repository->getUniqueAttributeTypes(apiKey: $apiKey);
+        $this->assertContains(needle: 'KLEVU_CATEGORY', haystack: $result);
+        $this->assertContains(needle: 'KLEVU_CMS', haystack: $result);
+        $this->assertContains(needle: 'KLEVU_PRODUCT', haystack: $result);
+        $this->assertContains(needle: 'CUSTOM_TYPE', haystack: $result);
+        $this->assertNotContains(needle: 'OTHER_CUSTOM_TYPE', haystack: $result);
+
+        $result = $repository->getUniqueAttributeTypes(apiKey: $apiKey . '2');
+        $this->assertNotContains(needle: 'KLEVU_CATEGORY', haystack: $result);
+        $this->assertNotContains(needle: 'KLEVU_CMS', haystack: $result);
+        $this->assertNotContains(needle: 'KLEVU_PRODUCT', haystack: $result);
+        $this->assertNotContains(needle: 'CUSTOM_TYPE', haystack: $result);
+        $this->assertContains(needle: 'OTHER_CUSTOM_TYPE', haystack: $result);
     }
 }

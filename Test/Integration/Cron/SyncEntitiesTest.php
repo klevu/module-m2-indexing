@@ -15,6 +15,7 @@ use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Api\Data\IndexerResultInterface;
 use Klevu\IndexingApi\Model\Source\IndexerResultStatuses;
 use Klevu\IndexingApi\Service\EntitySyncOrchestratorServiceInterface;
+use Klevu\PhpSDK\Model\ApiResponse;
 use Klevu\PhpSDK\Model\Indexing\Record as SdkIndexingRecord;
 use Klevu\PhpSDK\Model\Indexing\RecordIterator;
 use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
@@ -80,7 +81,7 @@ class SyncEntitiesTest extends TestCase
         $this->assertSame(expected: 'klevu_indexing_sync_entities', actual: $syncEntityCron['name']);
         $this->assertSame(expected: 'klevu/indexing/entity_cron_expr', actual: $syncEntityCron['config_path']);
     }
-    
+
     public function testCrontab_DefaultFrequency(): void
     {
         ConfigFixture::setGlobal(
@@ -200,6 +201,13 @@ class SyncEntitiesTest extends TestCase
             'success' => true,
             'messages' => [],
             'payload' => $recordIterator,
+            'apiResponse' => $this->objectManager->create(ApiResponse::class, [
+                'responseCode' => 200,
+                'messsage' => 'Batch accepted successfully',
+                'status' => null,
+                'jobId' => '12345678-1234-1234-1234-123456789ab',
+                'errors' => null,
+            ]),
         ]);
 
         $mockIndexerResponse = $this->getMockBuilder(IndexerResultInterface::class)
@@ -212,7 +220,9 @@ class SyncEntitiesTest extends TestCase
             ->willReturn([]);
         $mockIndexerResponse->expects($this->once())
             ->method('getPipelineResult')
-            ->willReturn([$mockPipelineResult]);
+            ->willReturn([
+                'KLEVU_PRODUCT::add' => [$mockPipelineResult],
+            ]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
@@ -236,7 +246,7 @@ class SyncEntitiesTest extends TestCase
             ->method('info')
             ->withConsecutive(
                 ['Starting sync of entities.'],
-                ['Sync of entities for apiKey: klevu-js-api-key, KLEVU_PRODUCT::add batch 0: completed successfully.'],
+                ['Sync of entities for apiKey: klevu-js-api-key, KLEVU_PRODUCT::add batch 0: completed successfully. Job ID: 12345678-1234-1234-1234-123456789ab'], // phpcs:ignore Generic.Files.LineLength.TooLong
             );
 
         $cron = $this->instantiateTestObject([
@@ -327,6 +337,13 @@ class SyncEntitiesTest extends TestCase
             'success' => false,
             'messages' => [],
             'payload' => $recordIterator,
+            'apiResponse' => $this->objectManager->create(ApiResponse::class, [
+                'responseCode' => 500,
+                'messsage' => 'Batch rejected',
+                'status' => 'error',
+                'jobId' => null,
+                'errors' => ['Something went wrong'],
+            ]),
         ]);
 
         $mockIndexerResponse = $this->getMockBuilder(IndexerResultInterface::class)
@@ -339,7 +356,9 @@ class SyncEntitiesTest extends TestCase
             ->willReturn([]);
         $mockIndexerResponse->expects($this->once())
             ->method('getPipelineResult')
-            ->willReturn([$mockPipelineResult]);
+            ->willReturn([
+                'KLEVU_PRODUCT::add' => [$mockPipelineResult],
+            ]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
@@ -363,11 +382,104 @@ class SyncEntitiesTest extends TestCase
             ->method('info')
             ->withConsecutive(
                 ['Starting sync of entities.'],
-                ['Sync of entities for apiKey: klevu-js-api-key, KLEVU_PRODUCT::add batch 0: completed with failures. See logs for more details.'], // phpcs:ignore Generic.Files.LineLength.TooLong
+                ['Sync of entities for apiKey: klevu-js-api-key, KLEVU_PRODUCT::add batch 0: completed with failures. See logs for more details. Job ID: N/A'], // phpcs:ignore Generic.Files.LineLength.TooLong
             );
 
         $cron = $this->instantiateTestObject([
             'syncOrchestratorService' => $syncOrchestrator,
+            'logger' => $mockLogger,
+        ]);
+        $cron->execute();
+    }
+
+    /**
+     * @testWith ["string"]
+     *           [1]
+     *           [null]
+     *           [true]
+     *           [1.23]
+     */
+    public function testExecute_HandlesUnexpectedResult(mixed $invalidResponse): void
+    {
+        $mockIndexerResult = $this->getMockBuilder(IndexerResultInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockIndexerResult->expects($this->once())
+            ->method('getPipelineResult')
+            ->willReturn($invalidResponse);
+
+        $mockSyncOrchestrator = $this->getMockBuilder(EntitySyncOrchestratorServiceInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockSyncOrchestrator->expects($this->once())
+            ->method('execute')
+            ->willReturn([
+                'klevu-test-api-key' => $mockIndexerResult,
+            ]);
+
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockLogger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Method: {method}, Error: {message}',
+                [
+                    'method' => 'Klevu\Indexing\Cron\SyncEntities::logPipelineResults',
+                    'line' => 67,
+                    'message' => sprintf(
+                        'Unexpected result from pipeline. Expected array<string, array<string, %s>>, received %s',
+                        ApiPipelineResult::class,
+                        get_debug_type($invalidResponse),
+                    ),
+                ],
+            );
+
+        $cron = $this->instantiateTestObject([
+            'syncOrchestratorService' => $mockSyncOrchestrator,
+            'logger' => $mockLogger,
+        ]);
+        $cron->execute();
+    }
+
+    /**
+     * @testWith ["string"]
+     *           [1]
+     *           [null]
+     *           [true]
+     *           [1.23]
+     */
+    public function testExecute_SkipsEmptyApiPipelineResult(mixed $invalidResponse): void
+    {
+        $mockIndexerResult = $this->getMockBuilder(IndexerResultInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockIndexerResult->expects($this->once())
+            ->method('getPipelineResult')
+            ->willReturn([
+                'add' => $invalidResponse,
+            ]);
+
+        $mockSyncOrchestrator = $this->getMockBuilder(EntitySyncOrchestratorServiceInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockSyncOrchestrator->expects($this->once())
+            ->method('execute')
+            ->willReturn([
+                'klevu-test-api-key' => $mockIndexerResult,
+            ]);
+
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockLogger->expects($this->never())
+            ->method('error');
+        $mockLogger->expects($this->once())
+                ->method('info')
+                ->with('Starting sync of entities.');
+
+        $cron = $this->instantiateTestObject([
+            'syncOrchestratorService' => $mockSyncOrchestrator,
             'logger' => $mockLogger,
         ]);
         $cron->execute();

@@ -197,17 +197,19 @@ class SyncEntitiesCommandTest extends TestCase
                 'some_attribute' => 'some text',
             ],
         ]);
-        $recordIterator = $this->objectManager->create(RecordIterator::class, [
+        $recordIterators = $this->objectManager->create(RecordIterator::class, [
             'data' => [
                 $record,
             ],
         ]);
 
-        $mockPipelineResult = $this->objectManager->create(ApiPipelineResult::class, [
-            'success' => true,
-            'messages' => [],
-            'payload' => $recordIterator,
-        ]);
+        $mockPipelineResults = [
+            $this->objectManager->create(ApiPipelineResult::class, [
+                'success' => true,
+                'messages' => [],
+                'payload' => $recordIterators,
+            ]),
+        ];
 
         $mockIndexerResponseNoop = $this->getMockBuilder(IndexerResultInterface::class)
             ->getMock();
@@ -231,7 +233,7 @@ class SyncEntitiesCommandTest extends TestCase
             ->willReturn([]);
         $mockIndexerResponseSuccess->expects($this->once())
             ->method('getPipelineResult')
-            ->willReturn([$mockPipelineResult]);
+            ->willReturn([$mockPipelineResults]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
@@ -306,12 +308,12 @@ class SyncEntitiesCommandTest extends TestCase
 
         $pattern = '#'
             . 'Action  : KLEVU_PRODUCT::add'
-            . '\s*Batches : 1'
             . '\s*Batch        : 0'
             . '\s*Success      : True'
             . '\s*API Response : '
             . '\s*Job ID       : n/a'
             . '\s*Record Count : 1'
+            . '\s*Batches : 1'
             . '\s*--'
             . '#';
         $matches = [];
@@ -438,11 +440,13 @@ class SyncEntitiesCommandTest extends TestCase
             ],
         ]);
 
-        $mockPipelineResult = $this->objectManager->create(ApiPipelineResult::class, [
-            'success' => false,
-            'messages' => ['There has been an ERROR'],
-            'payload' => $recordIterator,
-        ]);
+        $mockPipelineResults = [
+            $this->objectManager->create(ApiPipelineResult::class, [
+                'success' => false,
+                'messages' => ['There has been an ERROR'],
+                'payload' => $recordIterator,
+            ]),
+        ];
 
         $mockIndexerResponseNoop = $this->getMockBuilder(IndexerResultInterface::class)
             ->getMock();
@@ -466,7 +470,7 @@ class SyncEntitiesCommandTest extends TestCase
             ->willReturn(['An exception was thrown']);
         $mockIndexerResponseFailure->expects($this->once())
             ->method('getPipelineResult')
-            ->willReturn([$mockPipelineResult]);
+            ->willReturn([$mockPipelineResults]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
@@ -545,12 +549,12 @@ class SyncEntitiesCommandTest extends TestCase
 
         $pattern = '#'
             . 'Action  : KLEVU_PRODUCT::add'
-            . '\s*Batches : 1'
             . '\s*Batch        : 0'
             . '\s*Success      : False'
             . '\s*API Response : .*'
             . '\s*Job ID       : n/a'
             . '\s*Record Count : 1'
+            . '\s*Batches : 1'
             . '\s*--'
             . '#';
         $matches = [];

@@ -222,36 +222,45 @@ class SyncEntitiesCommand extends Command
         $pipelineResult = $syncResult->getPipelineResult();
         if (!is_array($pipelineResult)) {
             throw new LocalizedException(__(
-                'Unexpected result from pipeline. Expected array<string, %1>, received %2',
+                'Unexpected result from pipeline. Expected array<string, array<string, %1>>, received %2',
                 ApiPipelineResult::class,
                 get_debug_type($pipelineResult),
             ));
         }
         /**
          * @var string $action
-         * @var ApiPipelineResult[] $apiPipelineResults
+         * @var ApiPipelineResult[][] $apiPipelineResultsArray
          */
-        foreach ($pipelineResult as $action => $apiPipelineResults) {
-            if (!is_array($apiPipelineResults)) {
+        foreach ($pipelineResult as $action => $apiPipelineResultsArray) {
+            if (!is_array($apiPipelineResultsArray)) {
                 continue;
             }
-            $apiPipelineResults = array_filter(
-                $apiPipelineResults,
-                static fn (mixed $item): bool => ($item instanceof ApiPipelineResult),
-            );
             if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
                 $output->writeln(messages: ' --');
                 $output->writeln(
                     messages: __(' Action  : %1', $action)->render(),
                 );
+            }
+            $batchCount = 0;
+            foreach ($apiPipelineResultsArray as $apiPipelineResults) {
+                if (!is_array($apiPipelineResults)) {
+                    continue;
+                }
+                $apiPipelineResults = array_filter(
+                    $apiPipelineResults,
+                    static fn (mixed $item): bool => ($item instanceof ApiPipelineResult),
+                );
+                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
+                    $output->writeln(messages: '');
+                    $this->processBatchOutput($apiPipelineResults, $output, $batchCount);
+                }
+                $batchCount += count($apiPipelineResults);
+            }
+            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
                 $output->writeln(
-                    messages: __(' Batches : %1', count($apiPipelineResults))->render(),
+                    messages: __(' Batches : %1', $batchCount)->render(),
                 );
                 $output->writeln(messages: '');
-            }
-
-            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-                $this->processBatchOutput($apiPipelineResults, $output);
             }
         }
     }
@@ -262,11 +271,11 @@ class SyncEntitiesCommand extends Command
      *
      * @return void
      */
-    private function processBatchOutput(array $apiPipelineResults, OutputInterface $output): void
+    private function processBatchOutput(array $apiPipelineResults, OutputInterface $output, int $batchCount): void
     {
         foreach ($apiPipelineResults as $batch => $apiPipelineResult) {
             $output->writeln(
-                messages: __('  Batch        : %1', $batch)->render(),
+                messages: __('  Batch        : %1', $batch + $batchCount)->render(),
             );
             $output->writeln(
                 messages: __(

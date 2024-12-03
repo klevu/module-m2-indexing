@@ -16,6 +16,7 @@ use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterfaceFactory;
 use Klevu\IndexingApi\Api\Data\IndexingEntitySearchResultsInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Validator\ValidatorInterface;
 use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
@@ -119,11 +120,14 @@ class IndexingEntityRepository implements IndexingEntityRepositoryInterface
 
     /**
      * @param SearchCriteriaInterface $searchCriteria
+     * @param bool $collectionSizeRequired
      *
      * @return IndexingEntitySearchResultsInterface
      */
-    public function getList(SearchCriteriaInterface $searchCriteria): IndexingEntitySearchResultsInterface
-    {
+    public function getList(
+        SearchCriteriaInterface $searchCriteria,
+        bool $collectionSizeRequired = false,
+    ): IndexingEntitySearchResultsInterface {
         /** @var IndexingEntitySearchResults $searchResults */
         $searchResults = $this->searchResultsFactory->create();
         $searchResults->setSearchCriteria(searchCriteria: $searchCriteria);
@@ -134,14 +138,22 @@ class IndexingEntityRepository implements IndexingEntityRepositoryInterface
             searchCriteria: $searchCriteria,
             collection: $collection,
         );
+        $this->logger->debug(
+            message: 'Method: {method}, Indexing Entity getList Query: {query}',
+            context: [
+                'method' => __METHOD__,
+                'line' => __LINE__,
+                'query' => $collection->getSelect()->__toString(),
+            ],
+        );
 
-        $count = $searchCriteria->getPageSize()
-            ? $collection->getSize()
-            : count($collection);
-        $searchResults->setTotalCount(count: $count);
         $searchResults->setItems(
             items: $collection->getItems(), //@phpstan-ignore-line
         );
+        $count = $searchCriteria->getPageSize() && $collectionSizeRequired
+            ? $collection->getSize()
+            : count($collection);
+        $searchResults->setTotalCount(count: $count);
 
         return $searchResults;
     }
@@ -238,5 +250,66 @@ class IndexingEntityRepository implements IndexingEntityRepositoryInterface
         $this->delete(
             indexingEntity: $this->getById($indexingEntityId),
         );
+    }
+
+    /**
+     * @param string|null $entityType
+     * @param string|null $apiKey
+     * @param Actions|null $nextAction
+     * @param bool|null $isIndexable
+     *
+     * @return int
+     */
+    public function count(
+        ?string $entityType = null,
+        ?string $apiKey = null,
+        ?Actions $nextAction = null,
+        ?bool $isIndexable = null,
+    ): int {
+        $connection = $this->indexingEntityResourceModel->getConnection();
+        $select = $connection->select();
+        $select->from(
+            name: $this->indexingEntityResourceModel->getTable(
+                tableName: $this->indexingEntityResourceModel::TABLE,
+            ),
+            cols: ['COUNT(*) as total'],
+        );
+        if ($apiKey) {
+            $select->where(cond: IndexingEntity::API_KEY . ' = ?', value: $apiKey);
+        }
+        if ($entityType) {
+            $select->where(cond: IndexingEntity::TARGET_ENTITY_TYPE . ' = ?', value: $entityType);
+        }
+        if ($nextAction) {
+            $select->where(cond: IndexingEntity::NEXT_ACTION . ' = ?', value: $nextAction->value);
+        }
+        if (null !== $isIndexable) {
+            $select->where(cond: IndexingEntity::IS_INDEXABLE . ' = ?', value: $isIndexable ? '1' : '0');
+        }
+
+        return (int)$connection->fetchOne(sql: $select);
+    }
+
+    /**
+     * @param string|null $apiKey
+     *
+     * @return string[]
+     */
+    public function getUniqueEntityTypes(?string $apiKey = null): array
+    {
+        $connection = $this->indexingEntityResourceModel->getConnection();
+        $select = $connection->select();
+        $select->distinct();
+        $select->from(
+            name: $this->indexingEntityResourceModel->getTable(
+                tableName: $this->indexingEntityResourceModel::TABLE,
+            ),
+            cols: [IndexingEntity::TARGET_ENTITY_TYPE],
+        );
+        if ($apiKey) {
+            $select->where(cond: IndexingEntity::API_KEY . ' = ?', value: $apiKey);
+        }
+
+        return $connection->fetchCol(sql: $select);
     }
 }

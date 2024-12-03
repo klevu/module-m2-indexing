@@ -546,7 +546,7 @@ class IndexingEntityRepositoryTest extends TestCase
         $searchCriteria = $searchCriteriaBuilder->create();
 
         $repository = $this->instantiateTestObject();
-        $searchResult = $repository->getList($searchCriteria);
+        $searchResult = $repository->getList($searchCriteria, true);
 
         $this->assertSame($searchCriteria, $searchResult->getSearchCriteria());
         // total number of items available
@@ -560,6 +560,11 @@ class IndexingEntityRepositoryTest extends TestCase
         ), $items);
         $this->assertContains(3, $targetIds);
         $this->assertContains(5, $targetIds);
+
+        $searchResult = $repository->getList($searchCriteria, false);
+        $this->assertSame($searchCriteria, $searchResult->getSearchCriteria());
+        // number of items in results
+        $this->assertEquals(2, $searchResult->getTotalCount());
 
         $this->cleanIndexingEntities($apiKey);
     }
@@ -592,5 +597,105 @@ class IndexingEntityRepositoryTest extends TestCase
         $resourceModel->save(object: $indexingEntity);
 
         return $indexingEntity;
+    }
+
+    public function testGetUniqueEntityTypes_ReturnsEmptyArray_WhenTableIsEmpty(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+
+        $repository = $this->instantiateTestObject();
+        $result = $repository->getUniqueEntityTypes(apiKey: $apiKey);
+
+        $this->assertCount(0, $result);
+    }
+
+    public function testGetUniqueEntityTypes_ReturnsArrayOfTypesForApiKey(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::NEXT_ACTION => Actions::ADD,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::NEXT_ACTION => Actions::UPDATE,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'CUSTOM_TYPE',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingEntity::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'category',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::NEXT_ACTION => Actions::ADD,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'category',
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::NEXT_ACTION => Actions::UPDATE,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'category',
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::NEXT_ACTION => Actions::DELETE,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey,
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'category',
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingEntity::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::API_KEY => $apiKey . '2',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'OTHER_CUSTOM_TYPE',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'category',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::NEXT_ACTION => Actions::UPDATE,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+
+        $repository = $this->instantiateTestObject();
+
+        $result = $repository->getUniqueEntityTypes(apiKey: $apiKey);
+        $this->assertContains(needle: 'KLEVU_CATEGORY', haystack: $result);
+        $this->assertContains(needle: 'KLEVU_CMS', haystack: $result);
+        $this->assertContains(needle: 'KLEVU_PRODUCT', haystack: $result);
+        $this->assertContains(needle: 'CUSTOM_TYPE', haystack: $result);
+        $this->assertNotContains(needle: 'OTHER_CUSTOM_TYPE', haystack: $result);
+
+        $result = $repository->getUniqueEntityTypes(apiKey: $apiKey . '2');
+        $this->assertNotContains(needle: 'KLEVU_CATEGORY', haystack: $result);
+        $this->assertNotContains(needle: 'KLEVU_CMS', haystack: $result);
+        $this->assertNotContains(needle: 'KLEVU_PRODUCT', haystack: $result);
+        $this->assertNotContains(needle: 'CUSTOM_TYPE', haystack: $result);
+        $this->assertContains(needle: 'OTHER_CUSTOM_TYPE', haystack: $result);
     }
 }

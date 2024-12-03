@@ -66,18 +66,38 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $this->cleanIndexingEntities('klevu-api-key%');
     }
 
+    /**
+     * @testWith [0]
+     *           [-1]
+     *           [99999999]
+     */
+    public function testInvalidBatchSize_ThrowsException(mixed $invalidBatchSize): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            sprintf(
+                'Invalid Batch Size: Invalid value provided. Value outside allowed range 1 < 9999999, received %s.',
+                $invalidBatchSize,
+            ),
+        );
+
+        $this->instantiateTestObject([
+            'batchSize' => $invalidBatchSize,
+        ]);
+    }
+
     public function testExecute_ReturnsArrayOfIndexingEntityIds(): void
     {
         $apiKey = 'klevu-api-key';
         $indexingEntity1 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 1,
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity2 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 2,
@@ -91,7 +111,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity4 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable-variant',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 40,
@@ -106,14 +126,14 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity6 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
             IndexingEntity::API_KEY => 'another-key',
             IndexingEntity::TARGET_ID => 6,
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity7 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCTS',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => 'configurable-variant',
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 50,
@@ -122,10 +142,13 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         ]);
 
         $service = $this->instantiateTestObject();
-        $result = $service->execute(
-            type: 'KLEVU_PRODUCTS',
+        $resultGenerator = $service->execute(
+            type: 'KLEVU_PRODUCT',
             entityIds: [1, 3, 4, 5, 6, 7, 999],
             apiKey: $apiKey,
+        );
+        $result = array_merge(
+            ...iterator_to_array($resultGenerator),
         );
 
         $this->assertCount(expectedCount: 1, haystack: $result);
@@ -202,13 +225,16 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         ]);
 
         $service = $this->instantiateTestObject();
-        $result = $service->execute(
+        $resultGenerator = $service->execute(
             type: 'KLEVU_PRODUCT',
             entityIds: [],
             apiKey: $apiKey,
             entitySubtypes: [
                 'simple',
             ],
+        );
+        $result = array_merge(
+            ...iterator_to_array($resultGenerator),
         );
 
         $this->assertCount(expectedCount: 1, haystack: $result);

@@ -12,6 +12,7 @@ use Klevu\Indexing\Model\IndexingAttribute;
 use Klevu\Indexing\Service\Provider\IndexingAttributeProvider;
 use Klevu\Indexing\Test\Integration\Traits\IndexingAttributesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
@@ -345,5 +346,209 @@ class IndexingAttributeProviderTest extends TestCase
         $this->assertNotContains(987, $targetIds);
 
         $this->cleanIndexingAttributes($apiKey);
+    }
+
+    public function testCount_ReturnsZero_WhenNotAttributesFound(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+
+        $provider = $this->instantiateTestObject();
+        $result = $provider->count(apiKey: $apiKey);
+
+        $this->assertSame(expected: 0, actual: $result);
+    }
+
+    /**
+     * @testWith [8, null, "klevu-test-api-key", null, null]
+     *           [1, null, "klevu-test-api-key2", null, null]
+     *           [6, null, "klevu-test-api-key", null, true]
+     *           [2, null, "klevu-test-api-key", null, false]
+     *           [4, "KLEVU_PRODUCT", "klevu-test-api-key", null, null]
+     *           [1, "KLEVU_PRODUCT", "klevu-test-api-key", "Add", null]
+     *           [1, "KLEVU_CATEGORY", "klevu-test-api-key", "Delete", true]
+     *           [2, null, "klevu-test-api-key", "Add", null]
+     *           [0, null, "klevu-test-api-key", "Update", false]
+     */
+    public function testCount_ReturnsCount_WhenFiltered(
+        int $count,
+        ?string $attributeType = null,
+        ?string $apiKeyToFilter = null,
+        ?string $nextAction = null,
+        ?bool $isIndexable = null,
+    ): void {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+        $this->cleanIndexingAttributes(apiKey: $apiKeyToFilter);
+
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::NEXT_ACTION => Actions::ADD,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::TARGET_ID => 2,
+            IndexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::TARGET_ID => 3,
+            IndexingAttribute::NEXT_ACTION => Actions::DELETE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            IndexingAttribute::TARGET_ID => 4,
+            IndexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::NEXT_ACTION => Actions::ADD,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 2,
+            IndexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 3,
+            IndexingAttribute::NEXT_ACTION => Actions::DELETE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey,
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 4,
+            IndexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            IndexingAttribute::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingAttribute([
+            IndexingAttribute::API_KEY => $apiKey . '2',
+            IndexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            IndexingAttribute::TARGET_ID => 1,
+            IndexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            IndexingAttribute::IS_INDEXABLE => true,
+        ]);
+
+        $provider = $this->instantiateTestObject();
+        $result = $provider->count(
+            attributeType: $attributeType,
+            apiKey: $apiKeyToFilter,
+            nextAction: $nextAction ? Actions::tryFrom($nextAction) : null,
+            isIndexable: $isIndexable,
+        );
+
+        $this->assertSame(expected: $count, actual: $result);
+    }
+
+    public function testGetTypes_ReturnsEmptyArray_WhenNoAttributesFound(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+
+        $provider = $this->instantiateTestObject();
+        $result = $provider->getTypes(apiKey: $apiKey);
+
+        $this->assertSame(expected: [], actual: $result);
+    }
+
+    public function testGetTypes_ReturnsArrayOfTypes(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingAttributes(apiKey: $apiKey);
+
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            indexingAttribute::TARGET_ID => 1,
+            indexingAttribute::NEXT_ACTION => Actions::ADD,
+            indexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            indexingAttribute::TARGET_ID => 2,
+            indexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            indexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_PRODUCT',
+            indexingAttribute::TARGET_ID => 3,
+            indexingAttribute::NEXT_ACTION => Actions::DELETE,
+            indexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'CUSTOM_TYPE',
+            indexingAttribute::TARGET_ID => 4,
+            indexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            indexingAttribute::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            indexingAttribute::TARGET_ID => 1,
+            indexingAttribute::NEXT_ACTION => Actions::ADD,
+            indexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            indexingAttribute::TARGET_ID => 2,
+            indexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            indexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CMS',
+            indexingAttribute::TARGET_ID => 3,
+            indexingAttribute::NEXT_ACTION => Actions::DELETE,
+            indexingAttribute::IS_INDEXABLE => true,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey,
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'KLEVU_CATEGORY',
+            indexingAttribute::TARGET_ID => 4,
+            indexingAttribute::NEXT_ACTION => Actions::NO_ACTION,
+            indexingAttribute::IS_INDEXABLE => false,
+        ]);
+        $this->createIndexingAttribute([
+            indexingAttribute::API_KEY => $apiKey . '2',
+            indexingAttribute::TARGET_ATTRIBUTE_TYPE => 'OTHER_CUSTOM_TYPE', indexingAttribute::TARGET_ID => 1,
+            indexingAttribute::NEXT_ACTION => Actions::UPDATE,
+            indexingAttribute::IS_INDEXABLE => true,
+        ]);
+
+        $provider = $this->instantiateTestObject();
+
+        $result = $provider->getTypes(apiKey: $apiKey);
+        $this->assertContains(needle: 'KLEVU_CATEGORY', haystack: $result);
+        $this->assertContains(needle: 'KLEVU_CMS', haystack: $result);
+        $this->assertContains(needle: 'KLEVU_PRODUCT', haystack: $result);
+        $this->assertContains(needle: 'CUSTOM_TYPE', haystack: $result);
+        $this->assertNotContains(needle: 'OTHER_CUSTOM_TYPE', haystack: $result);
+
+        $result = $provider->getTypes(apiKey: $apiKey . '2');
+        $this->assertNotContains(needle: 'KLEVU_CATEGORY', haystack: $result);
+        $this->assertNotContains(needle: 'KLEVU_CMS', haystack: $result);
+        $this->assertNotContains(needle: 'KLEVU_PRODUCT', haystack: $result);
+        $this->assertNotContains(needle: 'CUSTOM_TYPE', haystack: $result);
+        $this->assertContains(needle: 'OTHER_CUSTOM_TYPE', haystack: $result);
     }
 }

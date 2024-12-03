@@ -28,7 +28,7 @@ $escaper = $block->getEscaper();
             <tr>
                 <th scope="col"><?= $escaper->escapeHtml(__('API Key')->render()) ?></th>
                 <th scope="col"><?= $escaper->escapeHtml(__('Entity Type')->render()) ?></th>
-                <th scope="col"><?= $escaper->escapeHtml(__('Total Entities')->render()) ?></th>
+                <th scope="col"><?= $escaper->escapeHtml(__('Total (Indexable)')->render()) ?></th>
                 <th scope="col"><?= $escaper->escapeHtml(__('Add')->render()) ?></th>
                 <th scope="col"><?= $escaper->escapeHtml(__('Update')->render()) ?></th>
                 <th scope="col"><?= $escaper->escapeHtml(__('Delete')->render()) ?></th>
@@ -45,16 +45,17 @@ $escaper = $block->getEscaper();
                         <span><?= $escaper->escapeHtml($entityType) ?></span>
                     </td>
                     <td>
-                        <span><?= $escaper->escapeHtml($data['total'] ?? 0) ?></span>
+                        <span><?= $escaper->escapeHtml($data['total'] ?? '0') ?></span>
+                        <?= '(' . $escaper->escapeHtml($data['indexable'] ?? '0') . ')' ?>
                     </td>
                     <td>
-                        <span><?= $escaper->escapeHtml($data['Add'] ?? 0) ?></span>
+                        <span><?= $escaper->escapeHtml($data['Add'] ?? '0') ?></span>
                     </td>
                     <td>
-                        <span><?= $escaper->escapeHtml($data['Update'] ?? 0) ?></span>
+                        <span><?= $escaper->escapeHtml($data['Update'] ?? '0') ?></span>
                     </td>
                     <td>
-                        <span><?= $escaper->escapeHtml($data['Delete'] ?? 0) ?></span>
+                        <span><?= $escaper->escapeHtml($data['Delete'] ?? '0') ?></span>
                     </td>
                 </tr>
             <?php endforeach; ?>

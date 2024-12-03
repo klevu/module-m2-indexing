@@ -199,7 +199,7 @@ class ConvertEavAttributeToIndexingAttributeActionTest extends TestCase
         );
         $this->assertSame(
             // klevu_is_indexable only applies where store is not passed as determiner requires a store
-            expected: false,
+            expected: true,
             actual: $result->isIndexable(),
             message: 'is_indexable',
         );

@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Service;
 
 use Klevu\Indexing\Exception\IndexingEntitySaveException;
 use Klevu\Indexing\Model\DiscoveryResultFactory;
+use Klevu\Indexing\Validator\BatchSizeValidator;
 use Klevu\IndexingApi\Api\Data\DiscoveryResultInterface;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterface;
@@ -25,6 +26,8 @@ use Klevu\IndexingApi\Service\FilterEntitiesToSetToNotIndexableServiceInterface;
 use Klevu\IndexingApi\Service\FilterEntitiesToUpdateServiceInterface;
 use Klevu\IndexingApi\Service\Provider\EntityDiscoveryProviderInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
+use Klevu\IndexingApi\Validator\ValidatorInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\LocalizedException;
 use Psr\Log\LoggerInterface;
 
@@ -114,6 +117,9 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param IndexingEntityProviderInterface $indexingEntityProvider
      * @param EntityDiscoveryProviderInterface[] $discoveryProviders
      * @param int $batchSize
+     * @param ValidatorInterface|null $batchSizeValidator
+     *
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         LoggerInterface $logger,
@@ -130,6 +136,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         IndexingEntityProviderInterface $indexingEntityProvider,
         array $discoveryProviders = [],
         int $batchSize = 2500,
+        ?ValidatorInterface $batchSizeValidator = null,
     ) {
         $this->logger = $logger;
         $this->discoveryResultFactory = $discoveryResultFactory;
@@ -144,6 +151,17 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         $this->setIndexingEntitiesToBeIndexableAction = $setIndexingEntitiesToBeIndexableAction;
         $this->indexingEntityProvider = $indexingEntityProvider;
         array_walk($discoveryProviders, [$this, 'addDiscoveryProvider']);
+
+        $objectManager = ObjectManager::getInstance();
+        $batchSizeValidator = $batchSizeValidator ?: $objectManager->get(BatchSizeValidator::class);
+        if (!$batchSizeValidator->isValid($batchSize)) {
+            throw new \InvalidArgumentException(
+                message: sprintf(
+                    'Invalid Batch Size: %s',
+                    implode(', ', $batchSizeValidator->getMessages()),
+                ),
+            );
+        }
         $this->batchSize = $batchSize;
     }
 
@@ -406,7 +424,6 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param string $type
      * @param string $apiKey
      * @param int[] $entityIds
-     *
      * @param string[] $entitySubtypes
      *
      * @return void
@@ -420,19 +437,22 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         if (null === $entityIds && !$entitySubtypes) {
             return;
         }
-        $klevuEntityIds = $this->filterEntitiesToUpdateService->execute(
+        /** @var \Generator<int[]> $klevuEntityIdsBatch */
+        $klevuEntityIdsBatch = $this->filterEntitiesToUpdateService->execute(
             type: $type,
             entityIds: $entityIds,
             apiKey: $apiKey,
             entitySubtypes: $entitySubtypes,
         );
 
-        try {
-            $this->setIndexingEntitiesToUpdateAction->execute(entityIds: $klevuEntityIds);
-            $this->processedIds[] = $klevuEntityIds;
-        } catch (IndexingEntitySaveException $exception) {
-            $this->success = false;
-            $this->messages[] = $exception->getMessage();
+        foreach ($klevuEntityIdsBatch as $klevuEntityIds) {
+            try {
+                $this->setIndexingEntitiesToUpdateAction->execute(entityIds: $klevuEntityIds);
+                $this->processedIds[] = $klevuEntityIds;
+            } catch (IndexingEntitySaveException $exception) {
+                $this->success = false;
+                $this->messages[] = $exception->getMessage();
+            }
         }
     }
 
