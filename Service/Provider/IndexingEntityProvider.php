@@ -225,6 +225,38 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
     }
 
     /**
+     * @param string|null $entityType
+     * @param string|null $apiKey
+     * @param Actions|null $nextAction
+     * @param bool|null $isIndexable
+     *
+     * @return int
+     */
+    public function count(
+        ?string $entityType = null,
+        ?string $apiKey = null,
+        ?Actions $nextAction = null,
+        ?bool $isIndexable = null,
+    ): int {
+        return $this->indexingEntityRepository->count(
+            entityType: $entityType,
+            apiKey: $apiKey,
+            nextAction: $nextAction,
+            isIndexable: $isIndexable,
+        );
+    }
+
+    /**
+     * @param string $apiKey
+     *
+     * @return string[]
+     */
+    public function getTypes(string $apiKey): array
+    {
+        return $this->indexingEntityRepository->getUniqueEntityTypes(apiKey: $apiKey);
+    }
+
+    /**
      * @param int[][] $pairs
      * @param Collection $collection
      *

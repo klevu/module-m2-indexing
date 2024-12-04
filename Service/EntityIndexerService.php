@@ -124,11 +124,11 @@ class EntityIndexerService implements EntityIndexerServiceInterface
         $pipeline = $this->buildPipeline();
         $messages = [];
         try {
-            $pipelineResult = $pipeline->execute(
+            $pipelineResults = $pipeline->execute(
                 payload: $this->entityIndexingRecordProvider->get($apiKey),
                 context: $this->getPipelineContext($via),
             );
-            $status = $this->getStatus($pipelineResult);
+            $status = $this->getStatus(pipelineResults:$pipelineResults);
         } catch (HasErrorsExceptionInterface | PhpSDKValidationException $pipelineException) {
             $this->logger->error(
                 message: 'Method: {method}, Error: {message}',
@@ -188,7 +188,7 @@ class EntityIndexerService implements EntityIndexerServiceInterface
         return $this->generateIndexerResult(
             status: $status,
             messages: $messages,
-            pipelineResult: $pipelineResult ?? null,
+            pipelineResults: $pipelineResults ?? null,
         );
     }
 
@@ -253,29 +253,39 @@ class EntityIndexerService implements EntityIndexerServiceInterface
     }
 
     /**
-     * @param mixed $pipelineResult
+     * @param mixed $pipelineResults
      *
      * @return IndexerResultStatuses
      * @throws LocalizedException
      */
-    private function getStatus(mixed $pipelineResult): IndexerResultStatuses
+    private function getStatus(mixed $pipelineResults): IndexerResultStatuses
     {
-        if (!$pipelineResult) {
-            return IndexerResultStatuses::NOOP;
-        }
-        if (!is_array($pipelineResult)) {
+        if (!is_array($pipelineResults)) {
             throw new LocalizedException(__(
-                'Unexpected result from pipeline. Expected array<string, %1>, received %2',
+                'Unexpected result from pipeline. Expected array<string, array<string, %1>>, received %2',
                 ApiPipelineResult::class,
-                get_debug_type($pipelineResult),
+                get_debug_type($pipelineResults),
             ));
         }
-        $failures = array_filter(
-            array: $pipelineResult,
-            callback: static fn ($apiPipelineResult) => !$apiPipelineResult->success,
-        );
+        if (!array_filter($pipelineResults)) {
+            return IndexerResultStatuses::NOOP;
+        }
+        $failures = [];
+        foreach ($pipelineResults as $pipelineResult) {
+            if (!is_array($pipelineResult)) {
+                throw new LocalizedException(__(
+                    'Unexpected result from pipeline. Expected array<string, %1>, received %2',
+                    ApiPipelineResult::class,
+                    get_debug_type($pipelineResult),
+                ));
+            }
+            $failures[] = array_filter(
+                array: $pipelineResult,
+                callback: static fn ($apiPipelineResult) => !$apiPipelineResult->success,
+            );
+        }
 
-        return count($failures)
+        return count(array_filter($failures))
             ? IndexerResultStatuses::PARTIAL
             : IndexerResultStatuses::SUCCESS;
     }
@@ -283,20 +293,20 @@ class EntityIndexerService implements EntityIndexerServiceInterface
     /**
      * @param IndexerResultStatuses $status
      * @param string[] $messages
-     * @param mixed $pipelineResult
+     * @param mixed $pipelineResults
      *
      * @return IndexerResultInterface
      */
     private function generateIndexerResult(
         IndexerResultStatuses $status,
         array $messages,
-        mixed $pipelineResult,
+        mixed $pipelineResults,
     ): IndexerResultInterface {
         /** @var IndexerResultInterface $return */
         $return = $this->indexerResultFactory->create();
         $return->setStatus(status: $status);
         $return->setMessages(messages: $messages);
-        $return->setPipelineResult(pipelineResult: $pipelineResult);
+        $return->setPipelineResult(pipelineResult: $pipelineResults);
 
         return $return;
     }

@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Service\Provider\Sync;
 
 use Klevu\Configuration\Service\Provider\ScopeProviderInterface;
 use Klevu\Configuration\Service\Provider\StoresProviderInterface;
+use Klevu\Indexing\Validator\BatchSizeValidator;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\EntityIndexingDeleteRecordInterface;
 use Klevu\IndexingApi\Model\EntityIndexingRecordInterface;
@@ -19,8 +20,10 @@ use Klevu\IndexingApi\Service\EntityIndexingRecordCreatorServiceInterface;
 use Klevu\IndexingApi\Service\Provider\EntityProviderProviderInterface;
 use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
+use Klevu\IndexingApi\Validator\ValidatorInterface;
 use Magento\Cms\Api\Data\PageInterface;
 use Magento\Framework\Api\ExtensibleDataInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Store\Api\Data\StoreInterface;
 use Psr\Log\LoggerInterface;
 
@@ -78,6 +81,9 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      * @param string $entityType
      * @param string $action
      * @param int|null $batchSize
+     * @param ValidatorInterface|null $batchSizeValidator
+     *
+     * @throws \InvalidArgumentException
      */
     public function __construct(
         IndexingEntityProviderInterface $indexingEntityProvider,
@@ -90,6 +96,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         string $entityType,
         string $action,
         ?int $batchSize = null,
+        ?ValidatorInterface $batchSizeValidator = null,
     ) {
         $this->indexingEntityProvider = $indexingEntityProvider;
         $this->indexingRecordCreatorService = $indexingRecordCreatorService;
@@ -100,6 +107,17 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         $this->entityProviderProvider = $entityProviderProvider;
         $this->setAction($action);
         $this->entityType = $entityType;
+
+        $objectManager = ObjectManager::getInstance();
+        $batchSizeValidator = $batchSizeValidator ?: $objectManager->get(BatchSizeValidator::class);
+        if (!$batchSizeValidator->isValid($batchSize)) {
+            throw new \InvalidArgumentException(
+                message: sprintf(
+                    'Invalid Batch Size: %s',
+                    implode(', ', $batchSizeValidator->getMessages()),
+                ),
+            );
+        }
         $this->batchSize = $batchSize;
     }
 
@@ -127,9 +145,10 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
                 store: $store,
                 entityIds: $entityIds,
             );
+            $return = [];
             foreach ($entityIds as $entity) {
                 try {
-                    yield $this->generateIndexingRecord($entity, $entitiesCache);
+                    $return[] = $this->generateIndexingRecord($entity, $entitiesCache);
                 } catch (\Exception $exception) {
                     $this->logger->error(
                         message: 'Method: {method}, Error: {message}',
@@ -140,6 +159,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
                     );
                 }
             }
+            yield $return;
             $lastRecord = array_pop($entityIds);
             $lastRecordId = $lastRecord['record_id'] ?? null;
             if (!$lastRecordId) {

@@ -10,7 +10,6 @@ namespace Klevu\Indexing\ViewModel\Config\Information;
 
 use Klevu\Configuration\Model\CurrentScopeFactory;
 use Klevu\Configuration\Service\Provider\ApiKeyProviderInterface;
-use Klevu\IndexingApi\Api\Data\IndexingAttributeInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface;
 use Klevu\IndexingApi\ViewModel\Config\Information\IndexingAttributesInterface;
@@ -93,7 +92,7 @@ class IndexingAttributes implements IndexingAttributesInterface
     }
 
     /**
-     * @return mixed[][][]
+     * @return array<string, array<string, array<string, string>>>
      * @throws NoSuchEntityException
      */
     public function getAttributes(): array
@@ -110,91 +109,29 @@ class IndexingAttributes implements IndexingAttributesInterface
                 continue;
             }
             $return[$storeApiKey] = [];
-            $indexingAttributes = $this->indexingAttributeProvider->get(apiKey: $storeApiKey);
-            foreach ($this->getAttributeTypes($indexingAttributes) as $entityType) {
-                $indexingAttributesByType = $this->filterIndexingAttributeByType(
-                    indexingAttributes: $indexingAttributes,
-                    attributeType: $entityType,
+            foreach ($this->indexingAttributeProvider->getTypes(apiKey: $storeApiKey) as $attributeType) {
+                $return[$storeApiKey][$attributeType]['total'] = (string)$this->indexingAttributeProvider->count(
+                    attributeType: $attributeType,
+                    apiKey: $storeApiKey,
                 );
-                $return[$storeApiKey][$entityType]['total'] = count($indexingAttributesByType);
+                $return[$storeApiKey][$attributeType]['indexable'] = (string)$this->indexingAttributeProvider->count(
+                    attributeType: $attributeType,
+                    apiKey: $storeApiKey,
+                    isIndexable: true,
+                );
                 foreach (Actions::cases() as $nextAction) {
-                    $indexingAttributesByAction = $this->filterIndexingAttributeByAction(
-                        indexingAttributes: $indexingAttributesByType,
+                    $count = (string)$this->indexingAttributeProvider->count(
+                        attributeType: $attributeType,
+                        apiKey: $storeApiKey,
                         nextAction: $nextAction,
+                        isIndexable: true,
                     );
-                    $indexingAttributesByAction = $this->filterIndexingAttributeByIsIndexable(
-                        indexingAttributes: $indexingAttributesByAction,
-                    );
-                    $return[$storeApiKey][$entityType][$nextAction->value] = count($indexingAttributesByAction);
+                    $return[$storeApiKey][$attributeType][$nextAction->value] = $count;
                 }
             }
         }
         $this->indexingAttributes = $return;
 
         return $return;
-    }
-
-    /**
-     * @param IndexingAttributeInterface[] $indexingAttributes
-     *
-     * @return string[]
-     */
-    private function getAttributeTypes(array $indexingAttributes): array
-    {
-        return array_unique(
-            array_map(
-                callback: static fn (IndexingAttributeInterface $indexingAttribute): string => (
-                    $indexingAttribute->getTargetAttributeType()
-                ),
-                array: $indexingAttributes,
-            ),
-        );
-    }
-
-    /**
-     * @param IndexingAttributeInterface[] $indexingAttributes
-     * @param string $attributeType
-     *
-     * @return IndexingAttributeInterface[]
-     */
-    private function filterIndexingAttributeByType(array $indexingAttributes, string $attributeType): array
-    {
-        return array_filter(
-            array: $indexingAttributes,
-            callback: static fn (IndexingAttributeInterface $indexingAttribute): bool => (
-                $indexingAttribute->getTargetAttributeType() === $attributeType
-            ),
-        );
-    }
-
-    /**
-     * @param IndexingAttributeInterface[] $indexingAttributes
-     * @param Actions $nextAction
-     *
-     * @return IndexingAttributeInterface[]
-     */
-    private function filterIndexingAttributeByAction(array $indexingAttributes, Actions $nextAction): array
-    {
-        return array_filter(
-            array: $indexingAttributes,
-            callback: static fn (IndexingAttributeInterface $indexingAttribute): bool => (
-                $indexingAttribute->getNextAction() === $nextAction
-            ),
-        );
-    }
-
-    /**
-     * @param IndexingAttributeInterface[] $indexingAttributes
-     *
-     * @return IndexingAttributeInterface[]
-     */
-    private function filterIndexingAttributeByIsIndexable(array $indexingAttributes): array
-    {
-        return array_filter(
-            array: $indexingAttributes,
-            callback: static fn (IndexingAttributeInterface $indexingAttribute): bool => (
-                $indexingAttribute->getIsIndexable()
-            ),
-        );
     }
 }

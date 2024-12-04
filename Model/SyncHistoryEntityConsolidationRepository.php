@@ -20,11 +20,13 @@ use Klevu\IndexingApi\Api\SyncHistoryEntityConsolidationRepositoryInterface;
 use Klevu\IndexingApi\Validator\ValidatorInterface;
 use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Model\AbstractModel;
+use Psr\Log\LoggerInterface;
 
 class SyncHistoryEntityConsolidationRepository implements SyncHistoryEntityConsolidationRepositoryInterface
 {
@@ -52,6 +54,10 @@ class SyncHistoryEntityConsolidationRepository implements SyncHistoryEntityConso
      * @var CollectionProcessorInterface
      */
     private readonly CollectionProcessorInterface $collectionProcessor;
+    /**
+     * @var LoggerInterface
+     */
+    private readonly LoggerInterface $logger;
 
     /**
      * @param SyncHistoryEntityConsolidationRecordInterfaceFactory $syncHistoryEntityConsolidationRecordFactory
@@ -60,6 +66,7 @@ class SyncHistoryEntityConsolidationRepository implements SyncHistoryEntityConso
      * @param SyncHistoryEntityConsolidationSearchResultsFactory $searchResultsFactory
      * @param CollectionFactory $collectionFactory
      * @param CollectionProcessorInterface $collectionProcessor
+     * @param LoggerInterface|null $logger
      */
     public function __construct(
         SyncHistoryEntityConsolidationRecordInterfaceFactory $syncHistoryEntityConsolidationRecordFactory,
@@ -68,6 +75,7 @@ class SyncHistoryEntityConsolidationRepository implements SyncHistoryEntityConso
         SyncHistoryEntityConsolidationSearchResultsFactory $searchResultsFactory,
         CollectionFactory $collectionFactory,
         CollectionProcessorInterface $collectionProcessor,
+        ?LoggerInterface $logger = null,
     ) {
         $this->syncHistoryEntityConsolidationRecordFactory = $syncHistoryEntityConsolidationRecordFactory;
         $this->consolidationResourceModel = $consolidationResourceModel;
@@ -75,6 +83,7 @@ class SyncHistoryEntityConsolidationRepository implements SyncHistoryEntityConso
         $this->searchResultsFactory = $searchResultsFactory;
         $this->collectionFactory = $collectionFactory;
         $this->collectionProcessor = $collectionProcessor;
+        $this->logger = $logger ?: ObjectManager::getInstance()->get(LoggerInterface::class);
     }
 
     /**
@@ -137,14 +146,22 @@ class SyncHistoryEntityConsolidationRepository implements SyncHistoryEntityConso
             searchCriteria: $searchCriteria,
             collection: $collection,
         );
+        $this->logger->debug(
+            message: 'Method: {method}, Indexing Sync History Consolidation getList Query: {query}',
+            context: [
+                'method' => __METHOD__,
+                'line' => __LINE__,
+                'query' => $collection->getSelect()->__toString(),
+            ],
+        );
 
+        $searchResults->setItems(
+            items: $collection->getItems(),
+        );
         $count = $searchCriteria->getPageSize()
             ? $collection->getSize()
             : count($collection);
         $searchResults->setTotalCount($count);
-        $searchResults->setItems(
-            items: $collection->getItems(),
-        );
 
         return $searchResults;
     }

@@ -204,6 +204,7 @@
         <arguments>
             <argument name="indexingAttributeValidator"
                       xsi:type="object">Klevu\Indexing\Validator\IndexingAttributeValidator</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
 
@@ -218,6 +219,7 @@
         <arguments>
             <argument name="syncHistoryRecordValidator"
                       xsi:type="object">Klevu\Indexing\Validator\SyncHistoryRecordValidator</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
 
@@ -225,6 +227,7 @@
         <arguments>
             <argument name="syncHistoryConsolidationRecordValidator"
                       xsi:type="object">Klevu\Indexing\Validator\SyncHistoryConsolidationRecordValidator</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
 
@@ -237,6 +240,7 @@
     <type name="Klevu\Indexing\Service\EntityDiscoveryOrchestratorService">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
         </arguments>
     </type>
 
@@ -759,6 +763,7 @@
     <type name="Klevu\Indexing\Service\Provider\Sync\EntityIndexingRecordProvider">
         <arguments>
             <argument name="batchSize" xsi:type="number">2500</argument>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
         </arguments>
     </type>
 
@@ -811,6 +816,18 @@
     </type>
 
     <type name="Klevu\Indexing\Service\FilterEntitiesToDeleteService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\FilterEntitiesToUpdateService">
+        <arguments>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Provider\AttributeDiscoveryProvider">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>

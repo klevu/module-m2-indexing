@@ -10,7 +10,6 @@ namespace Klevu\Indexing\ViewModel\Config\Information;
 
 use Klevu\Configuration\Model\CurrentScopeFactory;
 use Klevu\Configuration\Service\Provider\ApiKeyProviderInterface;
-use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface;
 use Klevu\IndexingApi\ViewModel\Config\Information\IndexingEntitiesInterface;
@@ -93,7 +92,7 @@ class IndexingEntities implements IndexingEntitiesInterface
     }
 
     /**
-     * @return mixed[][][]
+     * @return array<string, array<string, array<string, string>>>
      * @throws NoSuchEntityException
      */
     public function getEntities(): array
@@ -110,89 +109,29 @@ class IndexingEntities implements IndexingEntitiesInterface
                 continue;
             }
             $return[$storeApiKey] = [];
-            $indexingEntities = $this->indexingEntityProvider->get(apiKeys: [$storeApiKey]);
-            foreach ($this->getEntityTypes($indexingEntities) as $entityType) {
-                $indexingEntitiesByType = $this->filterIndexingEntityByType(
-                    indexingEntities: $indexingEntities,
+            foreach ($this->indexingEntityProvider->getTypes(apiKey: $storeApiKey) as $entityType) {
+                $return[$storeApiKey][$entityType]['total'] = (string)$this->indexingEntityProvider->count(
                     entityType: $entityType,
+                    apiKey: $storeApiKey,
                 );
-                $return[$storeApiKey][$entityType]['total'] = count($indexingEntitiesByType);
+                $return[$storeApiKey][$entityType]['indexable'] = (string)$this->indexingEntityProvider->count(
+                    entityType: $entityType,
+                    apiKey: $storeApiKey,
+                    isIndexable: true,
+                );
                 foreach (Actions::cases() as $nextAction) {
-                    $indexingEntitiesByAction = $this->filterIndexingEntityByAction(
-                        indexingEntities: $indexingEntitiesByType,
+                    $count = (string)$this->indexingEntityProvider->count(
+                        entityType: $entityType,
+                        apiKey: $storeApiKey,
                         nextAction: $nextAction,
+                        isIndexable: true,
                     );
-                    $indexingEntitiesByAction = $this->filterIndexingEntityByIsIndexable(
-                        indexingEntities: $indexingEntitiesByAction,
-                    );
-                    $return[$storeApiKey][$entityType][$nextAction->value] = count($indexingEntitiesByAction);
+                    $return[$storeApiKey][$entityType][$nextAction->value] = $count;
                 }
             }
         }
         $this->indexingEntities = $return;
 
         return $return;
-    }
-
-    /**
-     * @param IndexingEntityInterface[] $indexingEntities
-     *
-     * @return string[]
-     */
-    private function getEntityTypes(array $indexingEntities): array
-    {
-        return array_unique(
-            array_map(
-                callback: static fn (IndexingEntityInterface $indexingEntity): string => (
-                    $indexingEntity->getTargetEntityType()
-                ),
-                array: $indexingEntities,
-            ),
-        );
-    }
-
-    /**
-     * @param IndexingEntityInterface[] $indexingEntities
-     * @param string $entityType
-     *
-     * @return IndexingEntityInterface[]
-     */
-    private function filterIndexingEntityByType(array $indexingEntities, string $entityType): array
-    {
-        return array_filter(
-            array: $indexingEntities,
-            callback: static fn (IndexingEntityInterface $indexingEntity): bool => (
-                $indexingEntity->getTargetEntityType() === $entityType
-            ),
-        );
-    }
-
-    /**
-     * @param IndexingEntityInterface[] $indexingEntities
-     * @param Actions $nextAction
-     *
-     * @return IndexingEntityInterface[]
-     */
-    private function filterIndexingEntityByAction(array $indexingEntities, Actions $nextAction): array
-    {
-        return array_filter(
-            array: $indexingEntities,
-            callback: static fn (IndexingEntityInterface $indexingEntity): bool => (
-                $indexingEntity->getNextAction() === $nextAction
-            ),
-        );
-    }
-
-    /**
-     * @param IndexingEntityInterface[] $indexingEntities
-     *
-     * @return IndexingEntityInterface[]
-     */
-    private function filterIndexingEntityByIsIndexable(array $indexingEntities): array
-    {
-        return array_filter(
-            array: $indexingEntities,
-            callback: static fn (IndexingEntityInterface $indexingEntity): bool => $indexingEntity->getIsIndexable(),
-        );
     }
 }

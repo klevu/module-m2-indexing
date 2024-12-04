@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Cron;
 
+use Klevu\IndexingApi\Api\Data\SyncResultInterface;
 use Klevu\IndexingApi\Service\AttributeSyncOrchestratorServiceInterface;
 use Psr\Log\LoggerInterface;
 
@@ -42,9 +43,17 @@ class SyncAttributes
         $this->logger->info(
             message: 'Starting sync of attributes.',
         );
-
         $results = $this->syncOrchestratorService->execute();
+        $this->logPipelineResults($results);
+    }
 
+    /**
+     * @param SyncResultInterface[][][] $results
+     *
+     * @return void
+     */
+    private function logPipelineResults(array $results): void
+    {
         foreach ($results as $apiKey => $actions) {
             foreach ($actions as $action => $attributes) {
                 foreach ($attributes as $attributeCode => $syncResult) {
@@ -54,7 +63,9 @@ class SyncAttributes
                             $apiKey,
                             $action,
                             $attributeCode,
-                            $syncResult->isSuccess() ? 'successfully' : 'with failures. See logs for more details',
+                            $syncResult->isSuccess()
+                                ? 'successfully'
+                                : 'with failures. See logs for more details',
                         ),
                     );
                 }

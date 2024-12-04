@@ -21,11 +21,13 @@ use Klevu\IndexingApi\Api\SyncHistoryEntityRepositoryInterface;
 use Klevu\IndexingApi\Validator\ValidatorInterface;
 use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Model\AbstractModel;
+use Psr\Log\LoggerInterface;
 
 class SyncHistoryEntityRepository implements SyncHistoryEntityRepositoryInterface
 {
@@ -53,6 +55,10 @@ class SyncHistoryEntityRepository implements SyncHistoryEntityRepositoryInterfac
      * @var CollectionProcessorInterface
      */
     private readonly CollectionProcessorInterface $collectionProcessor;
+    /**
+     * @var LoggerInterface
+     */
+    private readonly LoggerInterface $logger;
 
     /**
      * @param SyncHistoryEntityRecordInterfaceFactory $syncHistoryEntityRecordFactory
@@ -61,6 +67,7 @@ class SyncHistoryEntityRepository implements SyncHistoryEntityRepositoryInterfac
      * @param SyncHistoryEntitySearchResultsFactory $searchResultsFactory
      * @param CollectionFactory $collectionFactory
      * @param CollectionProcessorInterface $collectionProcessor
+     * @param LoggerInterface|null $logger
      */
     public function __construct(
         SyncHistoryEntityRecordInterfaceFactory $syncHistoryEntityRecordFactory,
@@ -69,6 +76,7 @@ class SyncHistoryEntityRepository implements SyncHistoryEntityRepositoryInterfac
         SyncHistoryEntitySearchResultsFactory $searchResultsFactory,
         CollectionFactory $collectionFactory,
         CollectionProcessorInterface $collectionProcessor,
+        ?LoggerInterface $logger = null,
     ) {
         $this->syncHistoryEntityRecordFactory = $syncHistoryEntityRecordFactory;
         $this->syncHistoryEntityRecordResourceModel = $syncHistoryEntityRecordResourceModel;
@@ -76,6 +84,7 @@ class SyncHistoryEntityRepository implements SyncHistoryEntityRepositoryInterfac
         $this->searchResultsFactory = $searchResultsFactory;
         $this->collectionFactory = $collectionFactory;
         $this->collectionProcessor = $collectionProcessor;
+        $this->logger = $logger ?: ObjectManager::getInstance()->get(LoggerInterface::class);
     }
 
     /**
@@ -125,8 +134,9 @@ class SyncHistoryEntityRepository implements SyncHistoryEntityRepositoryInterfac
      *
      * @return SyncHistoryEntitySearchResultsInterface
      */
-    public function getList(SearchCriteriaInterface $searchCriteria): SyncHistoryEntitySearchResultsInterface
-    {
+    public function getList(
+        SearchCriteriaInterface $searchCriteria,
+    ): SyncHistoryEntitySearchResultsInterface {
         /** @var SyncHistoryEntitySearchResultsInterface $searchResults */
         $searchResults = $this->searchResultsFactory->create();
         $searchResults->setSearchCriteria(searchCriteria: $searchCriteria);
@@ -137,13 +147,22 @@ class SyncHistoryEntityRepository implements SyncHistoryEntityRepositoryInterfac
             searchCriteria: $searchCriteria,
             collection: $collection,
         );
+        $this->logger->debug(
+            message: 'Method: {method}, Indexing Sync History getList Query: {query}',
+            context: [
+                'method' => __METHOD__,
+                'line' => __LINE__,
+                'query' => $collection->getSelect()->__toString(),
+            ],
+        );
+
+        $searchResults->setItems(
+            items: $collection->getItems(),
+        );
         $count = $searchCriteria->getPageSize()
             ? $collection->getSize()
             : count($collection);
         $searchResults->setTotalCount($count);
-        $searchResults->setItems(
-            items: $collection->getItems(),
-        );
 
         return $searchResults;
     }

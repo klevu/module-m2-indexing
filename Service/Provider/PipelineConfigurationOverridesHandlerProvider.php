@@ -26,10 +26,11 @@ class PipelineConfigurationOverridesHandlerProvider implements PipelineConfigura
         foreach ($configurationOverridesHandlers as $entityType => $configurationOverridesHandlersForEntityType) {
             array_walk(
                 $configurationOverridesHandlersForEntityType,
-                function (ConfigurationOverridesHandlerInterface $configurationOverridesHandler) use ($entityType): void { // phpcs:ignore Generic.Files.LineLength.TooLong
+                function (ConfigurationOverridesHandlerInterface $configurationOverridesHandler, string $key) use ($entityType): void { // phpcs:ignore Generic.Files.LineLength.TooLong
                     $this->addConfigurationOverridesHandler(
                         configurationOverridesHandler: $configurationOverridesHandler,
                         entityType: $entityType,
+                        key: $key,
                     );
                 },
             );
@@ -47,14 +48,16 @@ class PipelineConfigurationOverridesHandlerProvider implements PipelineConfigura
     /**
      * @param ConfigurationOverridesHandlerInterface $configurationOverridesHandler
      * @param string $entityType
+     * @param string $key
      *
      * @return void
      */
     private function addConfigurationOverridesHandler(
         ConfigurationOverridesHandlerInterface $configurationOverridesHandler,
         string $entityType,
+        string $key,
     ): void {
         $this->configurationOverridesHandlers[$entityType] ??= [];
-        $this->configurationOverridesHandlers[$entityType][] = $configurationOverridesHandler;
+        $this->configurationOverridesHandlers[$entityType][$key] = $configurationOverridesHandler;
     }
 }

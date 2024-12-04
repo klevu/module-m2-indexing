@@ -94,4 +94,36 @@ class IndexingAttributeProvider implements IndexingAttributeProviderInterface
 
         return $indexingAttributeSearchResults->getItems();
     }
+
+    /**
+     * @param string|null $attributeType
+     * @param string|null $apiKey
+     * @param Actions|null $nextAction
+     * @param bool|null $isIndexable
+     *
+     * @return int
+     */
+    public function count(
+        ?string $attributeType = null,
+        ?string $apiKey = null,
+        ?Actions $nextAction = null,
+        ?bool $isIndexable = null,
+    ): int {
+        return $this->indexingAttributeRepository->count(
+            attributeType: $attributeType,
+            apiKey: $apiKey,
+            nextAction: $nextAction,
+            isIndexable: $isIndexable,
+        );
+    }
+
+    /**
+     * @param string $apiKey
+     *
+     * @return string[]
+     */
+    public function getTypes(string $apiKey): array
+    {
+        return $this->indexingAttributeRepository->getUniqueAttributeTypes(apiKey: $apiKey);
+    }
 }
