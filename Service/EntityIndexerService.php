@@ -15,7 +15,6 @@ use Klevu\IndexingApi\Service\EntityIndexerServiceInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
 use Klevu\PhpSDK\Exception\ValidationException as PhpSDKValidationException;
 use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
-use Klevu\Pipelines\Exception\ExtractionException;
 use Klevu\Pipelines\Exception\HasErrorsExceptionInterface;
 use Klevu\Pipelines\Exception\Pipeline\InvalidPipelineConfigurationException;
 use Klevu\Pipelines\Exception\Pipeline\StageException;
@@ -134,7 +133,9 @@ class EntityIndexerService implements EntityIndexerServiceInterface
                 message: 'Method: {method}, Error: {message}',
                 context: [
                     'method' => __METHOD__,
+                    'line' => __LINE__,
                     'message' => $pipelineException->getMessage(),
+                    'exception' => $pipelineException->getTraceAsString(),
                 ],
             );
             $status = IndexerResultStatuses::ERROR;
@@ -162,7 +163,9 @@ class EntityIndexerService implements EntityIndexerServiceInterface
                 message: 'Method: {method}, Error: {message}',
                 context: [
                     'method' => __METHOD__,
+                    'line' => __LINE__,
                     'message' => $message,
+                    'exception' => $stageException->getTraceAsString(),
                 ],
             );
             $status = IndexerResultStatuses::ERROR;
@@ -170,12 +173,14 @@ class EntityIndexerService implements EntityIndexerServiceInterface
                 $messages,
                 [$stageException->getPrevious()?->getMessage()],
             );
-        } catch (ExtractionException | LocalizedException $exception) {
+        } catch (LocalizedException $exception) {
             $this->logger->error(
                 message: 'Method: {method}, Error: {message}',
                 context: [
                     'method' => __METHOD__,
+                    'line' => __LINE__,
                     'message' => $exception->getMessage(),
+                    'exception' => $exception->getTraceAsString(),
                 ],
             );
             $status = IndexerResultStatuses::ERROR;

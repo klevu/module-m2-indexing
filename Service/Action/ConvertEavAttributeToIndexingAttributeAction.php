@@ -27,6 +27,8 @@ use Magento\Store\Api\Data\StoreInterface;
 
 class ConvertEavAttributeToIndexingAttributeAction implements ConvertEavAttributeToIndexingAttributeActionInterface
 {
+    public const STATIC_ATTRIBUTE_SUFFIX = '_STATIC';
+
     /**
      * @var ApiKeyProviderInterface
      */
@@ -234,6 +236,17 @@ class ConvertEavAttributeToIndexingAttributeAction implements ConvertEavAttribut
         string $entityType,
         AttributeInterface $attribute,
     ): ?DataType {
+        if (
+            !($this->attributeTypeMappers[$entityType] ?? null)
+            && str_ends_with($entityType, self::STATIC_ATTRIBUTE_SUFFIX)
+        ) {
+            // When static attribute mapper does not exist, use nonstatic attribute mapper instead
+            $entityType = preg_replace(
+                pattern: sprintf('/%s$/', self::STATIC_ATTRIBUTE_SUFFIX),
+                replacement: '',
+                subject: $entityType,
+            );
+        }
         $attributeTypeMapper = $this->attributeTypeMappers[$entityType] ?? null;
 
         return $attributeTypeMapper?->execute($attribute);
