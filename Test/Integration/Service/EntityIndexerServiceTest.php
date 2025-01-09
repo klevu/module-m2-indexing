@@ -24,12 +24,14 @@ use Klevu\PlatformPipelines\Api\PipelineConfigurationProviderInterface;
 use Klevu\PlatformPipelines\Pipeline\PipelineBuilder;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NotFoundException;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\Exception as PHPUnitException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * @covers EntityIndexerService
@@ -83,7 +85,7 @@ class EntityIndexerServiceTest extends TestCase
         ]);
     }
 
-    public function testExecute_throwsException_WhenPipelineConfigurationFileIsMissing(): void
+    public function testExecute_ThrowsException_WhenPipelineConfigurationFileIsMissing(): void
     {
         $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'uerguerhg';
@@ -116,7 +118,7 @@ class EntityIndexerServiceTest extends TestCase
     {
         $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/invalid_configuration.yml';
-        
+
         $this->expectException(InvalidPipelineConfigurationException::class);
         $this->expectExceptionMessageMatches(
             '#A YAML file cannot contain tabs as indentation in '
@@ -144,7 +146,7 @@ class EntityIndexerServiceTest extends TestCase
     {
         $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/invalid_stages.yml';
-        
+
         $this->expectException(InvalidPipelineConfigurationException::class);
         $this->expectExceptionMessage(
             'array_map(): Argument #2 ($array) must be of type array, string given',
@@ -171,22 +173,21 @@ class EntityIndexerServiceTest extends TestCase
     {
         $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
-        
+
+        $validationException = $this->objectManager->create(
+            ValidationException::class,
+            [
+                'validatorName' => 'ValidatorName',
+                'errors' => [],
+                'message' => 'Validation Failed',
+            ],
+        );
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
         $mockPipeline->expects($this->once())
             ->method('execute')
-            ->willThrowException(
-                $this->objectManager->create(
-                    ValidationException::class,
-                    [
-                        'validatorName' => 'ValidatorName',
-                        'errors' => [],
-                        'message' => 'Validation Failed',
-                    ],
-                ),
-            );
+            ->willThrowException($validationException);
 
         $mockPipelineBuilder = $this->getMockBuilder(PipelineBuilderInterface::class)
             ->disableOriginalConstructor()
@@ -201,6 +202,20 @@ class EntityIndexerServiceTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->getMock();
+        $mockLogger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Method: {method}, Error: {message}',
+                [
+                    'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
+                    'line' => 136,
+                    'message' => 'Validation Failed',
+                    'exception' => $validationException->getTraceAsString(),
+                ],
+            );
+
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
@@ -208,6 +223,7 @@ class EntityIndexerServiceTest extends TestCase
                 pipelineIdentifier: $pipelineIdentifier,
                 pipelineConfigurationFilepath: $filepath,
             ),
+            'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
@@ -220,20 +236,20 @@ class EntityIndexerServiceTest extends TestCase
     {
         $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
-        
+
+        $extractionException = $this->objectManager->create(
+            ExtractionException::class,
+            [
+                'message' => 'Extraction Failed',
+            ],
+        );
+
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
         $mockPipeline->expects($this->once())
             ->method('execute')
-            ->willThrowException(
-                $this->objectManager->create(
-                    ExtractionException::class,
-                    [
-                        'message' => 'Extraction Failed',
-                    ],
-                ),
-            );
+            ->willThrowException($extractionException);
 
         $mockPipelineBuilder = $this->getMockBuilder(PipelineBuilderInterface::class)
             ->disableOriginalConstructor()
@@ -248,6 +264,20 @@ class EntityIndexerServiceTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->getMock();
+        $mockLogger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Method: {method}, Error: {message}',
+                [
+                    'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
+                    'line' => 136,
+                    'message' => 'Extraction Failed',
+                    'exception' => $extractionException->getTraceAsString(),
+                ],
+            );
+
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
@@ -255,6 +285,7 @@ class EntityIndexerServiceTest extends TestCase
                 pipelineIdentifier: $pipelineIdentifier,
                 pipelineConfigurationFilepath: $filepath,
             ),
+            'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
@@ -267,24 +298,24 @@ class EntityIndexerServiceTest extends TestCase
     {
         $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
-        
+
+        $transformationException = $this->objectManager->create(
+            TransformationException::class,
+            [
+                'transformerName' => 'TransformerName',
+                'errors' => [
+                    'An Error Occurred',
+                ],
+                'message' => 'Transformation Failed',
+            ],
+        );
+
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
         $mockPipeline->expects($this->once())
             ->method('execute')
-            ->willThrowException(
-                $this->objectManager->create(
-                    TransformationException::class,
-                    [
-                        'transformerName' => 'TransformerName',
-                        'errors' => [
-                            'An Error Occurred',
-                        ],
-                        'message' => 'Transformation Failed',
-                    ],
-                ),
-            );
+            ->willThrowException($transformationException);
 
         $mockPipelineBuilder = $this->getMockBuilder(PipelineBuilderInterface::class)
             ->disableOriginalConstructor()
@@ -299,6 +330,20 @@ class EntityIndexerServiceTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->getMock();
+        $mockLogger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Method: {method}, Error: {message}',
+                [
+                    'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
+                    'line' => 136,
+                    'message' => 'Transformation Failed',
+                    'exception' => $transformationException->getTraceAsString(),
+                ],
+            );
+
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
@@ -306,6 +351,7 @@ class EntityIndexerServiceTest extends TestCase
                 pipelineIdentifier: $pipelineIdentifier,
                 pipelineConfigurationFilepath: $filepath,
             ),
+            'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
@@ -318,23 +364,21 @@ class EntityIndexerServiceTest extends TestCase
     {
         $pipelineIdentifier = 'KLEVU_PRODUCT::add';
         $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
-        $stageException = new \Exception('Something went wrong');
 
         $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
+        $stageException = $this->objectManager->create(
+            StageException::class,
+            [
+                'pipeline' => $mockPipeline,
+                'message' => 'Stage Failed',
+                'previous' => new \Exception('Something went wrong'),
+            ],
+        );
         $mockPipeline->expects($this->once())
             ->method('execute')
-            ->willThrowException(
-                $this->objectManager->create(
-                    StageException::class,
-                    [
-                        'pipeline' => $mockPipeline,
-                        'message' => 'Stage Failed',
-                        'previous' => $stageException,
-                    ],
-                ),
-            );
+            ->willThrowException($stageException);
 
         $mockPipelineBuilder = $this->getMockBuilder(PipelineBuilder::class)
             ->disableOriginalConstructor()
@@ -349,6 +393,20 @@ class EntityIndexerServiceTest extends TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->getMock();
+        $mockLogger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Method: {method}, Error: {message}',
+                [
+                    'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
+                    'line' => 166,
+                    'message' => 'Stage Failed Something went wrong',
+                    'exception' => $stageException->getTraceAsString(),
+                ],
+            );
+
         $service = $this->instantiateTestObject([
             'pipelineBuilder' => $mockPipelineBuilder,
             'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
@@ -356,12 +414,75 @@ class EntityIndexerServiceTest extends TestCase
                 pipelineIdentifier: $pipelineIdentifier,
                 pipelineConfigurationFilepath: $filepath,
             ),
+            'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
         $result = $service->execute(apiKey: '');
 
         $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
         $this->assertContains(needle: 'Something went wrong', haystack: $result->getMessages(), message: 'Messages');
+    }
+
+    public function testExecute_HandlesLocalizedException(): void
+    {
+        $pipelineIdentifier = 'KLEVU_PRODUCT::add';
+        $filepath = 'Klevu_TestFixtures::_files/pipeline/valid_no_steps.yml';
+
+        $transformationException = $this->objectManager->create(
+            LocalizedException::class,
+            [
+                'phrase' => __('Localized Error'),
+            ],
+        );
+
+        $mockPipeline = $this->getMockBuilder(PipelineInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockPipeline->expects($this->once())
+            ->method('execute')
+            ->willThrowException($transformationException);
+
+        $mockPipelineBuilder = $this->getMockBuilder(PipelineBuilderInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockPipelineBuilder->expects($this->once())
+            ->method('buildFromFiles')
+            ->willReturn($mockPipeline);
+
+        $mockEntityIndexingRecordProvider = $this->getMockBuilder(
+            className: EntityIndexingRecordProviderInterface::class,
+        )
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->getMock();
+        $mockLogger->expects($this->once())
+            ->method('error')
+            ->with(
+                'Method: {method}, Error: {message}',
+                [
+                    'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
+                    'line' => 181,
+                    'message' => 'Localized Error',
+                    'exception' => $transformationException->getTraceAsString(),
+                ],
+            );
+
+        $service = $this->instantiateTestObject([
+            'pipelineBuilder' => $mockPipelineBuilder,
+            'entityIndexingRecordProvider' => $mockEntityIndexingRecordProvider,
+            'pipelineConfigurationProvider' => $this->getPipelineConfigurationProvider(
+                pipelineIdentifier: $pipelineIdentifier,
+                pipelineConfigurationFilepath: $filepath,
+            ),
+            'logger' => $mockLogger,
+            'pipelineIdentifier' => $pipelineIdentifier,
+        ]);
+        $result = $service->execute(apiKey: '');
+
+        $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
+        $this->assertContains(needle: 'Localized Error', haystack: $result->getMessages(), message: 'Messages');
     }
 
     /**

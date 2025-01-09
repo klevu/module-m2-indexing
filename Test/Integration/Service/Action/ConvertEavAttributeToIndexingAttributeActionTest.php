@@ -455,6 +455,67 @@ class ConvertEavAttributeToIndexingAttributeActionTest extends TestCase
     }
 
     /**
+     * @testWith ["STRING", null]
+     *           ["STRING", "default"]
+     *           ["NUMBER", null]
+     *           ["NUMBER", "default"]
+     *           ["DATETIME", null]
+     *           ["DATETIME", "default"]
+     *           ["MULTIVALUE", null]
+     *           ["MULTIVALUE", "default"]
+     *           ["MULTIVALUE_NUMBER", null]
+     *           ["MULTIVALUE_NUMBER", "default"]
+     *           ["JSON", null]
+     *           ["JSON", "default"]
+     *           ["BOOLEAN", null]
+     *           ["BOOLEAN", "default"]
+     *
+     * @param string|null $attributeTypeMapperReturn
+     * @param string|null $storeCode
+     *
+     * @return void
+     * @throws AttributeMappingMissingException
+     * @throws NoSuchEntityException
+     */
+    public function testExecute_KlevuAttributeType_ForStaticAttributes(
+        ?string $attributeTypeMapperReturn,
+        ?string $storeCode,
+    ): void {
+        $convertEavAttributeToIndexingAttributeAction = $this->instantiateTestObject([
+            'attributeTypeMappers' => [
+                'PHPUNIT_TEST' => $this->getMockAttributeTypeMapper($attributeTypeMapperReturn),
+            ],
+        ]);
+
+        $result = $convertEavAttributeToIndexingAttributeAction->execute(
+            entityType: 'PHPUNIT_TEST_STATIC',
+            attribute: $this->getMockEavAttribute(
+                attributeData: [
+                    'attribute_id' => 123,
+                    'attribute_code' => 'klevu_test_attribute',
+                    'is_global' => 1,
+                    'is_html_allowed_on_front' => 1,
+                    'klevu_is_indexable' => 1,
+                    'klevu_generate_config_for' => 'bundle,grouped,configurable',
+                ],
+            ),
+            store: $storeCode
+                ? $this->storeManager->getStore($storeCode)
+                : null,
+        );
+
+        $this->assertInstanceOf(
+            expected: MagentoAttributeInterface::class,
+            actual: $result,
+        );
+
+        $this->assertSame(
+            expected: $attributeTypeMapperReturn,
+            actual: $result->getKlevuAttributeType()?->value,
+        );
+    }
+
+    /**
      * @testWith [0, null, false]
      *           [0, "default", false]
      *           [1, null, true]
