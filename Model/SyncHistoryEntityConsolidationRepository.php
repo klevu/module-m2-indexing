@@ -10,6 +10,7 @@ namespace Klevu\Indexing\Model;
 
 use Klevu\Indexing\Exception\CouldNotDeleteException;
 use Klevu\Indexing\Exception\InvalidSyncHistoryEntityConsolidationRecordException;
+use Klevu\Indexing\Logger\Logger as LoggerVirtualType;
 use Klevu\Indexing\Model\ResourceModel\SyncHistoryEntityConsolidationRecord as ConsolidationRecordResourceModel;
 use Klevu\Indexing\Model\ResourceModel\SyncHistoryEntityConsolidationRecord\Collection;
 use Klevu\Indexing\Model\ResourceModel\SyncHistoryEntityConsolidationRecord\CollectionFactory;
@@ -83,7 +84,7 @@ class SyncHistoryEntityConsolidationRepository implements SyncHistoryEntityConso
         $this->searchResultsFactory = $searchResultsFactory;
         $this->collectionFactory = $collectionFactory;
         $this->collectionProcessor = $collectionProcessor;
-        $this->logger = $logger ?: ObjectManager::getInstance()->get(LoggerInterface::class);
+        $this->logger = $logger ?: ObjectManager::getInstance()->get(LoggerVirtualType::class); // @phpstan-ignore-line
     }
 
     /**

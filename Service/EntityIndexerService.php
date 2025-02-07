@@ -136,6 +136,7 @@ class EntityIndexerService implements EntityIndexerServiceInterface
                     'line' => __LINE__,
                     'message' => $pipelineException->getMessage(),
                     'exception' => $pipelineException->getTraceAsString(),
+                    'previous' => $pipelineException->getPrevious(),
                 ],
             );
             $status = IndexerResultStatuses::ERROR;
@@ -166,6 +167,7 @@ class EntityIndexerService implements EntityIndexerServiceInterface
                     'line' => __LINE__,
                     'message' => $message,
                     'exception' => $stageException->getTraceAsString(),
+                    'previous' => $stageException->getPrevious(),
                 ],
             );
             $status = IndexerResultStatuses::ERROR;
@@ -181,6 +183,7 @@ class EntityIndexerService implements EntityIndexerServiceInterface
                     'line' => __LINE__,
                     'message' => $exception->getMessage(),
                     'exception' => $exception->getTraceAsString(),
+                    'previous' => $exception->getPrevious(),
                 ],
             );
             $status = IndexerResultStatuses::ERROR;
