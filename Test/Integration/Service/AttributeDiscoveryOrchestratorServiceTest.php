@@ -897,6 +897,9 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         );
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_WillMarkAttributeToDelete_WhenAttributeTypeHasChanged(): void
     {
         $apiKey = 'klevu-js-api-key';

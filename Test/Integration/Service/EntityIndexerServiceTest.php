@@ -213,6 +213,7 @@ class EntityIndexerServiceTest extends TestCase
                     'line' => 136,
                     'message' => 'Validation Failed',
                     'exception' => $validationException->getTraceAsString(),
+                    'previous' => $validationException->getPrevious(),
                 ],
             );
 
@@ -275,6 +276,7 @@ class EntityIndexerServiceTest extends TestCase
                     'line' => 136,
                     'message' => 'Extraction Failed',
                     'exception' => $extractionException->getTraceAsString(),
+                    'previous' => $extractionException->getPrevious(),
                 ],
             );
 
@@ -341,6 +343,7 @@ class EntityIndexerServiceTest extends TestCase
                     'line' => 136,
                     'message' => 'Transformation Failed',
                     'exception' => $transformationException->getTraceAsString(),
+                    'previous' => $transformationException->getPrevious(),
                 ],
             );
 
@@ -401,9 +404,10 @@ class EntityIndexerServiceTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
-                    'line' => 166,
+                    'line' => 167,
                     'message' => 'Stage Failed Something went wrong',
                     'exception' => $stageException->getTraceAsString(),
+                    'previous' => $stageException->getPrevious(),
                 ],
             );
 
@@ -463,9 +467,10 @@ class EntityIndexerServiceTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
-                    'line' => 181,
+                    'line' => 183,
                     'message' => 'Localized Error',
                     'exception' => $transformationException->getTraceAsString(),
+                    'previous' => $transformationException->getPrevious(),
                 ],
             );
 
