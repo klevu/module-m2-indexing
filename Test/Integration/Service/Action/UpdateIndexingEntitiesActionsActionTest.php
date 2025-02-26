@@ -175,6 +175,7 @@ class UpdateIndexingEntitiesActionsActionTest extends TestCase
         $apiKey = 'klevu-test-api-key';
         $this->cleanIndexingEntities($apiKey);
 
+        $timestamp = date('Y-m-d H:i:s');
         $productIndexingEntity = $this->createIndexingEntity([
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::API_KEY => $apiKey,
@@ -182,7 +183,8 @@ class UpdateIndexingEntitiesActionsActionTest extends TestCase
             IndexingEntity::TARGET_PARENT_ID => 456,
             IndexingEntity::IS_INDEXABLE => true,
             IndexingEntity::NEXT_ACTION => Actions::UPDATE,
-            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
+            IndexingEntity::LAST_ACTION_TIMESTAMP => $timestamp,
         ]);
 
         $action = $this->instantiateTestObject();
@@ -199,7 +201,7 @@ class UpdateIndexingEntitiesActionsActionTest extends TestCase
             $this->assertSame(expected: Actions::UPDATE, actual: $entity->getNextAction());
             $this->assertSame(expected: Actions::ADD, actual: $entity->getLastAction());
             $this->assertTrue(condition: $entity->getIsIndexable());
-            $this->assertNotNull(actual: $entity->getLastActionTimestamp());
+            $this->assertSame(expected: $timestamp, actual: $entity->getLastActionTimestamp());
         }
 
         $this->cleanIndexingEntities($apiKey);
@@ -217,7 +219,7 @@ class UpdateIndexingEntitiesActionsActionTest extends TestCase
             IndexingEntity::TARGET_PARENT_ID => 456,
             IndexingEntity::IS_INDEXABLE => true,
             IndexingEntity::NEXT_ACTION => Actions::DELETE,
-            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
         ]);
 
         $cmsIndexingEntity = $this->createIndexingEntity([
@@ -227,7 +229,7 @@ class UpdateIndexingEntitiesActionsActionTest extends TestCase
             IndexingEntity::TARGET_PARENT_ID => 567,
             IndexingEntity::IS_INDEXABLE => true,
             IndexingEntity::NEXT_ACTION => Actions::DELETE,
-            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
         ]);
 
         $categoryIndexingEntity = $this->createIndexingEntity([
@@ -237,7 +239,7 @@ class UpdateIndexingEntitiesActionsActionTest extends TestCase
             IndexingEntity::TARGET_PARENT_ID => 678,
             IndexingEntity::IS_INDEXABLE => true,
             IndexingEntity::NEXT_ACTION => Actions::DELETE,
-            IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+            IndexingEntity::LAST_ACTION => Actions::ADD,
         ]);
 
         $action = $this->instantiateTestObject();

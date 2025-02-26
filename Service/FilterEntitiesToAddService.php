@@ -53,17 +53,21 @@ class FilterEntitiesToAddService implements FilterEntitiesToAddServiceInterface
             entityIds: $entityIds,
             entitySubtypes: $entitySubtypes,
         );
+        unset($entityIds);
         foreach ($magentoEntities as $magentoEntity) {
             if (
                 !$klevuEntityIds
                 || !in_array(
-                    needle: $magentoEntity->getEntityId() . '-' . ($magentoEntity->getEntityParentId() ?? 0),
+                    needle: $magentoEntity->getEntityId()
+                    . '-' . ($magentoEntity->getEntityParentId() ?? 0)
+                    . '-' . $magentoEntity->getEntitySubtype(),
                     haystack: $klevuEntityIds,
                     strict: true,
                 )
             ) {
                 yield $magentoEntity;
             }
+            unset($magentoEntity);
         }
     }
 
@@ -83,12 +87,21 @@ class FilterEntitiesToAddService implements FilterEntitiesToAddServiceInterface
             entityIds: $entityIds,
             entitySubtypes: $entitySubtypes,
         );
-
-        return array_map(
+        $return = array_map(
             callback: static fn (IndexingEntityInterface $indexingEntity) => (
-                $indexingEntity->getTargetId() . '-' . ($indexingEntity->getTargetParentId() ?? 0)
+                $indexingEntity->getTargetId()
+                . '-' . ($indexingEntity->getTargetParentId() ?? 0)
+                . '-' . $indexingEntity->getTargetEntitySubtype()
             ),
             array: $klevuEntities,
         );
+        foreach ($klevuEntities as $klevuEntity) {
+            if (method_exists($klevuEntity, 'clearInstance')) {
+                $klevuEntity->clearInstance();
+            }
+        }
+        unset($klevuEntities);
+
+        return $return;
     }
 }

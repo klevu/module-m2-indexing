@@ -48,46 +48,51 @@ class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeI
     }
 
     /**
-     * @param int[] $entityIds
+     * @param \Generator<int[]> $entityIds
      *
      * @return void
      * @throws IndexingEntitySaveException
      */
-    public function execute(array $entityIds): void
+    public function execute(\Generator $entityIds): void
     {
-        if (!$entityIds) {
-            return;
-        }
         $failed = [];
-        $indexingEntities = $this->getIndexingEntities($entityIds);
-        foreach ($indexingEntities as $indexingEntity) {
-            if ($indexingEntity->getIsIndexable() && $indexingEntity->getNextAction() !== Actions::DELETE) {
-                continue;
+        foreach ($entityIds as $entityIdsBatch) {
+            $indexingEntities = $this->getIndexingEntities($entityIdsBatch);
+            foreach ($indexingEntities as $indexingEntity) {
+                if ($indexingEntity->getIsIndexable() && $indexingEntity->getNextAction() !== Actions::DELETE) {
+                    continue;
+                }
+                try {
+                    $isNextActionUpdateRequired = in_array(
+                        needle: $indexingEntity->getLastAction(),
+                        haystack: [Actions::NO_ACTION, Actions::DELETE],
+                        strict: true,
+                    );
+                    $indexingEntity->setNextAction(
+                        nextAction: $isNextActionUpdateRequired
+                            ? Actions::ADD
+                            : Actions::NO_ACTION,
+                    );
+                    $indexingEntity->setIsIndexable(isIndexable: true);
+                    $this->indexingEntityRepository->save(indexingEntity: $indexingEntity);
+                } catch (\Exception $exception) {
+                    $failed[] = $indexingEntity->getId();
+                    $this->logger->error(
+                        message: 'Method: {method} - Entity ID: {entity_id} - Error: {exception}',
+                        context: [
+                            'method' => __METHOD__,
+                            'entity_id' => $indexingEntity->getId(),
+                            'exception' => $exception->getMessage(),
+                        ],
+                    );
+                }
             }
-            try {
-                $isNextActionUpdateRequired = in_array(
-                    needle: $indexingEntity->getLastAction(),
-                    haystack: [Actions::NO_ACTION, Actions::DELETE],
-                    strict: true,
-                );
-                $indexingEntity->setNextAction(
-                    nextAction: $isNextActionUpdateRequired
-                        ? Actions::ADD
-                        : Actions::NO_ACTION,
-                );
-                $indexingEntity->setIsIndexable(isIndexable: true);
-                $this->indexingEntityRepository->save(indexingEntity: $indexingEntity);
-            } catch (\Exception $exception) {
-                $failed[] = $indexingEntity->getId();
-                $this->logger->error(
-                    message: 'Method: {method} - Entity ID: {entity_id} - Error: {exception}',
-                    context: [
-                        'method' => __METHOD__,
-                        'entity_id' => $indexingEntity->getId(),
-                        'exception' => $exception->getMessage(),
-                    ],
-                );
+            foreach ($indexingEntities as $indexingEntity) {
+                if (method_exists($indexingEntity, 'clearInstance')) {
+                    $indexingEntity->clearInstance();
+                }
             }
+            unset($indexingEntities);
         }
         if ($failed) {
             throw new IndexingEntitySaveException(
@@ -117,6 +122,7 @@ class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeI
             $searchCriteria = $searchCriteriaBuilder->create();
             $searchResult = $this->indexingEntityRepository->getList(searchCriteria: $searchCriteria);
             $indexingEntities = $searchResult->getItems();
+            unset($searchResult);
         }
 
         return $indexingEntities;

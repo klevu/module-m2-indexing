@@ -18,6 +18,7 @@ use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToBeIndexableActionInterface;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
@@ -34,6 +35,7 @@ use Psr\Log\LoggerInterface;
  */
 class SetIndexingEntitiesToBeIndexableActionTest extends TestCase
 {
+    use GeneratorTrait;
     use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use StoreTrait;
@@ -105,7 +107,7 @@ class SetIndexingEntitiesToBeIndexableActionTest extends TestCase
         $entityIds = $this->getEntityIds($indexingEntities);
 
         $action = $this->instantiateTestObject();
-        $action->execute($entityIds);
+        $action->execute($this->generate([$entityIds]));
 
         $indexingEntities = $this->getIndexingEntities($apiKey, $type);
         $this->assertCount(expectedCount: 4, haystack: $indexingEntities);
@@ -188,7 +190,7 @@ class SetIndexingEntitiesToBeIndexableActionTest extends TestCase
             'indexingEntityRepository' => $mockIndexingEntityRepository,
             'logger' => $mockLogger,
         ]);
-        $action->execute($entityIds);
+        $action->execute($this->generate([$entityIds]));
     }
 
         /**

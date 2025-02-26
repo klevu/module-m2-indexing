@@ -122,13 +122,16 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
     ): \Generator {
         $storesByApiKey = $this->getStoresByApiKeys($apiKeys);
         foreach ($storesByApiKey as $storeApiKey => $stores) {
-            yield $storeApiKey => $this->createIndexingEntities(
+            $magentoEntities = $this->createIndexingEntities(
                 stores: $stores,
                 apiKey: $storeApiKey,
                 entityIds: $entityIds,
                 entitySubtypes: $entitySubtypes,
             );
+            yield $storeApiKey => $magentoEntities;
+            unset ($magentoEntities);
         }
+        unset($storesByApiKey);
     }
 
     /**
@@ -159,10 +162,14 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
         array $entitySubtypes,
     ): \Generator {
         foreach ($this->entityProviderProvider->get() as $entityProvider) {
-            if ($entitySubtypes && !in_array($entityProvider->getEntitySubtype(), $entitySubtypes, true)) {
+            if (
+                $entitySubtypes
+                && !in_array($entityProvider->getEntitySubtype(), $entitySubtypes, true)
+            ) {
                 continue;
             }
-            foreach ($this->getEntityData($entityProvider, $stores, $entityIds) as $entities) {
+            $entityData = $this->getEntityData(entityProvider: $entityProvider, stores: $stores, entityIds: $entityIds);
+            foreach ($entityData as $entities) {
                 $isIndexable = $this->generateIsIndexableData(
                     entityProvider: $entityProvider,
                     stores: $stores,
@@ -172,9 +179,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                 /** @var ExtensibleDataInterface|PageInterface $entity */
                 foreach ($entities as $entity) {
                     $key = $this->getMagentoEntityId(entity: $entity);
-
-                    $magentoEntities = $this->setMagentoEntity(
-                        magentoEntities: $magentoEntities,
+                    $magentoEntities[$key] = $this->createMagentoEntity(
                         apiKey: $apiKey,
                         entity: $entity,
                         isIndexable: $isIndexable[$key] ?? false,
@@ -182,7 +187,9 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                     );
                 }
                 yield $magentoEntities;
+                unset($magentoEntities, $isIndexable, $entities);
             }
+            unset($entityData);
         }
     }
 
@@ -228,7 +235,8 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                 array: $entities,
             );
             foreach ($stores as $store) {
-                foreach ($entityProvider->get(store: $store, entityIds: $batchEntityIds) as $storeEntities) {
+                $storeEntityGenerator = $entityProvider->get(store: $store, entityIds: $batchEntityIds);
+                foreach ($storeEntityGenerator as $storeEntities) {
                     /** @var ExtensibleDataInterface|PageInterface $storeEntity */
                     foreach ($storeEntities as $storeEntity) {
                         $key = $this->getMagentoEntityId(entity: $storeEntity);
@@ -257,34 +265,28 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
     }
 
     /**
-     * @param MagentoEntityInterface[] $magentoEntities
      * @param string $apiKey
      * @param ExtensibleDataInterface|PageInterface $entity
      * @param bool $isIndexable
      * @param string|null $entitySubtype
      *
-     * @return MagentoEntityInterface[]
+     * @return MagentoEntityInterface
      */
-    private function setMagentoEntity(
-        array $magentoEntities,
+    private function createMagentoEntity(
         string $apiKey,
         ExtensibleDataInterface|PageInterface $entity,
         bool $isIndexable,
         ?string $entitySubtype = null,
-    ): array {
-        $entityId = (int)$entity->getId(); // @phpstan-ignore-line
+    ): MagentoEntityInterface {
         $entityParentId = $this->getParentId($entity);
 
-        $key = $entityId . '-' . $entityParentId;
-        $magentoEntities[$key] = $this->magentoEntityInterfaceFactory->create([
-                'entityId' => $entityId,
-                'entityParentId' => $entityParentId ? (int)$entityParentId : null,
-                'apiKey' => $apiKey,
-                'isIndexable' => $isIndexable,
-                'entitySubtype' => $entitySubtype,
-            ]);
-
-        return $magentoEntities;
+        return $this->magentoEntityInterfaceFactory->create([
+            'entityId' => (int)$entity->getId(), // @phpstan-ignore-line
+            'entityParentId' => $entityParentId ? (int)$entityParentId : null,
+            'apiKey' => $apiKey,
+            'isIndexable' => $isIndexable,
+            'entitySubtype' => $entitySubtype,
+        ]);
     }
 
     /**

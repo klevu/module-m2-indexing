@@ -16,6 +16,8 @@ use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterfaceFactory;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\FilterEntitiesToSetToIndexableServiceInterface;
+use Klevu\IndexingApi\Service\Provider\EntityDiscoveryProviderInterface;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
@@ -33,6 +35,7 @@ use PHPUnit\Framework\TestCase;
  */
 class FilterEntitiesToSetToIndexableServiceTest extends TestCase
 {
+    use GeneratorTrait;
     use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
@@ -67,6 +70,9 @@ class FilterEntitiesToSetToIndexableServiceTest extends TestCase
         $this->cleanIndexingEntities('klevu-api-key%');
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_RemovesMagentoEntitiesAlreadyIndexable(): void
     {
         $apiKey = 'klevu-api-key';
@@ -136,8 +142,36 @@ class FilterEntitiesToSetToIndexableServiceTest extends TestCase
             'isIndexable' => true,
         ]);
 
-        $service = $this->instantiateTestObject();
-        $result = $service->execute(magentoEntities: $magentoEntities, type: 'KLEVU_PRODUCT', apiKey: $apiKey);
+        $mockDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockDiscoveryProvider->expects($this->once())
+            ->method('getData')
+            ->willReturn($this->generate([
+                $apiKey => [$magentoEntities],
+            ]));
+        $mockDiscoveryProvider->expects($this->once())
+            ->method('getEntityType')
+            ->willReturn('KLEVU_PRODUCT');
+
+        $service = $this->instantiateTestObject([
+            'discoveryProviders' => [
+                'KLEVU_PRODUCT' => $mockDiscoveryProvider,
+            ],
+        ]);
+        $resultsGenerator = $service->execute(
+            klevuIndexingEntities: [
+                $indexingEntity1,
+                $indexingEntity2,
+                $indexingEntity3,
+                $indexingEntity4,
+                $indexingEntity5,
+            ],
+            type: 'KLEVU_PRODUCT',
+            apiKeys: [$apiKey],
+        );
+        $results = iterator_to_array($resultsGenerator);
+        $result = array_pop($results);
 
         $this->assertCount(expectedCount: 4, haystack: $result);
         $this->assertContains(needle: (int)$indexingEntity1->getId(), haystack: $result);

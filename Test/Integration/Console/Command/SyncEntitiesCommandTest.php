@@ -19,6 +19,7 @@ use Klevu\PhpSDK\Model\Indexing\RecordIterator;
 use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
 use Magento\Framework\Console\Cli;
@@ -34,6 +35,7 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 class SyncEntitiesCommandTest extends TestCase
 {
+    use GeneratorTrait;
     use ObjectInstantiationTrait;
     use SetAuthKeysTrait;
     use StoreTrait;
@@ -206,32 +208,20 @@ class SyncEntitiesCommandTest extends TestCase
         $mockPipelineResults = [
             $this->objectManager->create(ApiPipelineResult::class, [
                 'success' => true,
-                'messages' => [],
+                'messages' => ['Batch accepted successfully'],
                 'payload' => $recordIterators,
             ]),
         ];
 
-        $mockIndexerResponseNoop = $this->getMockBuilder(IndexerResultInterface::class)
-            ->getMock();
-        $mockIndexerResponseNoop->expects($this->exactly(2))
-            ->method('getStatus')
-            ->willReturn(IndexerResultStatuses::NOOP);
-        $mockIndexerResponseNoop->expects($this->exactly(2))
-            ->method('getMessages')
-            ->willReturn([]);
-        $mockIndexerResponseNoop->expects($this->exactly(2))
-            ->method('getPipelineResult')
-            ->willReturn([]);
-
         $mockIndexerResponseSuccess = $this->getMockBuilder(IndexerResultInterface::class)
             ->getMock();
-        $mockIndexerResponseSuccess->expects($this->once())
+        $mockIndexerResponseSuccess
             ->method('getStatus')
             ->willReturn(IndexerResultStatuses::SUCCESS);
-        $mockIndexerResponseSuccess->expects($this->once())
+        $mockIndexerResponseSuccess
             ->method('getMessages')
             ->willReturn([]);
-        $mockIndexerResponseSuccess->expects($this->once())
+        $mockIndexerResponseSuccess
             ->method('getPipelineResult')
             ->willReturn([$mockPipelineResults]);
 
@@ -241,15 +231,15 @@ class SyncEntitiesCommandTest extends TestCase
         $mockIndexerService->expects($this->once())
             ->method('execute')
             ->with($apiKey, 'CLI::klevu:indexing:entity-sync')
-            ->willReturn($mockIndexerResponseSuccess);
+            ->willReturn($this->generate([$mockIndexerResponseSuccess]));
 
         $mockIndexerServiceNoop = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockIndexerServiceNoop->expects($this->exactly(2))
+        $mockIndexerServiceNoop->expects($this->once())
             ->method('execute')
             ->with($apiKey, 'CLI::klevu:indexing:entity-sync')
-            ->willReturn($mockIndexerResponseNoop);
+            ->willReturn($this->generate([]));
 
         $mockIndexerServiceNotCalled = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
@@ -262,7 +252,6 @@ class SyncEntitiesCommandTest extends TestCase
                 'KLEVU_PRODUCT' => [
                     'add' => $mockIndexerService,
                     'delete' => $mockIndexerServiceNoop,
-                    'update' => $mockIndexerServiceNoop,
                 ],
                 'KLEVU_CATEGORY' => [
                     'add' => $mockIndexerServiceNotCalled,
@@ -302,18 +291,19 @@ class SyncEntitiesCommandTest extends TestCase
             haystack: $display,
         );
         $this->assertStringContainsString(
-            needle: sprintf('Entity Sync for API Key: %s.', $apiKey),
+            needle: sprintf('Entity sync for API key: %s.', $apiKey),
             haystack: $display,
         );
 
         $pattern = '#'
-            . 'Action  : KLEVU_PRODUCT::add'
+            . 'Action: KLEVU_PRODUCT::add'
+            . '\s*success'
             . '\s*Batch        : 0'
             . '\s*Success      : True'
             . '\s*API Response : '
             . '\s*Job ID       : n/a'
             . '\s*Record Count : 1'
-            . '\s*Batches : 1'
+            . '\s*Batches processed : 1'
             . '\s*--'
             . '#';
         $matches = [];
@@ -324,34 +314,26 @@ class SyncEntitiesCommandTest extends TestCase
         );
         $this->assertCount(1, $matches, 'KLEVU_PRODUCT::add batches');
 
-        $pattern = '#'
-            . 'Action  : KLEVU_PRODUCT::delete'
-            . '\s*Batches : 0'
-            . '\s*--'
-            . '#';
+        $pattern = '#Action: KLEVU_PRODUCT::delete#';
         $matches = [];
         preg_match(
             pattern: $pattern,
             subject: $display,
             matches: $matches,
         );
-        $this->assertCount(1, $matches, 'KLEVU_PRODUCT::delete batches');
+        $this->assertCount(0, $matches, 'KLEVU_PRODUCT::delete batches');
 
-        $pattern = '#'
-            . 'Action  : KLEVU_PRODUCT::update'
-            . '\s*Batches : 0'
-            . '\s*--'
-            . '#';
+        $pattern = '#Action: KLEVU_PRODUCT::update#';
         $matches = [];
         preg_match(
             pattern: $pattern,
             subject: $display,
             matches: $matches,
         );
-        $this->assertCount(1, $matches, 'KLEVU_PRODUCT::update batches');
+        $this->assertCount(0, $matches, 'KLEVU_PRODUCT::update batches');
 
         $this->assertStringContainsString(
-            needle: 'Entity sync command completed successfully.',
+            needle: 'Entity sync completed successfully.',
             haystack: $display,
         );
 
@@ -448,28 +430,13 @@ class SyncEntitiesCommandTest extends TestCase
             ]),
         ];
 
-        $mockIndexerResponseNoop = $this->getMockBuilder(IndexerResultInterface::class)
-            ->getMock();
-        $mockIndexerResponseNoop->expects($this->exactly(2))
-            ->method('getStatus')
-            ->willReturn(IndexerResultStatuses::NOOP);
-        $mockIndexerResponseNoop->expects($this->exactly(2))
-            ->method('getMessages')
-            ->willReturn([]);
-        $mockIndexerResponseNoop->expects($this->exactly(2))
-            ->method('getPipelineResult')
-            ->willReturn([]);
-
         $mockIndexerResponseFailure = $this->getMockBuilder(IndexerResultInterface::class)
             ->getMock();
-        $mockIndexerResponseFailure->expects($this->once())
-            ->method('getStatus')
+        $mockIndexerResponseFailure->method('getStatus')
             ->willReturn(IndexerResultStatuses::ERROR);
-        $mockIndexerResponseFailure->expects($this->once())
-            ->method('getMessages')
+        $mockIndexerResponseFailure->method('getMessages')
             ->willReturn(['An exception was thrown']);
-        $mockIndexerResponseFailure->expects($this->once())
-            ->method('getPipelineResult')
+        $mockIndexerResponseFailure->method('getPipelineResult')
             ->willReturn([$mockPipelineResults]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
@@ -478,15 +445,15 @@ class SyncEntitiesCommandTest extends TestCase
         $mockIndexerService->expects($this->once())
             ->method('execute')
             ->with($apiKey, 'CLI::klevu:indexing:entity-sync')
-            ->willReturn($mockIndexerResponseFailure);
+            ->willReturn($this->generate([$mockIndexerResponseFailure]));
 
         $mockIndexerServiceNoop = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockIndexerServiceNoop->expects($this->exactly(2))
+        $mockIndexerServiceNoop->expects($this->once())
             ->method('execute')
             ->with($apiKey, 'CLI::klevu:indexing:entity-sync')
-            ->willReturn($mockIndexerResponseNoop);
+            ->willReturn($this->generate([]));
 
         $mockIndexerServiceNotCalled = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
@@ -499,7 +466,6 @@ class SyncEntitiesCommandTest extends TestCase
                 'KLEVU_PRODUCT' => [
                     'add' => $mockIndexerService,
                     'delete' => $mockIndexerServiceNoop,
-                    'update' => $mockIndexerServiceNoop,
                 ],
                 'KLEVU_CATEGORY' => [
                     'add' => $mockIndexerServiceNotCalled,
@@ -539,7 +505,7 @@ class SyncEntitiesCommandTest extends TestCase
             haystack: $display,
         );
         $this->assertStringContainsString(
-            needle: sprintf('Entity Sync for API Key: %s.', $apiKey),
+            needle: sprintf('Entity sync for API key: %s.', $apiKey),
             haystack: $display,
         );
         $this->assertStringContainsString(
@@ -548,13 +514,15 @@ class SyncEntitiesCommandTest extends TestCase
         );
 
         $pattern = '#'
-            . 'Action  : KLEVU_PRODUCT::add'
+            . 'Action: KLEVU_PRODUCT::add'
+            . '\s*error'
+            . '\s*An exception was thrown'
             . '\s*Batch        : 0'
             . '\s*Success      : False'
             . '\s*API Response : .*'
             . '\s*Job ID       : n/a'
             . '\s*Record Count : 1'
-            . '\s*Batches : 1'
+            . '\s*Batches processed : 1'
             . '\s*--'
             . '#';
         $matches = [];
@@ -565,34 +533,17 @@ class SyncEntitiesCommandTest extends TestCase
         );
         $this->assertCount(1, $matches, 'KLEVU_PRODUCT::add batches');
 
-        $pattern = '#'
-            . 'Action  : KLEVU_PRODUCT::delete'
-            . '\s*Batches : 0'
-            . '\s*--'
-            . '#';
+        $pattern = '#Action: KLEVU_PRODUCT::delete#';
         $matches = [];
         preg_match(
             pattern: $pattern,
             subject: $display,
             matches: $matches,
         );
-        $this->assertCount(1, $matches, 'KLEVU_PRODUCT::delete batches');
-
-        $pattern = '#'
-            . 'Action  : KLEVU_PRODUCT::update'
-            . '\s*Batches : 0'
-            . '\s*--'
-            . '#';
-        $matches = [];
-        preg_match(
-            pattern: $pattern,
-            subject: $display,
-            matches: $matches,
-        );
-        $this->assertCount(1, $matches, 'KLEVU_PRODUCT::update batches');
+        $this->assertCount(0, $matches, 'KLEVU_PRODUCT::delete batches');
 
         $this->assertStringContainsString(
-            needle: 'All or part of Entity Sync Failed. See Logs for more details.',
+            needle: 'All or part of entity sync failed. See logs for more details.',
             haystack: $display,
         );
 

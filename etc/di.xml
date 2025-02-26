@@ -30,7 +30,7 @@
                 type="Klevu\Indexing\Model\SyncResult"/>
 
     <preference for="Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface"
-                type="\Klevu\Indexing\Model\IndexingEntityRepository"/>
+                type="Klevu\Indexing\Model\IndexingEntityRepository"/>
 
     <preference for="Klevu\IndexingApi\Api\SyncHistoryEntityRepositoryInterface"
                 type="\Klevu\Indexing\Model\SyncHistoryEntityRepository"/>
@@ -212,6 +212,7 @@
         <arguments>
             <argument name="indexingEntityValidator"
                       xsi:type="object">Klevu\Indexing\Validator\IndexingEntityValidator</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
 
@@ -762,8 +763,9 @@
 
     <type name="Klevu\Indexing\Service\Provider\Sync\EntityIndexingRecordProvider">
         <arguments>
-            <argument name="batchSize" xsi:type="number">2500</argument>
+            <argument name="batchSize" xsi:type="const">Klevu\Indexing\Constants::DEFAULT_INDEXING_BATCH_SIZE</argument>
             <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
 
@@ -816,6 +818,18 @@
     </type>
 
     <type name="Klevu\Indexing\Service\FilterEntitiesToDeleteService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\FilterEntitiesToSetToIndexableService">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\FilterEntitiesToSetToNotIndexableService">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>

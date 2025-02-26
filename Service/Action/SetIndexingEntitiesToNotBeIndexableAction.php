@@ -48,37 +48,42 @@ class SetIndexingEntitiesToNotBeIndexableAction implements SetIndexingEntitiesTo
     }
 
     /**
-     * @param int[] $entityIds
+     * @param \Generator<int[]> $entityIds
      *
      * @return void
      * @throws IndexingEntitySaveException
      */
-    public function execute(array $entityIds): void
+    public function execute(\Generator $entityIds): void
     {
-        if (!$entityIds) {
-            return;
-        }
         $failed = [];
-        $indexingEntities = $this->getIndexingEntities($entityIds);
-        foreach ($indexingEntities as $indexingEntity) {
-            if (!$indexingEntity->getIsIndexable()) {
-                continue;
+        foreach ($entityIds as $entityIdsBatch) {
+            $indexingEntities = $this->getIndexingEntities($entityIdsBatch);
+            foreach ($indexingEntities as $indexingEntity) {
+                if (!$indexingEntity->getIsIndexable()) {
+                    continue;
+                }
+                try {
+                    $indexingEntity->setNextAction(nextAction: Actions::NO_ACTION);
+                    $indexingEntity->setIsIndexable(isIndexable: false);
+                    $this->indexingEntityRepository->save(indexingEntity: $indexingEntity);
+                } catch (\Exception $exception) {
+                    $failed[] = $indexingEntity->getId();
+                    $this->logger->error(
+                        message: 'Method: {method} - Entity ID: {entity_id} - Error: {exception}',
+                        context: [
+                            'method' => __METHOD__,
+                            'entity_id' => $indexingEntity->getId(),
+                            'exception' => $exception->getMessage(),
+                        ],
+                    );
+                }
             }
-            try {
-                $indexingEntity->setNextAction(nextAction: Actions::NO_ACTION);
-                $indexingEntity->setIsIndexable(isIndexable: false);
-                $this->indexingEntityRepository->save(indexingEntity: $indexingEntity);
-            } catch (\Exception $exception) {
-                $failed[] = $indexingEntity->getId();
-                $this->logger->error(
-                    message: 'Method: {method} - Entity ID: {entity_id} - Error: {exception}',
-                    context: [
-                        'method' => __METHOD__,
-                        'entity_id' => $indexingEntity->getId(),
-                        'exception' => $exception->getMessage(),
-                    ],
-                );
+            foreach ($indexingEntities as $indexingEntity) {
+                if (method_exists($indexingEntity, 'clearInstance')) {
+                    $indexingEntity->clearInstance();
+                }
             }
+            unset($indexingEntities);
         }
         if ($failed) {
             throw new IndexingEntitySaveException(

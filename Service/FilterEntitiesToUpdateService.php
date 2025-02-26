@@ -57,7 +57,7 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
      *
      * @param string $type
      * @param int[] $entityIds
-     * @param string $apiKey
+     * @param string[] $apiKeys
      * @param string[]|null $entitySubtypes
      *
      * @return \Generator<int[]>
@@ -65,14 +65,14 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
     public function execute(
         string $type,
         array $entityIds,
-        string $apiKey,
+        array $apiKeys,
         ?array $entitySubtypes = [],
     ): \Generator {
         $lastIndexingEntityId = 0;
         while (true) {
             $klevuEntities = $this->indexingEntityProvider->get(
                 entityType: $type,
-                apiKeys: [$apiKey],
+                apiKeys: $apiKeys,
                 entityIds: $entityIds,
                 pageSize: $this->batchSize,
                 startFrom: $lastIndexingEntityId + 1,
@@ -92,6 +92,12 @@ class FilterEntitiesToUpdateService implements FilterEntitiesToUpdateServiceInte
             );
             $lastIndexingEntity = array_pop($klevuEntities);
             $lastIndexingEntityId = $lastIndexingEntity->getId();
+            foreach ($klevuEntities as $klevuEntity) {
+                if (method_exists($klevuEntity, 'clearInstance')) {
+                    $klevuEntity->clearInstance();
+                }
+            }
+            unset($klevuEntities);
             if (!$lastIndexingEntityId) {
                 break;
             }
