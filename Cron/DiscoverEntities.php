@@ -39,15 +39,33 @@ class DiscoverEntities
      */
     public function execute(): void
     {
+        $success = true;
         $this->logger->info(
             message: 'Starting discovery of entities.',
         );
-        $success = $this->discoveryOrchestratorService->execute();
+        $responsesGenerator = $this->discoveryOrchestratorService->execute();
 
+        foreach ($responsesGenerator as $responses) {
+            $count = 1;
+            foreach ($responses as $response) {
+                if (!$response->isSuccess()) {
+                    $success = false;
+                }
+                $this->logger->debug(
+                    message: sprintf(
+                        'Discover %s to %s Batch %s %s.',
+                        $response->getEntityType(),
+                        $response->getAction(),
+                        $count,
+                        $response->isSuccess() ? 'Completed Successfully' : 'Failed'),
+                );
+                $count++;
+            }
+        }
         $this->logger->info(
             message: sprintf(
                 'Discovery of entities completed %s.',
-                $success->isSuccess() ? 'successfully' : 'with failures. See logs for more details',
+                $success ? 'successfully' : 'with failures',
             ),
         );
     }

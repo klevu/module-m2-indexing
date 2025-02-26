@@ -53,6 +53,9 @@ class EntityUpdateOrchestratorServiceTest extends TestCase
         $this->objectManager = Bootstrap::getObjectManager();
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_LogsNoSuchEntityException_WhenRetrievingApiKeys(): void
     {
         $exceptionMessage = 'No Such Entity Exception Message';

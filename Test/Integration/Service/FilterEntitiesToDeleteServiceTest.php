@@ -72,6 +72,7 @@ class FilterEntitiesToDeleteServiceTest extends TestCase
 
     /**
      * @magentoDbIsolation disabled
+     * @magentoAppIsolation enabled
      */
     public function testExecute_ReturnsEntityIdsToDelete_whichHaveBeenDeleted(): void
     {
@@ -162,10 +163,12 @@ class FilterEntitiesToDeleteServiceTest extends TestCase
                 'KLEVU_PRODUCT' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(
+        $resultsGenerator = $service->execute(
             klevuIndexingEntities: $klevuIndexingEntities,
             type: 'KLEVU_PRODUCT',
         );
+        $results = iterator_to_array($resultsGenerator);
+        $result = array_pop($results);
 
         $this->assertCount(expectedCount: 2, haystack: $result);
         $this->assertNotContains(needle: (int)$indexingEntity1->getId(), haystack: $result);

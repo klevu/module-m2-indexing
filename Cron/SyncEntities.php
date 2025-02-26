@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Cron;
 
+use Klevu\Indexing\Service\EntitySyncOrchestratorService;
 use Klevu\IndexingApi\Api\Data\IndexerResultInterface;
 use Klevu\IndexingApi\Service\EntitySyncOrchestratorServiceInterface;
 use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
@@ -23,13 +24,17 @@ class SyncEntities
      * @var LoggerInterface
      */
     private readonly LoggerInterface $logger;
+    /**
+     * @var int[]
+     */
+    private array $batchCounts;
 
     /**
      * @param EntitySyncOrchestratorServiceInterface $syncOrchestratorService
      * @param LoggerInterface $logger
      */
     public function __construct(
-            EntitySyncOrchestratorServiceInterface $syncOrchestratorService,
+        EntitySyncOrchestratorServiceInterface $syncOrchestratorService,
         LoggerInterface $logger,
     ) {
         $this->syncOrchestratorService = $syncOrchestratorService;
@@ -47,17 +52,21 @@ class SyncEntities
         $results = $this->syncOrchestratorService->execute(
             via: 'Cron: ' . self::class,
         );
-        $this->logPipelineResults($results);
+        $this->logPipelineResults(results: $results);
     }
 
     /**
-     * @param IndexerResultInterface[] $results
+     * @param \Generator<IndexerResultInterface> $results
      *
      * @return void
      */
-    private function logPipelineResults(array $results): void
+    private function logPipelineResults(\Generator $results): void
     {
-        foreach ($results as $apiKey => $syncResult) {
+        /**
+         * @var IndexerResultInterface $syncResult
+         */
+        foreach ($results as $key => $syncResult) {
+            [$apiKey, $action] = explode(EntitySyncOrchestratorService::INDEXER_RESULT_KEY_CONCATENATOR, $key);
             $pipelineResult = $syncResult->getPipelineResult();
             if (!is_array($pipelineResult)) {
                 $this->logger->error(
@@ -74,39 +83,31 @@ class SyncEntities
                 );
                 continue;
             }
-            /**
-             * @var string $action
-             * @var ApiPipelineResult[][] $apiPipelineResultsArray
-             */
-            foreach ($pipelineResult as $action => $apiPipelineResultsArray) {
-                if (!is_array($apiPipelineResultsArray)) {
+            $this->batchCounts[$action] = $this->batchCounts[$action] ?? 0;
+
+            foreach ($pipelineResult as $apiPipelineResults) {
+                if (!is_array($apiPipelineResults)) {
                     continue;
                 }
-                $batchCount = 0;
-                foreach ($apiPipelineResultsArray as $apiPipelineResults) {
-                    if (!is_array($apiPipelineResults)) {
-                        continue;
-                    }
-                    $apiPipelineResults = array_filter(
-                        $apiPipelineResults,
-                        static fn (mixed $item): bool => ($item instanceof ApiPipelineResult),
+                $apiPipelineResults = array_filter(
+                    $apiPipelineResults,
+                    static fn (mixed $item): bool => ($item instanceof ApiPipelineResult),
+                );
+                foreach ($apiPipelineResults as $batch => $apiPipelineResult) {
+                    $this->logger->info(
+                        message: sprintf(
+                            'Sync of entities for apiKey: %s, %s batch %s: completed %s. Job ID: %s',
+                            $apiKey,
+                            $action,
+                            $batch + $this->batchCounts[$action],
+                            $apiPipelineResult->success
+                                ? 'successfully'
+                                : 'with failures. See logs for more details',
+                            $apiPipelineResult->apiResponse?->jobId ?? 'N/A',
+                        ),
                     );
-                    foreach ($apiPipelineResults as $batch => $apiPipelineResult) {
-                        $this->logger->info(
-                            message: sprintf(
-                                'Sync of entities for apiKey: %s, %s batch %s: completed %s. Job ID: %s',
-                                $apiKey,
-                                $action,
-                                $batch + $batchCount,
-                                $apiPipelineResult->success
-                                    ? 'successfully'
-                                    : 'with failures. See logs for more details',
-                                $apiPipelineResult->apiResponse?->jobId ?? 'N/A',
-                            ),
-                        );
-                    }
-                    $batchCount += count($apiPipelineResults);
                 }
+                $this->batchCounts[$action] += count($apiPipelineResults);
             }
         }
     }

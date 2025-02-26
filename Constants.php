@@ -19,5 +19,5 @@ class Constants
     public const NOTIFICATION_TYPE_CONFLICTING_ATTRIBUTE_NAMES = 'Klevu_Indexing::conflicting_attribute_names';
     public const NOTIFICATION_TYPE_DUPLICATE_ATTRIBUTE_MAPPING = 'Klevu_Indexing::duplicate_attribute_mapping';
     public const NOTIFICATION_TYPE_MISSING_ATTRIBUTES = 'Klevu_Indexing::attributes_not_indexable_in_klevu';
-
+    public const DEFAULT_INDEXING_BATCH_SIZE = 1000;
 }

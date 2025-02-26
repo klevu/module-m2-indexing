@@ -21,6 +21,7 @@ use Klevu\PhpSDK\Model\Indexing\RecordIterator;
 use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\PipelineEntityApiCallTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
@@ -34,6 +35,7 @@ use TddWizard\Fixtures\Core\ConfigFixture;
 
 class SyncEntitiesTest extends TestCase
 {
+    use GeneratorTrait;
     use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use PipelineEntityApiCallTrait;
@@ -212,16 +214,13 @@ class SyncEntitiesTest extends TestCase
 
         $mockIndexerResponse = $this->getMockBuilder(IndexerResultInterface::class)
             ->getMock();
-        $mockIndexerResponse->expects($this->once())
-            ->method('getStatus')
+        $mockIndexerResponse->method('getStatus')
             ->willReturn(IndexerResultStatuses::SUCCESS);
-        $mockIndexerResponse->expects($this->once())
-            ->method('getMessages')
+        $mockIndexerResponse->method('getMessages')
             ->willReturn([]);
-        $mockIndexerResponse->expects($this->once())
-            ->method('getPipelineResult')
+        $mockIndexerResponse->method('getPipelineResult')
             ->willReturn([
-                'KLEVU_PRODUCT::add' => [$mockPipelineResult],
+                $apiKey . '~~KLEVU_PRODUCT::add' => [$mockPipelineResult],
             ]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
@@ -230,7 +229,7 @@ class SyncEntitiesTest extends TestCase
         $mockIndexerService->expects($this->once())
             ->method('execute')
             ->with($apiKey, $via)
-            ->willReturn($mockIndexerResponse);
+            ->willReturn($this->generate(yieldValues: [$mockIndexerResponse]));
 
         $syncOrchestrator = $this->objectManager->create(EntitySyncOrchestratorServiceInterface::class, [
             'entityIndexerServices' => [
@@ -348,16 +347,13 @@ class SyncEntitiesTest extends TestCase
 
         $mockIndexerResponse = $this->getMockBuilder(IndexerResultInterface::class)
             ->getMock();
-        $mockIndexerResponse->expects($this->once())
-            ->method('getStatus')
+        $mockIndexerResponse->method('getStatus')
             ->willReturn(IndexerResultStatuses::SUCCESS);
-        $mockIndexerResponse->expects($this->once())
-            ->method('getMessages')
+        $mockIndexerResponse->method('getMessages')
             ->willReturn([]);
-        $mockIndexerResponse->expects($this->once())
-            ->method('getPipelineResult')
+        $mockIndexerResponse->method('getPipelineResult')
             ->willReturn([
-                'KLEVU_PRODUCT::add' => [$mockPipelineResult],
+                $apiKey . '~~KLEVU_PRODUCT::add' => [$mockPipelineResult],
             ]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
@@ -366,7 +362,7 @@ class SyncEntitiesTest extends TestCase
         $mockIndexerService->expects($this->once())
             ->method('execute')
             ->with($apiKey, $via)
-            ->willReturn($mockIndexerResponse);
+            ->willReturn($this->generate(yieldValues: [$mockIndexerResponse]));
 
         $syncOrchestrator = $this->objectManager->create(EntitySyncOrchestratorServiceInterface::class, [
             'entityIndexerServices' => [
@@ -413,9 +409,9 @@ class SyncEntitiesTest extends TestCase
             ->getMock();
         $mockSyncOrchestrator->expects($this->once())
             ->method('execute')
-            ->willReturn([
-                'klevu-test-api-key' => $mockIndexerResult,
-            ]);
+            ->willReturn($this->generate(yieldValues: [
+                'klevu-test-api-key~~add' => $mockIndexerResult,
+            ]));
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->disableOriginalConstructor()
@@ -426,7 +422,7 @@ class SyncEntitiesTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Cron\SyncEntities::logPipelineResults',
-                    'line' => 67,
+                    'line' => 76,
                     'message' => sprintf(
                         'Unexpected result from pipeline. Expected array<string, array<string, %s>>, received %s',
                         ApiPipelineResult::class,
@@ -465,9 +461,9 @@ class SyncEntitiesTest extends TestCase
             ->getMock();
         $mockSyncOrchestrator->expects($this->once())
             ->method('execute')
-            ->willReturn([
-                'klevu-test-api-key' => $mockIndexerResult,
-            ]);
+            ->willReturn($this->generate(yieldValues: [
+                'klevu-test-api-key~~add' => $mockIndexerResult,
+            ]));
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->disableOriginalConstructor()

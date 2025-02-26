@@ -17,6 +17,7 @@ use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToDeleteActionInterface;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
@@ -36,6 +37,7 @@ use Psr\Log\LoggerInterface;
  */
 class SetIndexingEntitiesToDeleteActionTest extends TestCase
 {
+    use GeneratorTrait;
     use ObjectInstantiationTrait;
     use StoreTrait;
     use TestImplementsInterfaceTrait;
@@ -97,7 +99,7 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
         $entityIds = $this->getEntityIds($indexingEntities);
 
         $action = $this->instantiateTestObject();
-        $action->execute($entityIds);
+        $action->execute($this->generate([$entityIds]));
 
         $indexingEntities = $this->getIndexingEntities($apiKey, $type);
         $this->assertCount(expectedCount: 3, haystack: $indexingEntities);
@@ -176,7 +178,7 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
             'indexingEntityRepository' => $mockIndexingEntityRepository,
             'logger' => $mockLogger,
         ]);
-        $action->execute($entityIds);
+        $action->execute($this->generate([$entityIds]));
     }
 
     /**

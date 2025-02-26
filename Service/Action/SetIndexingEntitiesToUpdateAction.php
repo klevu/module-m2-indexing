@@ -76,6 +76,12 @@ class SetIndexingEntitiesToUpdateAction implements SetIndexingEntitiesToUpdateAc
                 );
             }
         }
+        foreach ($indexingEntities as $indexingEntity) {
+            if (method_exists($indexingEntity, 'clearInstance')) {
+                $indexingEntity->clearInstance();
+            }
+        }
+        unset($indexingEntities);
         if ($failed) {
             throw new IndexingEntitySaveException(
                 phrase: __(

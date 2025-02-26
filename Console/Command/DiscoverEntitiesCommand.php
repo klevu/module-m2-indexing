@@ -90,27 +90,70 @@ class DiscoverEntitiesCommand extends Command
             ),
         );
 
-        $success = $this->discoveryOrchestratorService->execute(
+        $responsesGenerator = $this->discoveryOrchestratorService->execute(
             entityTypes: $this->getEntityTypes(input: $input),
             apiKeys: $this->getApiKeys(input: $input),
         );
 
-        if ($success->isSuccess()) {
-            $output->writeln(
-                messages: sprintf(
-                    '<comment>%s</comment>',
-                    __('Entity Discovery Completed Successfully.'),
-                ),
-            );
-        } else {
-            $return = Cli::RETURN_FAILURE;
-            $output->writeln(
-                messages: sprintf(
-                    '<error>%s</error>',
-                    __('Entity Discovery Failed. See Logs for more details.'),
-                ),
-            );
+        foreach ($responsesGenerator as $responses) {
+            $count = 1;
+            foreach ($responses as $response) {
+                if ($output->getVerbosity() === OutputInterface::VERBOSITY_NORMAL) {
+                    $output->write(messages: '.');
+                }
+                if ($response->isSuccess()) {
+                    if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                        $output->writeln(
+                            messages: sprintf(
+                                '<comment>  %s</comment>',
+                                __(
+                                    'Discover %1 to %2 Batch %3 Completed Successfully.',
+                                    $response->getEntityType(),
+                                    $response->getAction(),
+                                    $count,
+                                ),
+                            ),
+                        );
+                    }
+                } else {
+                    $return = Cli::RETURN_FAILURE;
+                    if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+                        $output->writeln(
+                            messages: sprintf(
+                                '<error>  %s</error>',
+                                __(
+                                    'Discover %1 to %2 batch %3 Failed. See Logs for more details.',
+                                    $response->getEntityType(),
+                                    $response->getAction(),
+                                    $count,
+                                ),
+                            ),
+                        );
+                    }
+                    if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
+                        $output->writeln(
+                            messages: sprintf('<error>   %s</error>',
+                                __(
+                                    "Error Messages: %1",
+                                    implode(',' . PHP_EOL, $response->getMessages()),
+                                ),
+                            ),
+                        );
+                    }
+                }
+                $count++;
+            }
+            if ($output->getVerbosity() > OutputInterface::VERBOSITY_NORMAL) {
+                $output->writeln(messages: ' ...');
+            }
         }
+
+        $output->writeln(
+            messages: sprintf(
+                '<comment>%s</comment>',
+                __('Entity Discovery Completed.'),
+            ),
+        );
         $endTime = microtime(true);
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
             $output->writeln(
@@ -126,7 +169,10 @@ class DiscoverEntitiesCommand extends Command
                 messages: sprintf('<comment>%s</comment>',
                     __(
                         "Peak memory usage during discovery: %1Mb",
-                        number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
+                        number_format(
+                            num: memory_get_peak_usage(real_usage: true) / (1024 * 1024),
+                            decimals: 2,
+                        ),
                     ),
                 ),
             );

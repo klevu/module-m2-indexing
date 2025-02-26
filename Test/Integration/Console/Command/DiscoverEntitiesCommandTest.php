@@ -18,6 +18,7 @@ use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
@@ -76,6 +77,9 @@ class DiscoverEntitiesCommandTest extends TestCase
             input: [
                 '--api-keys' => 'klevu-api-key-with-no-store',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 1, actual: $isFailure, message: 'Discovery Failed');
@@ -84,7 +88,15 @@ class DiscoverEntitiesCommandTest extends TestCase
             haystack: $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Discovery Failed. See Logs for more details.',
+            '...',
+            $tester->getDisplay(),
+        );
+        $this->assertStringNotMatchesFormat(
+            format: '%ADiscover %A to %A Batch %d Completed Successfully.%A',
+            string: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Discovery Completed.',
             haystack: $tester->getDisplay(),
         );
     }
@@ -106,15 +118,22 @@ class DiscoverEntitiesCommandTest extends TestCase
             input: [
                 '--entity-types' => 'something',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 1, actual: $isFailure, message: 'Discovery Failed');
         $this->assertStringContainsString(
-            'Begin Entity Discovery.',
-            $tester->getDisplay(),
+            needle: 'Begin Entity Discovery.',
+            haystack: $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Discovery Failed. See Logs for more details.',
+            needle: 'Supplied entity types did not match any providers.',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Discovery Completed.',
             haystack: $tester->getDisplay(),
         );
     }
@@ -142,6 +161,9 @@ class DiscoverEntitiesCommandTest extends TestCase
             input: [
                 '--api-keys' => 'klevu-js-api-key-1, klevu-js-api-key-2',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 0, actual: $isFailure, message: 'Discovery Failed');
@@ -149,8 +171,12 @@ class DiscoverEntitiesCommandTest extends TestCase
             needle: 'Begin Entity Discovery.',
             haystack: $tester->getDisplay(),
         );
+        $this->assertStringMatchesFormat(
+            format: '%ADiscover %A to %A Batch %d Completed Successfully.%A',
+            string: $tester->getDisplay(),
+        );
         $this->assertStringContainsString(
-            needle: 'Entity Discovery Completed Successfully.',
+            needle: 'Entity Discovery Completed.',
             haystack: $tester->getDisplay(),
         );
     }
@@ -166,8 +192,7 @@ class DiscoverEntitiesCommandTest extends TestCase
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProductDiscoveryProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProductDiscoveryProvider->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
         $mockProductDiscoveryProvider->expects($this->once())
             ->method('getData')
@@ -189,6 +214,9 @@ class DiscoverEntitiesCommandTest extends TestCase
             input: [
                 '--entity-types' => 'KLEVU_PRODUCT',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 0, actual: $isFailure, message: 'Discovery Failed');
@@ -197,7 +225,11 @@ class DiscoverEntitiesCommandTest extends TestCase
             haystack: $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Discovery Completed Successfully.',
+            needle: '...',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Discovery Completed.',
             haystack: $tester->getDisplay(),
         );
     }
@@ -213,8 +245,7 @@ class DiscoverEntitiesCommandTest extends TestCase
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProductDiscoveryProvider->expects($this->exactly(2))
-            ->method('getEntityType')
+        $mockProductDiscoveryProvider->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
         $mockProductDiscoveryProvider->expects($this->once())
             ->method('getData')
@@ -234,6 +265,9 @@ class DiscoverEntitiesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 0, actual: $isFailure, message: 'Discovery Failed');
@@ -242,7 +276,11 @@ class DiscoverEntitiesCommandTest extends TestCase
             haystack: $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Discovery Completed Successfully.',
+            needle: '...',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Discovery Completed.',
             haystack: $tester->getDisplay(),
         );
     }

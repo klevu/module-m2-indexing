@@ -9,8 +9,10 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Cron;
 
 use Klevu\Indexing\Cron\DiscoverEntities;
-use Klevu\IndexingApi\Api\Data\DiscoveryResultInterface;
+use Klevu\Indexing\Model\DiscoveryResult;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Magento\Cron\Model\Config as CronConfig;
 use Magento\Framework\ObjectManagerInterface;
@@ -24,6 +26,7 @@ use Psr\Log\LoggerInterface;
  */
 class DiscoverEntitiesTest extends TestCase
 {
+    use GeneratorTrait;
     use ObjectInstantiationTrait;
 
     /**
@@ -58,18 +61,33 @@ class DiscoverEntitiesTest extends TestCase
 
     public function testExecute_PrintsSuccessMessage_onSuccess(): void
     {
-        $mockSyncResult = $this->getMockBuilder(DiscoveryResultInterface::class)
-            ->getMock();
-        $mockSyncResult->expects($this->once())
-            ->method('isSuccess')
-            ->willReturn(true);
+        $mockUpdateSyncResult = $this->objectManager->create(DiscoveryResult::class, [
+            'isSuccess' => true,
+            'action' => Actions::UPDATE->value,
+            'entityType' => 'KLEVU_PRODUCT',
+        ]);
+        $mockDeleteSyncResult = $this->objectManager->create(DiscoveryResult::class, [
+            'isSuccess' => true,
+            'action' => Actions::DELETE->value,
+            'entityType' => 'KLEVU_PRODUCT',
+        ]);
+        $mockAddSyncResult = $this->objectManager->create(DiscoveryResult::class, [
+            'isSuccess' => true,
+            'action' => Actions::ADD->value,
+            'entityType' => 'KLEVU_PRODUCT',
+        ]);
 
         $mockDiscoveryOrchestrator = $this->getMockBuilder(EntityDiscoveryOrchestratorServiceInterface::class)
             ->getMock();
         $mockDiscoveryOrchestrator->expects($this->once())
             ->method('execute')
-            ->with()
-            ->willReturn($mockSyncResult);
+            ->willReturn(
+                $this->generate([
+                    $this->generate([$mockUpdateSyncResult]),
+                    $this->generate([$mockDeleteSyncResult]),
+                    $this->generate([$mockAddSyncResult]),
+                ]),
+            );
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -78,6 +96,13 @@ class DiscoverEntitiesTest extends TestCase
             ->withConsecutive(
                 ['Starting discovery of entities.'],
                 ['Discovery of entities completed successfully.'],
+            );
+        $mockLogger->expects($this->exactly(3))
+            ->method('debug')
+            ->withConsecutive(
+                ['Discover KLEVU_PRODUCT to Update Batch 1 Completed Successfully.'],
+                ['Discover KLEVU_PRODUCT to Delete Batch 1 Completed Successfully.'],
+                ['Discover KLEVU_PRODUCT to Add Batch 1 Completed Successfully.'],
             );
 
         $cron = $this->instantiateTestObject([
@@ -90,18 +115,38 @@ class DiscoverEntitiesTest extends TestCase
 
     public function testExecute_PrintsFailureMessage_onFailure(): void
     {
-        $mockSyncResult = $this->getMockBuilder(DiscoveryResultInterface::class)
-            ->getMock();
-        $mockSyncResult->expects($this->once())
-            ->method('isSuccess')
-            ->willReturn(false);
+        $mockUpdateSyncResult1 = $this->objectManager->create(DiscoveryResult::class, [
+            'isSuccess' => false,
+            'action' => Actions::UPDATE->value,
+            'entityType' => 'KLEVU_PRODUCT',
+        ]);
+        $mockUpdateSyncResult2 = $this->objectManager->create(DiscoveryResult::class, [
+            'isSuccess' => true,
+            'action' => Actions::UPDATE->value,
+            'entityType' => 'KLEVU_PRODUCT',
+        ]);
+        $mockDeleteSyncResult = $this->objectManager->create(DiscoveryResult::class, [
+            'isSuccess' => true,
+            'action' => Actions::DELETE->value,
+            'entityType' => 'KLEVU_PRODUCT',
+        ]);
+        $mockAddSyncResult = $this->objectManager->create(DiscoveryResult::class, [
+            'isSuccess' => false,
+            'action' => Actions::ADD->value,
+            'entityType' => 'KLEVU_PRODUCT',
+        ]);
 
         $mockDiscoveryOrchestrator = $this->getMockBuilder(EntityDiscoveryOrchestratorServiceInterface::class)
             ->getMock();
         $mockDiscoveryOrchestrator->expects($this->once())
             ->method('execute')
-            ->with()
-            ->willReturn($mockSyncResult);
+            ->willReturn(
+                $this->generate([
+                    $this->generate([$mockUpdateSyncResult1, $mockUpdateSyncResult2]),
+                    $this->generate([$mockDeleteSyncResult]),
+                    $this->generate([$mockAddSyncResult]),
+                ]),
+            );
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -109,7 +154,15 @@ class DiscoverEntitiesTest extends TestCase
             ->method('info')
             ->withConsecutive(
                 ['Starting discovery of entities.'],
-                ['Discovery of entities completed with failures. See logs for more details.'],
+                ['Discovery of entities completed with failures.'],
+            );
+        $mockLogger->expects($this->exactly(4))
+            ->method('debug')
+            ->withConsecutive(
+                ['Discover KLEVU_PRODUCT to Update Batch 1 Failed.'],
+                ['Discover KLEVU_PRODUCT to Update Batch 2 Completed Successfully.'],
+                ['Discover KLEVU_PRODUCT to Delete Batch 1 Completed Successfully.'],
+                ['Discover KLEVU_PRODUCT to Add Batch 1 Failed.'],
             );
 
         $cron = $this->instantiateTestObject([

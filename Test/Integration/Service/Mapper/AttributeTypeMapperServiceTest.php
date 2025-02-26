@@ -184,6 +184,9 @@ class AttributeTypeMapperServiceTest extends TestCase
         );
     }
 
+    /**
+     * @magentoAppIsolation enabled
+     */
     public function testExecute_ReturnsMultiValue_ForSelectVarcharAttribute(): void
     {
         $this->createAttribute([

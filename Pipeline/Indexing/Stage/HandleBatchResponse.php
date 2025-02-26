@@ -421,6 +421,8 @@ class HandleBatchResponse implements PipelineInterface
         );
         /** @var IndexingEntityInterface[] $items */
         $items = $entityCollection->getItems();
+        $entityCollection->clear();
+        unset($entityCollection);
 
         return $items;
     }

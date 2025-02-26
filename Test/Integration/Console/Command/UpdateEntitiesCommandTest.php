@@ -18,6 +18,7 @@ use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
@@ -90,6 +91,9 @@ class UpdateEntitiesCommandTest extends TestCase
         );
         $isFailure = $tester->execute(
             input: [],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 1, actual: $isFailure, message: 'Update Failed');
@@ -121,6 +125,9 @@ class UpdateEntitiesCommandTest extends TestCase
                 '--entity-ids' => '1,2,3',
                 '--api-keys' => 'klevu-api-key-with-no-store',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 1, actual: $isFailure, message: 'Update Failed');
@@ -129,7 +136,15 @@ class UpdateEntitiesCommandTest extends TestCase
             haystack: $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Update Failed. See Logs for more details.',
+            '...',
+            $tester->getDisplay(),
+        );
+        $this->assertStringNotMatchesFormat(
+            format: '%ADiscover %A to %A Batch %d Completed Successfully.%A',
+            string: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Update Completed.',
             haystack: $tester->getDisplay(),
         );
     }
@@ -152,6 +167,9 @@ class UpdateEntitiesCommandTest extends TestCase
                 '--entity-ids' => '1,2,3',
                 '--entity-types' => 'something',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 1, actual: $isFailure, message: 'Update Failed');
@@ -160,7 +178,11 @@ class UpdateEntitiesCommandTest extends TestCase
             $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Update Failed. See Logs for more details.',
+            needle: 'Supplied entity types did not match any providers.',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Update Completed.',
             haystack: $tester->getDisplay(),
         );
     }
@@ -189,6 +211,9 @@ class UpdateEntitiesCommandTest extends TestCase
                 '--entity-ids' => '1,2,3',
                 '--api-keys' => 'klevu-js-api-key-1, klevu-js-api-key-2',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 0, actual: $isFailure, message: 'Update Failed');
@@ -197,7 +222,15 @@ class UpdateEntitiesCommandTest extends TestCase
             haystack: $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Update Completed Successfully.',
+            needle: '...',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringMatchesFormat(
+            format: '%ADiscover %A to %A Batch %d Completed Successfully.%A',
+            string: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Update Completed.',
             haystack: $tester->getDisplay(),
         );
     }
@@ -213,8 +246,7 @@ class UpdateEntitiesCommandTest extends TestCase
 
         $mockProductDiscoveryProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProductDiscoveryProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProductDiscoveryProvider->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
         $mockProductDiscoveryProvider->expects($this->once())
             ->method('getData')
@@ -237,6 +269,9 @@ class UpdateEntitiesCommandTest extends TestCase
                 '--entity-ids' => 'all',
                 '--entity-types' => 'KLEVU_PRODUCT',
             ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
         );
 
         $this->assertSame(expected: 0, actual: $isFailure, message: 'Update Failed');
@@ -245,7 +280,11 @@ class UpdateEntitiesCommandTest extends TestCase
             haystack: $tester->getDisplay(),
         );
         $this->assertStringContainsString(
-            needle: 'Entity Update Completed Successfully.',
+            needle: '...',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Update Completed.',
             haystack: $tester->getDisplay(),
         );
     }

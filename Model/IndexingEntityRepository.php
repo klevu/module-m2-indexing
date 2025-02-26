@@ -154,6 +154,8 @@ class IndexingEntityRepository implements IndexingEntityRepositoryInterface
             ? $collection->getSize()
             : count($collection);
         $searchResults->setTotalCount(count: $count);
+        $collection->clear();
+        unset($collection);
 
         return $searchResults;
     }

@@ -230,4 +230,16 @@ class IndexingEntity extends AbstractModel implements IndexingEntityInterface
     {
         $this->setData(key: static::IS_INDEXABLE, value: (bool)$isIndexable);
     }
+
+    /**
+     * @return $this
+     */
+    protected function _clearData(): self
+    {
+        $this->setData([]);
+        $this->setOrigData();
+        $this->storedData = [];
+
+        return $this;
+    }
 }

@@ -16,6 +16,7 @@ use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterface;
 use Klevu\IndexingApi\Service\Action\AddIndexingEntitiesActionInterface;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
@@ -32,6 +33,7 @@ use Psr\Log\LoggerInterface;
  */
 class AddIndexingEntitiesActionTest extends TestCase
 {
+    use GeneratorTrait;
     use ObjectInstantiationTrait;
     use StoreTrait;
     use TestImplementsInterfaceTrait;
@@ -73,7 +75,7 @@ class AddIndexingEntitiesActionTest extends TestCase
             'isIndexable' => false,
         ]);
         $action = $this->instantiateTestObject();
-        $action->execute(type: $type, magentoEntities: $magentoEntities);
+        $action->execute(type: $type, magentoEntities: $this->generate($magentoEntities));
 
         $indexingEntities = $this->getIndexingEntities($apiKey, $type);
         $this->assertCount(expectedCount: 2, haystack: $indexingEntities);
@@ -136,7 +138,7 @@ class AddIndexingEntitiesActionTest extends TestCase
             'indexingEntityRepository' => $mockIndexingEntityRepository,
             'logger' => $mockLogger,
         ]);
-        $action->execute(type: 'KLEVU_PRODUCT', magentoEntities: $magentoEntities);
+        $action->execute(type: 'KLEVU_PRODUCT', magentoEntities: $this->generate($magentoEntities));
     }
 
     /**

@@ -113,91 +113,87 @@ class EntityIndexerService implements EntityIndexerServiceInterface
      * @param string $apiKey
      * @param string|null $via
      *
-     * @return IndexerResultInterface
+     * @return \Generator<IndexerResultInterface>
      * @throws InvalidPipelineConfigurationException
      */
     public function execute(
         string $apiKey,
         ?string $via = '',
-    ): IndexerResultInterface {
+    ): \Generator {
         $pipeline = $this->buildPipeline();
-        $messages = [];
-        try {
-            $pipelineResults = $pipeline->execute(
-                payload: $this->entityIndexingRecordProvider->get($apiKey),
-                context: $this->getPipelineContext($via),
-            );
-            $status = $this->getStatus(pipelineResults:$pipelineResults);
-        } catch (HasErrorsExceptionInterface | PhpSDKValidationException $pipelineException) {
-            $this->logger->error(
-                message: 'Method: {method}, Error: {message}',
-                context: [
-                    'method' => __METHOD__,
-                    'line' => __LINE__,
-                    'message' => $pipelineException->getMessage(),
-                    'exception' => $pipelineException->getTraceAsString(),
-                    'previous' => $pipelineException->getPrevious(),
-                ],
-            );
-            $status = IndexerResultStatuses::ERROR;
-            $messages = array_merge(
-                $messages,
-                [$pipelineException->getMessage()],
-                $pipelineException instanceof HasErrorsExceptionInterface
-                    ? $pipelineException->getErrors()
-                    : [],
-            );
-        } catch (StageException $stageException) {
-            $message = $stageException->getMessage();
-            $previousException = $stageException->getPrevious();
-            if ($previousException) {
-                $message .= ' ' . $previousException->getMessage();
-                if ($previousException instanceof TransformationException) {
-                    $message .= ' - ' . $previousException->getTransformerName();
-                    foreach ($previousException->getErrors() as $error) {
-                        $message .= ' - ' . $error;
+        $pipelineResults = [];
+        foreach ($this->entityIndexingRecordProvider->get($apiKey) as $data) {
+            $messages = [];
+            try {
+                $pipelineResults = $pipeline->execute(
+                    payload: [$data],
+                    context: $this->getPipelineContext($via),
+                );
+                $status = $this->getStatus(pipelineResults: $pipelineResults);
+            } catch (HasErrorsExceptionInterface | PhpSDKValidationException $pipelineException) {
+                $this->logger->error(
+                    message: 'Method: {method}, Error: {message}',
+                    context: [
+                        'method' => __METHOD__,
+                        'line' => __LINE__,
+                        'message' => $pipelineException->getMessage(),
+                        'exception' => $pipelineException->getTraceAsString(),
+                        'previous' => $pipelineException->getPrevious(),
+                    ],
+                );
+                $status = IndexerResultStatuses::ERROR;
+                $messages = array_merge(
+                    [$pipelineException->getMessage()],
+                    $pipelineException instanceof HasErrorsExceptionInterface
+                        ? $pipelineException->getErrors()
+                        : [],
+                );
+            } catch (StageException $stageException) {
+                $message = $stageException->getMessage();
+                $previousException = $stageException->getPrevious();
+                if ($previousException) {
+                    $message .= ' ' . $previousException->getMessage();
+                    if ($previousException instanceof TransformationException) {
+                        $message .= ' - ' . $previousException->getTransformerName();
+                        foreach ($previousException->getErrors() as $error) {
+                            $message .= ' - ' . $error;
+                        }
                     }
                 }
+
+                $this->logger->error(
+                    message: 'Method: {method}, Error: {message}',
+                    context: [
+                        'method' => __METHOD__,
+                        'line' => __LINE__,
+                        'message' => $message,
+                        'exception' => $stageException->getTraceAsString(),
+                        'previous' => $stageException->getPrevious(),
+                    ],
+                );
+                $status = IndexerResultStatuses::ERROR;
+                $messages = [$stageException->getPrevious()?->getMessage()];
+            } catch (LocalizedException $exception) {
+                $this->logger->error(
+                    message: 'Method: {method}, Error: {message}',
+                    context: [
+                        'method' => __METHOD__,
+                        'line' => __LINE__,
+                        'message' => $exception->getMessage(),
+                        'exception' => $exception->getTraceAsString(),
+                        'previous' => $exception->getPrevious(),
+                    ],
+                );
+                $status = IndexerResultStatuses::ERROR;
+                $messages = [$exception->getMessage()];
             }
 
-            $this->logger->error(
-                message: 'Method: {method}, Error: {message}',
-                context: [
-                    'method' => __METHOD__,
-                    'line' => __LINE__,
-                    'message' => $message,
-                    'exception' => $stageException->getTraceAsString(),
-                    'previous' => $stageException->getPrevious(),
-                ],
-            );
-            $status = IndexerResultStatuses::ERROR;
-            $messages = array_merge(
-                $messages,
-                [$stageException->getPrevious()?->getMessage()],
-            );
-        } catch (LocalizedException $exception) {
-            $this->logger->error(
-                message: 'Method: {method}, Error: {message}',
-                context: [
-                    'method' => __METHOD__,
-                    'line' => __LINE__,
-                    'message' => $exception->getMessage(),
-                    'exception' => $exception->getTraceAsString(),
-                    'previous' => $exception->getPrevious(),
-                ],
-            );
-            $status = IndexerResultStatuses::ERROR;
-            $messages = array_merge(
-                $messages,
-                [$exception->getMessage()],
+            yield $this->generateIndexerResult(
+                status: $status,
+                messages: $messages,
+                pipelineResults: $pipelineResults ?? null,
             );
         }
-
-        return $this->generateIndexerResult(
-            status: $status,
-            messages: $messages,
-            pipelineResults: $pipelineResults ?? null,
-        );
     }
 
     /**

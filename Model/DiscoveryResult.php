@@ -17,6 +17,14 @@ class DiscoveryResult implements DiscoveryResultInterface
      */
     private readonly bool $isSuccess;
     /**
+     * @var string
+     */
+    private readonly string $action;
+    /**
+     * @var string
+     */
+    private readonly string $entityType;
+    /**
      * @var string[]
      */
     private readonly array $messages;
@@ -27,15 +35,21 @@ class DiscoveryResult implements DiscoveryResultInterface
 
     /**
      * @param bool $isSuccess
+     * @param string $action
+     * @param string $entityType
      * @param string[] $messages
      * @param int[] $processedIds
      */
     public function __construct(
         bool $isSuccess,
+        string $action = '',
+        string $entityType = '',
         array $messages = [],
         array $processedIds = [],
     ) {
         $this->isSuccess = $isSuccess;
+        $this->action = $action;
+        $this->entityType = $entityType;
         $this->messages = $messages;
         $this->processedIds = $processedIds;
     }
@@ -46,6 +60,22 @@ class DiscoveryResult implements DiscoveryResultInterface
     public function isSuccess(): bool
     {
         return $this->isSuccess;
+    }
+
+    /**
+     * @return string
+     */
+    public function getAction(): string
+    {
+        return $this->action;
+    }
+
+    /**
+     * @return string
+     */
+    public function getEntityType(): string
+    {
+        return $this->entityType;
     }
 
     /**

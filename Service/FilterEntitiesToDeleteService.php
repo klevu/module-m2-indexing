@@ -44,14 +44,14 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
      * @param string[] $apiKeys
      * @param string[] $entitySubtypes
      *
-     * @return int[]
+     * @return \Generator<int[]>
      */
     public function execute(
         array $klevuIndexingEntities,
         string $type,
         array $apiKeys = [],
         array $entitySubtypes = [],
-    ): array {
+    ): \Generator {
         $return = [];
         $klevuEntityIds = array_filter(
             array_map(
@@ -73,10 +73,11 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
                 entityIds: $klevuEntityIds,
                 entitySubtypes: $entitySubtypes,
             );
+            unset($klevuEntityIds);
             $entitiesFound = false;
             foreach ($magentoEntitiesByApiKey as $apiKey => $magentoEntitiesById) {
                 foreach ($magentoEntitiesById as $magentoEntities) {
-                    $return[] = $this->getKlevuEntitiesNoLongerExist(
+                    yield $this->getKlevuEntitiesNoLongerExist(
                         type: $type,
                         magentoEntities: $magentoEntities,
                         indexingEntities: $klevuIndexingEntities,
@@ -85,10 +86,11 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
                     $entitiesFound = true;
                 }
             }
+            unset($magentoEntitiesByApiKey);
             if (!$entitiesFound) {
                 // requested entities have been deleted.
                 // generator above never enters final foreach loop
-                $return[] = $this->getKlevuEntitiesNoLongerExist(
+                yield $this->getKlevuEntitiesNoLongerExist(
                     type: $type,
                     magentoEntities: [],
                     indexingEntities: $klevuIndexingEntities,
@@ -103,8 +105,6 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
                 ],
             );
         }
-
-        return array_filter(array_values(array_merge(...$return)));
     }
 
     /**
@@ -162,12 +162,14 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
             )
             : $indexingEntities;
 
-        return array_map(
-            callback: static fn (IndexingEntityInterface $indexingEntity): int => (
-                (int)$indexingEntity->getId()
-            ),
+        unset($magentoEntityIds);
+        $return = array_map(
+            callback: static fn (IndexingEntityInterface $indexingEntity): int => (int)$indexingEntity->getId(),
             array: $klevuEntities,
         );
+        unset($klevuEntities);
+
+        return $return;
     }
 
     /**
@@ -183,7 +185,9 @@ class FilterEntitiesToDeleteService implements FilterEntitiesToDeleteServiceInte
                 $entityDiscoveryProvider->getEntityType() === $type
             ),
         );
+        $return = array_shift($discoveryProviders);
+        unset($discoveryProviders);
 
-        return array_shift($discoveryProviders);
+        return $return;
     }
 }

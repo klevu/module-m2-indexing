@@ -94,6 +94,7 @@ class UpdateEntitiesObserverTest extends TestCase
     }
 
     /**
+     * @magentoDbIsolation disabled
      * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
      * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
@@ -119,6 +120,7 @@ class UpdateEntitiesObserverTest extends TestCase
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ID => $pageFixture->getId(),
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'cms_page',
             IndexingEntity::API_KEY => 'klevu-js-api-key',
             IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
             IndexingEntity::LAST_ACTION => Actions::ADD,

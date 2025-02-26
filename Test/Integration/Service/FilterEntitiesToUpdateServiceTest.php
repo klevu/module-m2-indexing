@@ -67,6 +67,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
     }
 
     /**
+     * @magentoAppIsolation enabled
      * @testWith [0]
      *           [-1]
      *           [99999999]
@@ -145,7 +146,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $resultGenerator = $service->execute(
             type: 'KLEVU_PRODUCT',
             entityIds: [1, 3, 4, 5, 6, 7, 999],
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
         );
         $result = array_merge(
             ...iterator_to_array($resultGenerator),
@@ -228,7 +229,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
         $resultGenerator = $service->execute(
             type: 'KLEVU_PRODUCT',
             entityIds: [],
-            apiKey: $apiKey,
+            apiKeys: [$apiKey],
             entitySubtypes: [
                 'simple',
             ],

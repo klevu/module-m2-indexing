@@ -191,12 +191,11 @@ WARNING;
      *
      * @return string[]
      */
-    public function getTransformationsForAttribute(
+    public function getPreValidationTransformationsForAttribute(
         string $entitySubtype, // phpcs:ignore SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter
         MagentoAttributeInterface $attribute,
     ): array {
         $transformations = [];
-
         if ($attribute->usesSourceModel()) {
             // Extraction performed by transformation as cannot pass args to extraction accessor
             $transformations[] = sprintf(
@@ -204,18 +203,38 @@ WARNING;
                 $attribute->getAttributeCode(),
             );
         }
+        if (
+            in_array(
+                needle: $attribute->getKlevuAttributeType(),
+                haystack: [DataType::MULTIVALUE, DataType::MULTIVALUE_NUMBER],
+                strict: true)
+        ) {
+            $transformations[] = 'ToArray';
+        }
+
+        return $transformations;
+    }
+
+    /**
+     * Add plugins to modify transformations applied to specific attributes
+     *
+     * @param string $entitySubtype
+     * @param MagentoAttributeInterface $attribute
+     *
+     * @return string
+     */
+    public function getPostValidationTransformationsForAttribute(
+        string $entitySubtype, // phpcs:ignore SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter
+        MagentoAttributeInterface $attribute,
+    ): string {
+        $transformations = [];
 
         switch (true) {
             case $attribute->getKlevuAttributeType() === DataType::MULTIVALUE_NUMBER:
-                $transformations[] = 'ToArray';
-                // cascade is intentional
             case $attribute->getKlevuAttributeType() === DataType::NUMBER:
                 // @TODO we should handle int as well, check db backend type
                 $transformations[] = 'ToFloat';
                 break;
-            case $attribute->getKlevuAttributeType() === DataType::MULTIVALUE:
-                $transformations[] = 'ToArray';
-                // cascade is intentional
             default:
                 $transformations[] = 'ToString';
                 if ($attribute->isHtmlAllowed()) {
@@ -233,8 +252,42 @@ WARNING;
                 $transformations[] = 'Trim';
                 break;
         }
+        if (
+            in_array(
+                needle: $attribute->getKlevuAttributeType(),
+                haystack: [DataType::MULTIVALUE, DataType::MULTIVALUE_NUMBER],
+                strict: true,
+            )
+        ) {
+            $transformations[] = 'FilterCompare([$, "nempty"])';
+        }
 
-        return $transformations;
+        return implode('|', $transformations);
+    }
+
+    /**
+     * @param string $entitySubtype
+     * @param MagentoAttributeInterface $attribute
+     *
+     * @return mixed[]
+     */
+    public function getValidationsForAttribute(
+        string $entitySubtype, // phpcs:ignore SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter
+        MagentoAttributeInterface $attribute,
+    ): array {
+        $validations = [];
+
+        switch (true) {
+            case $attribute->getKlevuAttributeType() === DataType::MULTIVALUE_NUMBER:
+            case $attribute->getKlevuAttributeType() === DataType::MULTIVALUE:
+                $validations[] = 'IsNotEqualTo([], true)';
+             break;
+            default:
+                $validations[] = 'IsNotIn([null, ""], true)';
+                break;
+        }
+
+        return $validations;
     }
 
     /**
@@ -249,10 +302,31 @@ WARNING;
         string $entitySubtype,
         MagentoAttributeInterface $attribute,
     ): array {
-        return $this->generateConfigurationWithoutLocales(
-            entitySubtype: $entitySubtype,
-            attribute: $attribute,
-        );
+        return [
+            ConfigurationElements::STAGES->value => [
+                'processAttribute' => [
+                    ConfigurationElements::PIPELINE->value => 'Pipeline\\Fallback',
+                    ConfigurationElements::STAGES->value => [
+                        'getData' => [
+                            ConfigurationElements::STAGES->value => [
+                                'extract' => $this->generateExtractionConfigurationWithoutLocales(
+                                    entitySubtype: $entitySubtype,
+                                    attribute: $attribute,
+                                ),
+                                'validate' => $this->generateValidationConfigurationWithoutLocales(
+                                    entitySubtype: $entitySubtype,
+                                    attribute: $attribute,
+                                ),
+                                'transform' => $this->generateTransformationConfigurationWithoutLocales(
+                                    entitySubtype: $entitySubtype,
+                                    attribute: $attribute,
+                                ),
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**
@@ -297,7 +371,7 @@ WARNING;
      *
      * @return mixed[]
      */
-    private function generateConfigurationWithoutLocales(
+    private function generateExtractionConfigurationWithoutLocales(
         string $entitySubtype,
         MagentoAttributeInterface $attribute,
     ): array {
@@ -308,7 +382,49 @@ WARNING;
                     entitySubtype: $entitySubtype,
                     attribute: $attribute,
                 ),
-                'transformations' => $this->getTransformationsForAttribute(
+                'transformations' => $this->getPreValidationTransformationsForAttribute(
+                    entitySubtype: $entitySubtype,
+                    attribute: $attribute,
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * @param string $entitySubtype
+     * @param MagentoAttributeInterface $attribute
+     *
+     * @return mixed[]
+     */
+    private function generateValidationConfigurationWithoutLocales(
+        string $entitySubtype,
+        MagentoAttributeInterface $attribute,
+    ): array {
+        return [
+            ConfigurationElements::PIPELINE->value => 'Stage\\Validate',
+            ConfigurationElements::ARGS->value => [
+                'validation' => $this->getValidationsForAttribute(
+                    entitySubtype: $entitySubtype,
+                    attribute: $attribute,
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * @param string $entitySubtype
+     * @param MagentoAttributeInterface $attribute
+     *
+     * @return mixed[]
+     */
+    private function generateTransformationConfigurationWithoutLocales(
+        string $entitySubtype,
+        MagentoAttributeInterface $attribute,
+    ): array {
+        return [
+            ConfigurationElements::PIPELINE->value => 'Stage\\Transform',
+            ConfigurationElements::ARGS->value => [
+                'transformation' => $this->getPostValidationTransformationsForAttribute(
                     entitySubtype: $entitySubtype,
                     attribute: $attribute,
                 ),

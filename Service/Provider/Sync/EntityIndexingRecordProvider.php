@@ -124,7 +124,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
     /**
      * @param string $apiKey
      *
-     * @return \Generator
+     * @return \Generator<array<int, EntityIndexingRecordInterface|EntityIndexingDeleteRecordInterface>>
      */
     public function get(string $apiKey): \Generator
     {
@@ -160,6 +160,13 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
                 }
             }
             yield $return;
+            unset($return);
+            foreach ($entitiesCache as $entity) {
+                if (method_exists($entity, 'clearInstance')) {
+                    $entity->clearInstance();
+                }
+            }
+            unset($entitiesCache);
             $lastRecord = array_pop($entityIds);
             $lastRecordId = $lastRecord['record_id'] ?? null;
             if (!$lastRecordId) {
@@ -213,15 +220,16 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      */
     private function getEntities(StoreInterface $store, array $entityIds): array
     {
-        if ($this->action === Actions::DELETE) {
-            return [];
-        }
         $return = [];
+        if ($this->action === Actions::DELETE) {
+            return $return;
+        }
+        $uniqueEntityIds = $this->getUniqueEntityIds($entityIds);
         foreach ($this->entityProviderProvider->get() as $entityProvider) {
-            /** @var \Generator<PageInterface[]>|null $entitiesGenerator */
+            /** @var \Generator<array<ExtensibleDataInterface|PageInterface>>|null $entitiesGenerator */
             $entitiesGenerator = $entityProvider->get(
                 store: $store,
-                entityIds: $this->getUniqueEntityIds($entityIds),
+                entityIds: $uniqueEntityIds,
             );
             foreach ($entitiesGenerator as $entityBatch) {
                 foreach ($entityBatch as $key => $entity) {
