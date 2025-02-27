@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Console\Command;
 
+use Klevu\Indexing\Service\EntitySyncOrchestratorService;
 use Klevu\IndexingApi\Api\Data\IndexerResultInterface;
 use Klevu\IndexingApi\Model\Source\IndexerResultStatuses;
 use Klevu\IndexingApi\Service\EntitySyncOrchestratorServiceInterface;
@@ -108,7 +109,27 @@ class SyncEntitiesCommand extends Command
             apiKeys: $apiKeys,
             via: 'CLI::' . static::COMMAND_NAME,
         );
-        $return = $this->processResponse(output: $output, results: $results);
+        $return = Cli::RETURN_SUCCESS;
+        $batchCounts = [];
+        $count = 0;
+        foreach ($results as $key => $result) {
+            [$success, $batchCounts] = $this->processResponse(
+                output: $output,
+                key: $key,
+                syncResult: $result,
+                batchCounts: $batchCounts,
+            );
+            $return += $success;
+            $count++;
+        }
+        if (!$count) {
+            $output->writeln(
+                messages: sprintf(
+                    '<comment>%s</comment>',
+                    __('No entities were found that require syncing.'),
+                ),
+            );
+        }
 
         $endTime = microtime(true);
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
@@ -125,100 +146,112 @@ class SyncEntitiesCommand extends Command
                 messages: sprintf('<comment>%s</comment>',
                     __(
                         "Peak memory usage during sync: %1Mb",
-                        number_format(num: memory_get_peak_usage() / (1000 * 1000), decimals: 2),
+                        number_format(
+                            num: memory_get_peak_usage(real_usage: true) / (1024 * 1024),
+                            decimals: 2,
+                        ),
                     ),
                 ),
             );
         }
-
-        return $return;
-    }
-
-    /**
-     * @param OutputInterface $output
-     * @param IndexerResultInterface[] $results
-     *
-     * @return int
-     * @throws LocalizedException
-     */
-    private function processResponse(
-        OutputInterface $output,
-        array $results,
-    ): int {
-        $return = Cli::RETURN_SUCCESS;
-        if (!$results) {
+        if ($return === Cli::RETURN_SUCCESS) {
             $output->writeln(
                 messages: sprintf(
                     '<comment>%s</comment>',
-                    __('No entities were found that require syncing.'),
-                ),
-            );
-
-            return $return;
-        }
-        $outputSuccessMessage = true;
-        foreach ($results as $apiKey => $syncResult) {
-            $failures = in_array(
-                needle: $syncResult->getStatus(),
-                haystack: [IndexerResultStatuses::ERROR, IndexerResultStatuses::PARTIAL],
-                strict: true,
-            );
-            if ($failures) {
-                $outputSuccessMessage = false;
-            }
-            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-                $output->writeln(
-                    messages: sprintf(
-                        '<comment>%s</comment>',
-                        __('Entity Sync for API Key: %1.', $apiKey),
-                    ),
-                );
-            }
-            if ($syncResult->getStatus() === IndexerResultStatuses::ERROR) {
-                $return = Cli::RETURN_FAILURE;
-                $output->writeln(
-                    messages: sprintf('<error>%s</error>', __(IndexerResultStatuses::ERROR->value)->render()),
-                );
-            } else {
-                $output->writeln(
-                    messages: (string)__($syncResult->getStatus()->value),
-                );
-            }
-            foreach ($syncResult->getMessages() as $message) {
-                $output->writeln(messages: $message);
-            }
-
-            $this->processPipelineResultOutput($syncResult, $output);
-            $output->writeln(messages: '----');
-        }
-        if ($outputSuccessMessage) {
-            $output->writeln(
-                messages: sprintf(
-                    '<comment>%s</comment>',
-                    __('Entity sync command completed successfully.'),
+                    __('Entity sync completed successfully.'),
                 ),
             );
         } else {
             $output->writeln(
                 messages: sprintf(
                     '<error>%s</error>',
-                    __('All or part of Entity Sync Failed. See Logs for more details.'),
+                    __('All or part of entity sync failed. See logs for more details.'),
                 ),
             );
         }
 
-        return $return;
+        return $return === Cli::RETURN_SUCCESS ? Cli::RETURN_SUCCESS : Cli::RETURN_FAILURE;
+    }
+
+    /**
+     * @param OutputInterface $output
+     * @param string $key
+     * @param IndexerResultInterface $syncResult
+     * @param array<string, int> $batchCounts
+     *
+     * @return array<int, int|array<string, int>>
+     * @throws LocalizedException
+     */
+    private function processResponse(
+        OutputInterface $output,
+        string $key,
+        IndexerResultInterface $syncResult,
+        array $batchCounts,
+    ): array {
+        $return = Cli::RETURN_SUCCESS;
+        [$apiKey, $action] = explode(EntitySyncOrchestratorService::INDEXER_RESULT_KEY_CONCATENATOR, $key);
+        $failures = in_array(
+            needle: $syncResult->getStatus(),
+            haystack: [IndexerResultStatuses::ERROR, IndexerResultStatuses::PARTIAL],
+            strict: true,
+        );
+        if ($failures) {
+            $return = Cli::RETURN_FAILURE;
+        }
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf(
+                    '<comment>%s</comment>',
+                    __('Entity sync for API key: %1.', $apiKey),
+                ),
+            );
+            $output->writeln(
+                messages: sprintf(
+                    '<comment>%s</comment>',
+                    __('Action: %1', $action)->render(),
+                ),
+            );
+        }
+        if ($syncResult->getStatus() === IndexerResultStatuses::ERROR) {
+            $return = Cli::RETURN_FAILURE;
+            $output->writeln(
+                messages: sprintf(
+                    '<error>%s</error>',
+                    __(IndexerResultStatuses::ERROR->value)->render(),
+                ),
+            );
+        } else {
+            $output->writeln(
+                messages: (string)__($syncResult->getStatus()->value),
+            );
+        }
+        foreach ($syncResult->getMessages() as $message) {
+            $output->writeln(messages: $message);
+        }
+
+        $batchCounts[$action] = $this->processPipelineResultOutput(
+            syncResult: $syncResult,
+            output: $output,
+            batchCount: $batchCounts[$action] ?? 0,
+        );
+        $output->writeln(messages: '----');
+
+        return [$return, $batchCounts];
     }
 
     /**
      * @param IndexerResultInterface $syncResult
      * @param OutputInterface $output
+     * @param int $batchCount
      *
-     * @return void
+     * @return int
      * @throws LocalizedException
      */
-    private function processPipelineResultOutput(IndexerResultInterface $syncResult, OutputInterface $output): void
-    {
+    private function processPipelineResultOutput(
+        IndexerResultInterface $syncResult,
+        OutputInterface $output,
+        int $batchCount,
+    ): int {
         $pipelineResult = $syncResult->getPipelineResult();
         if (!is_array($pipelineResult)) {
             throw new LocalizedException(__(
@@ -227,42 +260,31 @@ class SyncEntitiesCommand extends Command
                 get_debug_type($pipelineResult),
             ));
         }
-        /**
-         * @var string $action
-         * @var ApiPipelineResult[][] $apiPipelineResultsArray
-         */
-        foreach ($pipelineResult as $action => $apiPipelineResultsArray) {
-            if (!is_array($apiPipelineResultsArray)) {
+        foreach ($pipelineResult as $apiPipelineResults) {
+            if (!is_array($apiPipelineResults)) {
                 continue;
             }
-            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-                $output->writeln(messages: ' --');
-                $output->writeln(
-                    messages: __(' Action  : %1', $action)->render(),
-                );
-            }
-            $batchCount = 0;
-            foreach ($apiPipelineResultsArray as $apiPipelineResults) {
-                if (!is_array($apiPipelineResults)) {
-                    continue;
-                }
-                $apiPipelineResults = array_filter(
-                    $apiPipelineResults,
-                    static fn (mixed $item): bool => ($item instanceof ApiPipelineResult),
-                );
-                if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
-                    $output->writeln(messages: '');
-                    $this->processBatchOutput($apiPipelineResults, $output, $batchCount);
-                }
-                $batchCount += count($apiPipelineResults);
-            }
-            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-                $output->writeln(
-                    messages: __(' Batches : %1', $batchCount)->render(),
-                );
+            $apiPipelineResults = array_filter(
+                $apiPipelineResults,
+                static fn (mixed $item): bool => ($item instanceof ApiPipelineResult),
+            );
+            if ($output->getVerbosity() >= OutputInterface::VERBOSITY_DEBUG) {
                 $output->writeln(messages: '');
+                $this->processBatchOutput(
+                    apiPipelineResults: $apiPipelineResults,
+                    output: $output,
+                    batchCount: $batchCount,
+                );
             }
+            $batchCount += count($apiPipelineResults);
         }
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
+            $output->writeln(
+                messages: __(' Batches processed : %1', $batchCount)->render(),
+            );
+        }
+
+        return $batchCount;
     }
 
     /**

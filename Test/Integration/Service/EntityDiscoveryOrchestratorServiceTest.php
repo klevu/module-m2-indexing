@@ -12,6 +12,7 @@ use Klevu\Indexing\Model\IndexingEntity;
 use Klevu\Indexing\Model\ResourceModel\IndexingEntity\Collection as IndexingEntityCollection;
 use Klevu\Indexing\Service\EntityDiscoveryOrchestratorService;
 use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
+use Klevu\IndexingApi\Api\Data\DiscoveryResultInterface;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\Data\IndexingEntitySearchResultsInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
@@ -100,7 +101,15 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             'logger' => $mockLogger,
             'discoveryProviders' => [],
         ]);
-        $result = $service->execute();
+        $resultGenerators = $service->execute();
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+        );
+        $result = array_shift($results);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -134,7 +143,15 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'products' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityTypes: ['KLEVU_CMS']);
+        $resultGenerators = $service->execute(entityTypes: ['KLEVU_CMS']);
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+        );
+        $result = array_shift($results);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -160,11 +177,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
 
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProvider->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
-        $mockProvider->expects($this->once())
-            ->method('getData')
+        $mockProvider->method('getData')
             ->willReturn($this->generate([]));
 
         $service = $this->instantiateTestObject([
@@ -172,10 +187,17 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'products' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
+        $resultGenerators = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+        );
+        $result = array_shift($results);
 
-        $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
-        $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
+        $this->assertNull(actual: $result);
         $collection = $this->objectManager->create(IndexingEntityCollection::class);
         $this->assertCount(
             expectedCount: $count,
@@ -191,11 +213,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
     {
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProvider->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
-        $mockProvider->expects($this->once())
-            ->method('getData')
+        $mockProvider->method('getData')
             ->willReturn(
                 $this->generate(
                     [
@@ -244,7 +264,15 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'products' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
+        $resultGenerators = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+        );
+        $result = array_shift($results);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -264,7 +292,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
     public function testExecute_Deletion_ReturnSuccessFalse_AnyAttributesFailToSave(): void
     {
         $apiKey = 'klevu-api-key';
-        $this->createIndexingEntity([
+        $indexingEntity1 = $this->createIndexingEntity([
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
@@ -274,7 +302,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
             IndexingEntity::IS_INDEXABLE => true,
         ]);
-        $this->createIndexingEntity([
+        $indexingEntity2 = $this->createIndexingEntity([
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
@@ -287,11 +315,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
 
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProvider->method('getEntityType')
             ->willReturn('KLEVU_PRODUCT');
-        $mockProvider->expects($this->once())
-            ->method('getData')
+        $mockProvider->method('getData')
             ->willReturn(
                 $this->generate(
                     [
@@ -312,8 +338,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                     ],
                 ),
             );
-        $mockProvider->expects($this->once())
-            ->method('getEntityProviderTypes')
+        $mockProvider->method('getEntityProviderTypes')
             ->willReturn(['simple']);
 
         $mockFilterEntitiesToAddService = $this->getMockBuilder(FilterEntitiesToAddServiceInterface::class)
@@ -326,10 +351,10 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->getMock();
         $mockFilterEntitiesToDeleteService->expects($this->once())
             ->method('execute')
-            ->willReturn([
-                '1-klevu-api-key-KLEVU_PRODUCTS',
-                '2-klevu-api-key-KLEVU_PRODUCTS',
-            ]);
+            ->willReturn($this->generate([
+                (int)$indexingEntity1->getId(),
+                (int)$indexingEntity2->getId(),
+            ]));
 
         $entity1 = $this->objectManager->create(IndexingEntityInterface::class);
         $entity1->setId(1);
@@ -348,7 +373,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->method('getList')
             ->willReturn($mockSearchResult);
 
-        $matcher = $this->exactly(4);
+        $matcher = $this->exactly(2);
         $mockIndexingEntityRepository->expects($matcher)
             ->method('save')
             ->willReturnCallback(callback: function () use ($matcher): IndexingEntityInterface {
@@ -373,7 +398,18 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'KLEVU_PRODUCT' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
+        $resultGenerators = $service->execute(entityTypes: ['KLEVU_PRODUCT']);
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+            static fn (DiscoveryResultInterface $result): bool => (
+                $result->getAction() === Actions::DELETE->value
+            ),
+        );
+        $result = array_shift($results);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -393,11 +429,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $apiKey = 'klevu-api-key';
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProvider->method('getEntityType')
             ->willReturn('KLEVU_CMS');
-        $mockProvider->expects($this->once())
-            ->method('getData')
+        $mockProvider->method('getData')
             ->with(
                 [$apiKey],
                 [1, 2, 3, 4],
@@ -432,8 +466,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                     ],
                 ),
             );
-        $mockProvider->expects($this->once())
-            ->method('getEntityProviderTypes')
+        $mockProvider->method('getEntityProviderTypes')
             ->willReturn(['page']);
 
         $mockFilterEntitiesToAddService = $this->getMockBuilder(FilterEntitiesToAddServiceInterface::class)
@@ -446,7 +479,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->getMock();
         $mockFilterEntitiesToDeleteService->expects($this->once())
             ->method('execute')
-            ->willReturn([]);
+            ->willReturn($this->generate([]));
 
         $entity1 = $this->objectManager->create(IndexingEntityInterface::class);
         $entity1->setId(1);
@@ -541,11 +574,22 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'cms' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(
+        $resultGenerators = $service->execute(
             entityTypes: ['KLEVU_CMS'],
             apiKeys: [$apiKey],
             entityIds: [1, 2, 3, 4],
         );
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+            static fn (DiscoveryResultInterface $result): bool => (
+                $result->getAction() === Actions::UPDATE->value
+            ),
+        );
+        $result = array_shift($results);
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -561,11 +605,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $apiKey = 'klevu-api-key';
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProvider->method('getEntityType')
             ->willReturn('KLEVU_CMS');
-        $mockProvider->expects($this->once())
-            ->method('getData')
+        $mockProvider->method('getData')
             ->with(
                 [$apiKey],
                 [],
@@ -595,8 +637,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                     ],
                 ),
             );
-        $mockProvider->expects($this->once())
-            ->method('getEntityProviderTypes')
+        $mockProvider->method('getEntityProviderTypes')
             ->willReturn(['page']);
 
         $mockFilterEntitiesToAddService = $this->getMockBuilder(FilterEntitiesToAddServiceInterface::class)
@@ -609,25 +650,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->getMock();
         $mockFilterEntitiesToDeleteService->expects($this->once())
             ->method('execute')
-            ->willReturn([]);
-
-        $entity1 = $this->objectManager->create(IndexingEntityInterface::class);
-        $entity1->setId(1);
-        $entity2 = $this->objectManager->create(IndexingEntityInterface::class);
-        $entity2->setId(2);
-        $mockSearchResult = $this->getMockBuilder(IndexingEntitySearchResultsInterface::class)
-            ->getMock();
-        $mockSearchResult->expects($this->atLeastOnce())
-            ->method('getItems')
-            ->willReturn([$entity1, $entity2]);
-        $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
-            ->getMock();
-        $mockIndexingEntityRepository->expects($this->atLeastOnce())
-            ->method('getList')
-            ->willReturn($mockSearchResult);
-
-        $mockIndexingEntityRepository->expects($this->never())
-            ->method('save');
+            ->willReturn($this->generate([]));
 
         $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
@@ -663,26 +686,29 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
         ]);
 
-        $setIndexingEntitiesToUpdateAction = $this->objectManager->create(
-            type: SetIndexingEntitiesToUpdateActionInterface::class,
-            arguments: [
-                'indexingEntityRepository' => $mockIndexingEntityRepository,
-            ],
-        );
-
         $service = $this->instantiateTestObject([
-            'setIndexingEntitiesToUpdateAction' => $setIndexingEntitiesToUpdateAction,
             'filterEntitiesToAddService' => $mockFilterEntitiesToAddService,
             'filterEntitiesToDeleteService' => $mockFilterEntitiesToDeleteService,
             'discoveryProviders' => [
                 'cms' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(
+        $resultGenerators = $service->execute(
             entityTypes: ['KLEVU_CMS'],
             apiKeys: [$apiKey],
             entityIds: [],
         );
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+            static fn (DiscoveryResultInterface $result): bool => (
+                $result->getAction() === Actions::UPDATE->value
+            ),
+        );
+        $result = array_shift($results);
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -698,11 +724,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $apiKey = 'klevu-api-key';
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProvider->method('getEntityType')
             ->willReturn('KLEVU_CMS');
-        $mockProvider->expects($this->once())
-            ->method('getData')
+        $mockProvider->method('getData')
             ->with(
                 [$apiKey],
                 [1, 2],
@@ -727,8 +751,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                     ],
                 ),
             );
-        $mockProvider->expects($this->once())
-            ->method('getEntityProviderTypes')
+        $mockProvider->method('getEntityProviderTypes')
             ->willReturn(['page']);
 
         $mockFilterEntitiesToAddService = $this->getMockBuilder(FilterEntitiesToAddServiceInterface::class)
@@ -741,7 +764,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->getMock();
         $mockFilterEntitiesToDeleteService->expects($this->once())
             ->method('execute')
-            ->willReturn([]);
+            ->willReturn($this->generate([]));
 
         $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
@@ -804,11 +827,22 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'cms' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(
+        $resultGenerators = $service->execute(
             entityTypes: ['KLEVU_CMS'],
             apiKeys: [$apiKey],
             entityIds: [1, 2],
         );
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+            static fn (DiscoveryResultInterface $result): bool => (
+                $result->getAction() === Actions::UPDATE->value
+            ),
+        );
+        $result = array_shift($results);
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
@@ -829,11 +863,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $apiKey = 'klevu-api-key';
         $mockProvider = $this->getMockBuilder(EntityDiscoveryProviderInterface::class)
             ->getMock();
-        $mockProvider->expects($this->exactly(3))
-            ->method('getEntityType')
+        $mockProvider->method('getEntityType')
             ->willReturn('KLEVU_CATEGORY');
-        $mockProvider->expects($this->once())
-            ->method('getData')
+        $mockProvider->method('getData')
             ->with([$apiKey])
             ->willReturn(
                 $this->generate(
@@ -868,7 +900,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $mockFilterEntitiesToDeleteService->expects($this->never())
             ->method('execute');
 
-        $entity1 = $this->createIndexingEntity(data: [
+        $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
             IndexingEntity::TARGET_ID => 1,
@@ -878,7 +910,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             IndexingEntity::LAST_ACTION => Actions::DELETE,
             IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
         ]);
-        $entity2 = $this->createIndexingEntity(data: [
+        $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
             IndexingEntity::TARGET_ID => 2,
@@ -899,39 +931,29 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             IndexingEntity::LAST_ACTION_TIMESTAMP => date('Y-m-d H:i:s'),
         ]);
 
-        $mockSearchResult = $this->getMockBuilder(IndexingEntitySearchResultsInterface::class)
-            ->getMock();
-        $mockSearchResult->expects($this->once())
-            ->method('getItems')
-            ->willReturn([$entity1, $entity2]);
-        $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
-            ->getMock();
-        $mockIndexingEntityRepository->expects($this->once())
-            ->method('getList')
-            ->willReturn($mockSearchResult);
-        $mockIndexingEntityRepository->expects($this->exactly(2))
-            ->method('save');
-
-        $setIndexingEntitiesToBeIndexableAction = $this->objectManager->create(
-            type: SetIndexingEntitiesToBeIndexableActionInterface::class,
-            arguments: [
-                'indexingEntityRepository' => $mockIndexingEntityRepository,
-            ],
-        );
-
         $service = $this->instantiateTestObject([
-            'setIndexingEntitiesToBeIndexableAction' => $setIndexingEntitiesToBeIndexableAction,
             'filterEntitiesToAddService' => $mockFilterEntitiesToAddService,
             'filterEntitiesToDeleteService' => $mockFilterEntitiesToDeleteService,
             'discoveryProviders' => [
                 'categories' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(
+        $resultGenerators = $service->execute(
             entityTypes: ['KLEVU_CATEGORY'],
             apiKeys: [$apiKey],
             entityIds: [1, 2],
         );
+        $resultsArray = [];
+        foreach ($resultGenerators as $resultGenerator) {
+            $resultsArray[] = iterator_to_array($resultGenerator);
+        }
+        $results = array_filter(
+            array_merge(...$resultsArray),
+            static fn (DiscoveryResultInterface $result): bool => (
+                $result->getAction() === Actions::ADD->value
+            ),
+        );
+        $result = array_shift($results);
 
         $this->assertTrue(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertFalse(condition: $result->hasMessages(), message: 'Has Messages');
@@ -1049,11 +1071,16 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
                 'categories' => $mockProvider,
             ],
         ]);
-        $result = $service->execute(
+        $resultGenerators = $service->execute(
             entityTypes: ['KLEVU_CATEGORY'],
             apiKeys: [$apiKey],
             entityIds: [1, 2],
         );
+        $result = null;
+        foreach ($resultGenerators as $resultGenerator) {
+            $results = iterator_to_array($resultGenerator);
+            $result = array_shift($results);
+        }
 
         $this->assertFalse(condition: $result->isSuccess(), message: 'Is Success');
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');

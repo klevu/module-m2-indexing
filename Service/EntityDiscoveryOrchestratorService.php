@@ -8,12 +8,14 @@ declare(strict_types=1);
 
 namespace Klevu\Indexing\Service;
 
+use Klevu\Indexing\Constants;
 use Klevu\Indexing\Exception\IndexingEntitySaveException;
 use Klevu\Indexing\Model\DiscoveryResultFactory;
 use Klevu\Indexing\Validator\BatchSizeValidator;
 use Klevu\IndexingApi\Api\Data\DiscoveryResultInterface;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\MagentoEntityInterface;
+use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Action\AddIndexingEntitiesActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToBeIndexableActionInterface;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToDeleteActionInterface;
@@ -97,10 +99,6 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @var string[]
      */
     private array $messages = [];
-    /**
-     * @var int[]
-     */
-    private array $processedIds = [];
 
     /**
      * @param LoggerInterface $logger
@@ -135,7 +133,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         SetIndexingEntitiesToBeIndexableActionInterface $setIndexingEntitiesToBeIndexableAction,
         IndexingEntityProviderInterface $indexingEntityProvider,
         array $discoveryProviders = [],
-        int $batchSize = 2500,
+        int $batchSize = Constants::DEFAULT_INDEXING_BATCH_SIZE,
         ?ValidatorInterface $batchSizeValidator = null,
     ) {
         $this->logger = $logger;
@@ -171,35 +169,41 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param int[]|null $entityIds
      * @param string[]|null $entitySubtypes
      *
-     * @return DiscoveryResultInterface
+     * @return \Generator<\Generator<DiscoveryResultInterface>>
      */
     public function execute(
         array $entityTypes = [],
         array $apiKeys = [],
         ?array $entityIds = null,
         ?array $entitySubtypes = [],
-    ): DiscoveryResultInterface {
+    ): \Generator {
         $discoveryProviders = $this->getDiscoveryProviders($entityTypes);
+        if (!$discoveryProviders) {
+            yield $this->noDiscoveryProvidersResponse();
+            return;
+        }
         foreach ($discoveryProviders as $discoveryProvider) {
-            $this->processEntityAdditionsAndUpdates(
+            yield $this->processEntityUpdates(
                 discoveryProvider: $discoveryProvider,
                 apiKeys: $apiKeys,
                 entityIds: $entityIds,
                 entitySubtypes: $entitySubtypes,
             );
-            $this->processEntityDeletions(
+            yield $this->processEntityDeletions(
+                discoveryProvider: $discoveryProvider,
+                apiKeys: $apiKeys,
+                entityIds: $entityIds,
+                entitySubtypes: $entitySubtypes,
+            );
+            // add any missing entities to klevu_indexing_entity
+            // do this last so the update and delete stages don't have to check these new entities
+            yield $this->processEntityAdditions(
                 discoveryProvider: $discoveryProvider,
                 apiKeys: $apiKeys,
                 entityIds: $entityIds,
                 entitySubtypes: $entitySubtypes,
             );
         }
-
-        return $this->discoveryResultFactory->create(data: [
-            'isSuccess' => $this->success,
-            'messages' => $this->messages,
-            'processedIds' => $this->processedIds,
-        ]);
     }
 
     /**
@@ -214,67 +218,14 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
     }
 
     /**
-     * @param EntityDiscoveryProviderInterface $discoveryProvider
-     * @param string[] $apiKeys
-     * @param int[] $entityIds
-     * @param string[] $entitySubtypes
-     *
-     * @return void
+     * @return \Generator<DiscoveryResultInterface>
      */
-    private function processEntityAdditionsAndUpdates(
-        EntityDiscoveryProviderInterface $discoveryProvider,
-        array $apiKeys,
-        ?array $entityIds = null,
-        ?array $entitySubtypes = [],
-    ): void {
-        try {
-            /** @var \Generator<string, \Generator<MagentoEntityInterface[]>> $magentoEntitiesByApiKey */
-            $magentoEntitiesByApiKey = $discoveryProvider->getData(
-                apiKeys: $apiKeys,
-                entityIds: $entityIds ?? [],
-                entitySubtypes: $entitySubtypes,
-            );
-            $type = $discoveryProvider->getEntityType();
-            foreach ($magentoEntitiesByApiKey as $apiKey => $magentoEntitiesById) {
-                foreach ($magentoEntitiesById as $magentoEntities) {
-                    // set as indexable any indexable entities that were set to not indexable
-                    // also sets next action to add
-                    $this->setNewlyIndexableEntitiesToBeIndexable(
-                        type: $type,
-                        magentoEntities: $magentoEntities,
-                        apiKey: $apiKey,
-                        entityIds: $entityIds ?? [],
-                        entitySubtypes: $entitySubtypes,
-                    );
-                    // set next action to update for any entities that require an update
-                    $this->setEntitiesToUpdate(
-                        type: $type,
-                        apiKey: $apiKey,
-                        entityIds: $entityIds,
-                        entitySubtypes: $entitySubtypes,
-                    );
-                    // set entities that are no longer indexable
-                    $this->setNewlyNonIndexableEntitiesToNotIndexable(
-                        type: $type,
-                        magentoEntities: $magentoEntities,
-                        apiKey: $apiKey,
-                        entityIds: $entityIds ?? [],
-                        entitySubtypes: $entitySubtypes,
-                    );
-                    // add any missing entities to klevu_indexing_entity
-                    // do this last so the previous stages don't have to check these new entities
-                    $this->addMissingEntitiesToIndexEntitiesTable(
-                        type: $type,
-                        magentoEntities: $magentoEntities,
-                        apiKey: $apiKey,
-                        entitySubtypes: $entitySubtypes,
-                    );
-                }
-            }
-        } catch (LocalizedException $exception) {
-            $this->messages[] = $exception->getMessage();
-            $this->success = false;
-        }
+    private function noDiscoveryProvidersResponse(): \Generator
+    {
+        yield $this->discoveryResultFactory->create(data: [
+            'isSuccess' => $this->success,
+            'messages' => $this->messages,
+        ]);
     }
 
     /**
@@ -283,16 +234,18 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param int[] $entityIds
      * @param string[] $entitySubtypes
      *
-     * @return void
+     * @return \Generator<DiscoveryResultInterface>
      */
-    private function processEntityDeletions(
+    private function processEntityUpdates(
         EntityDiscoveryProviderInterface $discoveryProvider,
         array $apiKeys,
-        ?array $entityIds,
-        ?array $entitySubtypes,
-    ): void {
+        ?array $entityIds = null,
+        ?array $entitySubtypes = [],
+    ): \Generator {
         $type = $discoveryProvider->getEntityType();
+        $entitySubtypesSubmitted = true;
         if (!$entitySubtypes) {
+            $entitySubtypesSubmitted = false;
             $entitySubtypes = $discoveryProvider->getEntityProviderTypes();
         }
         foreach ($entitySubtypes as $entitySubtype) {
@@ -303,13 +256,137 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
                 entitySubtypes: [$entitySubtype],
             );
             foreach ($klevuIndexingEntitiesGenerator as $klevuIndexingEntities) {
+                $this->setNewlyIndexableEntitiesToBeIndexable(
+                    klevuIndexingEntities: $klevuIndexingEntities,
+                    entityType: $type,
+                    apiKeys: $apiKeys,
+                    entitySubtypes: [$entitySubtype],
+                );
+                if ($entitySubtypesSubmitted || null !== $entityIds) {
+                    $this->setEntitiesToUpdate(
+                        type: $type,
+                        apiKeys: $apiKeys,
+                        entityIds: $entityIds,
+                        entitySubtypes: $entitySubtypes,
+                    );
+                }
+                $this->setNewlyNonIndexableEntitiesToNotIndexable(
+                    klevuIndexingEntities: $klevuIndexingEntities,
+                    entityType: $type,
+                    apiKeys: $apiKeys,
+                    entitySubtypes: $entitySubtypes,
+                );
+                unset($klevuIndexingEntities);
+                yield $this->discoveryResultFactory->create(data: [
+                    'isSuccess' => $this->success,
+                    'action' => Actions::UPDATE->value,
+                    'entityType' => $type,
+                    'messages' => $this->messages,
+                ]);
+                $this->success = true;
+                $this->messages = [];
+            }
+        }
+    }
+
+    /**
+     * @param EntityDiscoveryProviderInterface $discoveryProvider
+     * @param string[] $apiKeys
+     * @param int[] $entityIds
+     * @param string[] $entitySubtypes
+     *
+     * @return \Generator<DiscoveryResultInterface>
+     */
+    private function processEntityDeletions(
+        EntityDiscoveryProviderInterface $discoveryProvider,
+        array $apiKeys,
+        ?array $entityIds,
+        ?array $entitySubtypes,
+    ): \Generator {
+        $type = $discoveryProvider->getEntityType();
+        if (!$entitySubtypes) {
+            $entitySubtypes = $discoveryProvider->getEntityProviderTypes();
+        }
+        foreach ($entitySubtypes as $entitySubtype) {
+            $klevuIndexingEntitiesGenerator = $this->getKlevuIndexingEntitiesGenerator(
+                entityType: $type,
+                apiKeys: $apiKeys,
+                entityIds: $entityIds ?? [],
+                entitySubtypes: [$entitySubtype],
+                isIndexable: true,
+            );
+            foreach ($klevuIndexingEntitiesGenerator as $klevuIndexingEntities) {
                 $this->setRemovedEntitiesToDelete(
                     klevuIndexingEntities: $klevuIndexingEntities,
                     entityType: $type,
                     apiKeys: $apiKeys,
                     entitySubtypes: [$entitySubtype],
                 );
+                unset($klevuIndexingEntities);
+                yield $this->discoveryResultFactory->create(data: [
+                    'isSuccess' => $this->success,
+                    'action' => Actions::DELETE->value,
+                    'entityType' => $type,
+                    'messages' => $this->messages,
+                ]);
+                $this->success = true;
+                $this->messages = [];
             }
+        }
+    }
+
+    /**
+     * @param EntityDiscoveryProviderInterface $discoveryProvider
+     * @param string[] $apiKeys
+     * @param int[]|null $entityIds
+     * @param string[]|null $entitySubtypes
+     *
+     * @return \Generator<DiscoveryResultInterface>
+     */
+    private function processEntityAdditions(
+        EntityDiscoveryProviderInterface $discoveryProvider,
+        array $apiKeys,
+        ?array $entityIds,
+        ?array $entitySubtypes,
+    ): \Generator {
+        $type = $discoveryProvider->getEntityType();
+        try {
+            /** @var \Generator<string, \Generator<MagentoEntityInterface[]>> $magentoEntitiesByApiKey */
+            $magentoEntitiesByApiKey = $discoveryProvider->getData(
+                apiKeys: $apiKeys,
+                entityIds: $entityIds ?? [],
+                entitySubtypes: $entitySubtypes,
+            );
+            foreach ($magentoEntitiesByApiKey as $apiKey => $magentoEntitiesById) {
+                foreach ($magentoEntitiesById as $magentoEntities) {
+                    $this->addMissingEntitiesToIndexEntitiesTable(
+                        type: $type,
+                        magentoEntities: $magentoEntities,
+                        apiKey: $apiKey,
+                        entitySubtypes: $entitySubtypes,
+                    );
+                    unset($magentoEntities);
+                    yield $this->discoveryResultFactory->create(data: [
+                        'isSuccess' => $this->success,
+                        'action' => Actions::ADD->value,
+                        'entityType' => $type,
+                        'messages' => $this->messages,
+                    ]);
+                    $this->success = true;
+                    $this->messages = [];
+                }
+            }
+        } catch (LocalizedException $exception) {
+            $this->messages[] = $exception->getMessage();
+            $this->success = false;
+            yield $this->discoveryResultFactory->create(data: [
+                'isSuccess' => $this->success,
+                'action' => Actions::ADD->value,
+                'entityType' => $type,
+                'messages' => $this->messages,
+            ]);
+            $this->success = true;
+            $this->messages = [];
         }
     }
 
@@ -334,6 +411,17 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         if (!$return) {
             $this->success = false;
             $this->messages[] = 'Supplied entity types did not match any providers.';
+            $this->logger->warning(
+                message: 'Method: {method}, Warning: {message}',
+                context: [
+                    'method' => __METHOD__,
+                    'line' => __LINE__,
+                    'message' => sprintf(
+                        'Supplied entity types (%s) did not match any providers.',
+                        implode(', ', $entityTypes),
+                    ),
+                ],
+            );
         }
 
         return $return;
@@ -381,7 +469,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         try {
             $this->addIndexingEntitiesAction->execute(
                 type: $type,
-                magentoEntities: iterator_to_array($filteredMagentoEntities),
+                magentoEntities: $filteredMagentoEntities,
             );
         } catch (IndexingEntitySaveException $exception) {
             $this->success = false;
@@ -390,30 +478,28 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
     }
 
     /**
-     * @param string $type
-     * @param MagentoEntityInterface[] $magentoEntities
-     * @param string $apiKey
-     * @param int[]|null $entityIds
+     * @param IndexingEntityInterface[] $klevuIndexingEntities
+     * @param string $entityType
+     * @param string[] $apiKeys
      * @param string[] $entitySubtypes
      *
      * @return void
      */
     private function setNewlyIndexableEntitiesToBeIndexable(
-        string $type,
-        array $magentoEntities,
-        string $apiKey,
-        ?array $entityIds,
+        array $klevuIndexingEntities,
+        string $entityType,
+        array $apiKeys,
         array $entitySubtypes,
     ): void {
         $indexingEntityIds = $this->filterEntitiesToSetToIndexableService->execute(
-            magentoEntities: $magentoEntities,
-            type: $type,
-            apiKey: $apiKey,
-            entityIds: $entityIds,
+            klevuIndexingEntities: $klevuIndexingEntities,
+            type: $entityType,
+            apiKeys: $apiKeys,
             entitySubtypes: $entitySubtypes,
         );
+
         try {
-            $this->setIndexingEntitiesToBeIndexableAction->execute(entityIds:$indexingEntityIds);
+            $this->setIndexingEntitiesToBeIndexableAction->execute(entityIds: $indexingEntityIds);
         } catch (IndexingEntitySaveException $exception) {
             $this->success = false;
             $this->messages[] = $exception->getMessage();
@@ -422,7 +508,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
 
     /**
      * @param string $type
-     * @param string $apiKey
+     * @param string[] $apiKeys
      * @param int[] $entityIds
      * @param string[] $entitySubtypes
      *
@@ -430,7 +516,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      */
     private function setEntitiesToUpdate(
         string $type,
-        string $apiKey,
+        array $apiKeys,
         ?array $entityIds,
         array $entitySubtypes,
     ): void {
@@ -441,14 +527,13 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         $klevuEntityIdsBatch = $this->filterEntitiesToUpdateService->execute(
             type: $type,
             entityIds: $entityIds,
-            apiKey: $apiKey,
+            apiKeys: $apiKeys,
             entitySubtypes: $entitySubtypes,
         );
 
         foreach ($klevuEntityIdsBatch as $klevuEntityIds) {
             try {
                 $this->setIndexingEntitiesToUpdateAction->execute(entityIds: $klevuEntityIds);
-                $this->processedIds[] = $klevuEntityIds;
             } catch (IndexingEntitySaveException $exception) {
                 $this->success = false;
                 $this->messages[] = $exception->getMessage();
@@ -486,26 +571,23 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
     }
 
     /**
-     * @param string $type
-     * @param MagentoEntityInterface[] $magentoEntities
-     * @param string $apiKey
-     * @param int[] $entityIds
+     * @param IndexingEntityInterface[] $klevuIndexingEntities
+     * @param string $entityType
+     * @param string[] $apiKeys
      * @param string[] $entitySubtypes
      *
      * @return void
      */
     private function setNewlyNonIndexableEntitiesToNotIndexable(
-        string $type,
-        array $magentoEntities,
-        string $apiKey,
-        ?array $entityIds,
+        array $klevuIndexingEntities,
+        string $entityType,
+        array $apiKeys,
         array $entitySubtypes,
     ): void {
         $klevuEntityIds = $this->filterEntitiesToSetToNotIndexableService->execute(
-            magentoEntities: $magentoEntities,
-            type: $type,
-            apiKey: $apiKey,
-            entityIds: $entityIds,
+            klevuIndexingEntities: $klevuIndexingEntities,
+            type: $entityType,
+            apiKeys: $apiKeys,
             entitySubtypes: $entitySubtypes,
         );
 
@@ -522,6 +604,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
      * @param string[] $apiKeys
      * @param int[] $entityIds
      * @param string[] $entitySubtypes
+     * @param bool|null $isIndexable
      *
      * @return \Generator<IndexingEntityInterface[]>
      */
@@ -530,6 +613,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
         array $apiKeys,
         array $entityIds,
         array $entitySubtypes,
+        ?bool $isIndexable = null,
     ): \Generator {
         $lastRecordId = 0;
         while (true) {
@@ -537,7 +621,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
                 entityType: $entityType,
                 apiKeys: $apiKeys,
                 entityIds: $entityIds,
-                isIndexable: true,
+                isIndexable: $isIndexable,
                 pageSize: $this->batchSize,
                 startFrom: $lastRecordId + 1,
                 entitySubtypes: $entitySubtypes,
@@ -548,6 +632,12 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
             yield $indexingEntities;
             $lastRecord = array_pop($indexingEntities);
             $lastRecordId = $lastRecord->getId();
+            foreach ($indexingEntities as $indexingEntity) {
+                if (method_exists($indexingEntity, 'clearInstance')) {
+                    $indexingEntity->clearInstance();
+                }
+            }
+            unset($indexingEntities);
             if (!$lastRecordId) {
                 break;
             }

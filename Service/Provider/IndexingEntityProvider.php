@@ -186,8 +186,10 @@ class IndexingEntityProvider implements IndexingEntityProviderInterface
         }
         $searchCriteria = $searchCriteriaBuilder->create();
         $klevuEntitySearchResult = $this->indexingEntityRepository->getList($searchCriteria);
+        $return = $klevuEntitySearchResult->getItems();
+        unset($klevuEntitySearchResult);
 
-        return $klevuEntitySearchResult->getItems();
+        return $return;
     }
 
     /**

@@ -48,15 +48,15 @@ class SetIndexingEntitiesToDeleteAction implements SetIndexingEntitiesToDeleteAc
     }
 
     /**
-     * @param int[] $entityIds
+     * @param \Generator<int[]> $entityIds
      *
      * @return void
      * @throws IndexingEntitySaveException
      */
-    public function execute(array $entityIds): void
+    public function execute(\Generator $entityIds): void
     {
         $failed = [];
-        $indexingEntities = $this->getIndexingEntities($entityIds);
+        $indexingEntities = $this->getIndexingEntities(iterator_to_array($entityIds));
         foreach ($indexingEntities as $indexingEntity) {
             try {
                 if ($indexingEntity->getLastAction() === ACTIONS::NO_ACTION) {
@@ -78,6 +78,12 @@ class SetIndexingEntitiesToDeleteAction implements SetIndexingEntitiesToDeleteAc
                 );
             }
         }
+        foreach ($indexingEntities as $indexingEntity) {
+            if (method_exists($indexingEntity, 'clearInstance')) {
+                $indexingEntity->clearInstance();
+            }
+        }
+        unset($indexingEntities);
         if ($failed) {
             throw new IndexingEntitySaveException(
                 phrase: __(
@@ -89,14 +95,15 @@ class SetIndexingEntitiesToDeleteAction implements SetIndexingEntitiesToDeleteAc
     }
 
     /**
-     * @param int[] $entityIds
+     * @param int[][] $entityIds
      *
      * @return IndexingEntityInterface[]
      */
     private function getIndexingEntities(array $entityIds): array
     {
         $indexingEntities = [];
-        if ($entityIds) {
+        $entityIds = array_filter($entityIds);
+        if (!empty($entityIds)) {
             $searchCriteriaBuilder = $this->searchCriteriaBuilderFactory->create();
             $searchCriteriaBuilder->addFilter(
                 field: IndexingEntity::ENTITY_ID,

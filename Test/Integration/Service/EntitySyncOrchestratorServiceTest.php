@@ -16,7 +16,6 @@ use Klevu\Indexing\Service\EntitySyncOrchestratorService;
 use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Api\Data\IndexerResultInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
-use Klevu\IndexingApi\Model\Source\IndexerResultStatuses;
 use Klevu\IndexingApi\Service\EntitySyncOrchestratorServiceInterface;
 use Klevu\PhpSDK\Model\Indexing\Record as SdkIndexingRecord;
 use Klevu\PhpSDK\Model\Indexing\RecordIterator;
@@ -24,6 +23,7 @@ use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
 use Klevu\TestFixtures\Catalog\ProductTrait;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\PipelineEntityApiCallTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
@@ -43,6 +43,7 @@ use TddWizard\Fixtures\Catalog\ProductFixturePool;
  */
 class EntitySyncOrchestratorServiceTest extends TestCase
 {
+    use GeneratorTrait;
     use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use PipelineEntityApiCallTrait;
@@ -148,7 +149,7 @@ class EntitySyncOrchestratorServiceTest extends TestCase
             'logger' => $mockLogger,
             'entityIndexerServices' => [],
         ]);
-        $service->execute(apiKeys: ['incorrect-key']);
+        iterator_to_array($service->execute(apiKeys: ['incorrect-key']));
     }
 
     /**
@@ -238,17 +239,11 @@ class EntitySyncOrchestratorServiceTest extends TestCase
             'payload' => $recordIterator,
         ]);
 
-        $mockIndexerResponse = $this->getMockBuilder(IndexerResultInterface::class)
+        $mockIndexerResult = $this->getMockBuilder(IndexerResultInterface::class)
             ->getMock();
-        $mockIndexerResponse->expects($this->once())
-            ->method('getStatus')
-            ->willReturn(IndexerResultStatuses::SUCCESS);
-        $mockIndexerResponse->expects($this->once())
-            ->method('getMessages')
-            ->willReturn([]);
-        $mockIndexerResponse->expects($this->once())
+        $mockIndexerResult->expects($this->once())
             ->method('getPipelineResult')
-            ->willReturn([$mockPipelineResult]);
+            ->willReturn([[$mockPipelineResult]]);
 
         $mockIndexerService = $this->getMockBuilder(EntityIndexerService::class)
             ->disableOriginalConstructor()
@@ -256,7 +251,7 @@ class EntitySyncOrchestratorServiceTest extends TestCase
         $mockIndexerService->expects($this->once())
             ->method('execute')
             ->with($apiKey, $via)
-            ->willReturn($mockIndexerResponse);
+            ->willReturn($this->generate([$mockIndexerResult]));
 
         $service = $this->instantiateTestObject([
             'entityIndexerServices' => [
@@ -265,30 +260,20 @@ class EntitySyncOrchestratorServiceTest extends TestCase
                 ],
             ],
         ]);
-        $result = $service->execute(
+        $results = $service->execute(
             entityTypes: ['KLEVU_PRODUCT'],
             apiKeys: [$apiKey],
             via: $via,
         );
+        $this->assertSame(expected: $apiKey . '~~KLEVU_PRODUCT::add', actual: $results->key());
+        $result = $results->current();
 
-        $this->assertArrayHasKey(key: $apiKey, array: $result);
-
-        $this->assertCount(expectedCount: 1, haystack: $result);
-        $this->assertArrayHasKey(key: $apiKey, array: $result);
-
-        /** @var IndexerResultInterface $integration1 */
-        $integration1 = $result[$apiKey];
-        $pipelineResults = $integration1->getPipelineResult();
+        $addPipelineResults = $result->getPipelineResult();
+        $this->assertCount(expectedCount: 1, haystack: $addPipelineResults);
+        $pipelineResults = array_shift($addPipelineResults);
         $this->assertCount(expectedCount: 1, haystack: $pipelineResults);
-
-        $this->assertArrayNotHasKey(key: 'KLEVU_PRODUCT::delete', array: $pipelineResults);
-        $this->assertArrayNotHasKey(key: 'KLEVU_PRODUCT::update', array: $pipelineResults);
-        $this->assertArrayHasKey(key: 'KLEVU_PRODUCT::add', array: $pipelineResults);
-        $addResponses = $pipelineResults['KLEVU_PRODUCT::add'];
-        $this->assertCount(expectedCount: 1, haystack: $addResponses);
-
         /** @var ApiPipelineResult $pipelineResult */
-        $pipelineResult = array_shift($addResponses);
+        $pipelineResult = array_shift($pipelineResults);
 
         $this->assertTrue(condition: $pipelineResult->success);
         $this->assertCount(expectedCount: 0, haystack: $pipelineResult->messages);

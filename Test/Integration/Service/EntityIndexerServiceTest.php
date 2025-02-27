@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Service;
 
 use Klevu\Indexing\Service\EntityIndexerService;
+use Klevu\IndexingApi\Model\EntityIndexingRecordInterface;
 use Klevu\IndexingApi\Model\Source\IndexerResultStatuses;
 use Klevu\IndexingApi\Service\EntityIndexerServiceInterface;
 use Klevu\IndexingApi\Service\Provider\Sync\EntityIndexingRecordProviderInterface;
@@ -22,6 +23,7 @@ use Klevu\Pipelines\Pipeline\PipelineInterface;
 use Klevu\PlatformPipelines\Api\PipelineConfigurationOverridesFilepathsProviderInterface;
 use Klevu\PlatformPipelines\Api\PipelineConfigurationProviderInterface;
 use Klevu\PlatformPipelines\Pipeline\PipelineBuilder;
+use Klevu\TestFixtures\Traits\GeneratorTrait;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Magento\Framework\Exception\LocalizedException;
@@ -40,6 +42,7 @@ use Psr\Log\LoggerInterface;
  */
 class EntityIndexerServiceTest extends TestCase
 {
+    use GeneratorTrait;
     use ObjectInstantiationTrait;
     use TestImplementsInterfaceTrait;
 
@@ -139,7 +142,7 @@ class EntityIndexerServiceTest extends TestCase
             ),
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
-        $service->execute(apiKey: '');
+        iterator_to_array($service->execute(apiKey: ''));
     }
 
     public function testExecute_ThrowsException_WhenPipelineConfigurationInvalidStages(): void
@@ -166,7 +169,7 @@ class EntityIndexerServiceTest extends TestCase
             ),
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
-        $service->execute(apiKey: '');
+        iterator_to_array($service->execute(apiKey: ''));
     }
 
     public function testExecute_HandlesValidationException(): void
@@ -201,6 +204,13 @@ class EntityIndexerServiceTest extends TestCase
         )
             ->disableOriginalConstructor()
             ->getMock();
+        $mockEntityIndexingRecordProvider->expects($this->once())
+            ->method('get')
+            ->willReturn(
+                $this->generate(yieldValues: [
+                    $this->getMockBuilder(EntityIndexingRecordInterface::class)->getMock(),
+                ]),
+            );
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -210,7 +220,7 @@ class EntityIndexerServiceTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
-                    'line' => 136,
+                    'line' => 138,
                     'message' => 'Validation Failed',
                     'exception' => $validationException->getTraceAsString(),
                     'previous' => $validationException->getPrevious(),
@@ -227,7 +237,10 @@ class EntityIndexerServiceTest extends TestCase
             'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
-        $result = $service->execute(apiKey: '');
+        $results = iterator_to_array(
+            $service->execute(apiKey: ''),
+        );
+        $result = array_shift($results);
 
         $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
         $this->assertContains(needle: 'Validation Failed', haystack: $result->getMessages(), message: 'Messages');
@@ -264,6 +277,13 @@ class EntityIndexerServiceTest extends TestCase
         )
             ->disableOriginalConstructor()
             ->getMock();
+        $mockEntityIndexingRecordProvider->expects($this->once())
+            ->method('get')
+            ->willReturn(
+                $this->generate(yieldValues: [
+                    $this->getMockBuilder(EntityIndexingRecordInterface::class)->getMock(),
+                ]),
+            );
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -273,7 +293,7 @@ class EntityIndexerServiceTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
-                    'line' => 136,
+                    'line' => 138,
                     'message' => 'Extraction Failed',
                     'exception' => $extractionException->getTraceAsString(),
                     'previous' => $extractionException->getPrevious(),
@@ -290,7 +310,10 @@ class EntityIndexerServiceTest extends TestCase
             'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
-        $result = $service->execute(apiKey: '');
+        $results = iterator_to_array(
+            $service->execute(apiKey: ''),
+        );
+        $result = array_shift($results);
 
         $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
         $this->assertContains(needle: 'Extraction Failed', haystack: $result->getMessages(), message: 'Messages');
@@ -331,6 +354,13 @@ class EntityIndexerServiceTest extends TestCase
         )
             ->disableOriginalConstructor()
             ->getMock();
+        $mockEntityIndexingRecordProvider->expects($this->once())
+            ->method('get')
+            ->willReturn(
+                $this->generate(yieldValues: [
+                    $this->getMockBuilder(EntityIndexingRecordInterface::class)->getMock(),
+                ]),
+            );
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -340,7 +370,7 @@ class EntityIndexerServiceTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
-                    'line' => 136,
+                    'line' => 138,
                     'message' => 'Transformation Failed',
                     'exception' => $transformationException->getTraceAsString(),
                     'previous' => $transformationException->getPrevious(),
@@ -357,7 +387,10 @@ class EntityIndexerServiceTest extends TestCase
             'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
-        $result = $service->execute(apiKey: '');
+        $results = iterator_to_array(
+            $service->execute(apiKey: ''),
+        );
+        $result = array_shift($results);
 
         $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
         $this->assertContains(needle: 'Transformation Failed', haystack: $result->getMessages(), message: 'Messages');
@@ -395,6 +428,13 @@ class EntityIndexerServiceTest extends TestCase
         )
             ->disableOriginalConstructor()
             ->getMock();
+        $mockEntityIndexingRecordProvider->expects($this->once())
+            ->method('get')
+            ->willReturn(
+                $this->generate(yieldValues: [
+                    $this->getMockBuilder(EntityIndexingRecordInterface::class)->getMock(),
+                ]),
+            );
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -404,7 +444,7 @@ class EntityIndexerServiceTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
-                    'line' => 167,
+                    'line' => 168,
                     'message' => 'Stage Failed Something went wrong',
                     'exception' => $stageException->getTraceAsString(),
                     'previous' => $stageException->getPrevious(),
@@ -421,7 +461,10 @@ class EntityIndexerServiceTest extends TestCase
             'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
-        $result = $service->execute(apiKey: '');
+        $results = iterator_to_array(
+            $service->execute(apiKey: ''),
+        );
+        $result = array_shift($results);
 
         $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
         $this->assertContains(needle: 'Something went wrong', haystack: $result->getMessages(), message: 'Messages');
@@ -458,6 +501,13 @@ class EntityIndexerServiceTest extends TestCase
         )
             ->disableOriginalConstructor()
             ->getMock();
+        $mockEntityIndexingRecordProvider->expects($this->once())
+            ->method('get')
+            ->willReturn(
+                $this->generate(yieldValues: [
+                    $this->getMockBuilder(EntityIndexingRecordInterface::class)->getMock(),
+                ]),
+            );
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -467,7 +517,7 @@ class EntityIndexerServiceTest extends TestCase
                 'Method: {method}, Error: {message}',
                 [
                     'method' => 'Klevu\Indexing\Service\EntityIndexerService::execute',
-                    'line' => 183,
+                    'line' => 181,
                     'message' => 'Localized Error',
                     'exception' => $transformationException->getTraceAsString(),
                     'previous' => $transformationException->getPrevious(),
@@ -484,7 +534,10 @@ class EntityIndexerServiceTest extends TestCase
             'logger' => $mockLogger,
             'pipelineIdentifier' => $pipelineIdentifier,
         ]);
-        $result = $service->execute(apiKey: '');
+        $results = iterator_to_array(
+            $service->execute(apiKey: ''),
+        );
+        $result = array_shift($results);
 
         $this->assertSame(expected: IndexerResultStatuses::ERROR, actual: $result->getStatus(), message: 'Status');
         $this->assertContains(needle: 'Localized Error', haystack: $result->getMessages(), message: 'Messages');

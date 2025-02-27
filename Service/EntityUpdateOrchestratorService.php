@@ -9,7 +9,6 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Service;
 
 use Klevu\Configuration\Service\Provider\ApiKeysProviderInterface;
-use Klevu\IndexingApi\Api\Data\DiscoveryResultInterface;
 use Klevu\IndexingApi\Model\Update\EntityInterface as EntityUpdateInterface;
 use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\EntityUpdateOrchestratorServiceInterface;
@@ -48,9 +47,9 @@ class EntityUpdateOrchestratorService implements EntityUpdateOrchestratorService
     /**
      * @param EntityUpdateInterface $entityUpdate
      *
-     * @return DiscoveryResultInterface
+     * @return void
      */
-    public function execute(EntityUpdateInterface $entityUpdate): DiscoveryResultInterface
+    public function execute(EntityUpdateInterface $entityUpdate): void
     {
         $entityType = $entityUpdate->getEntityType();
         $entityIds = $entityUpdate->getEntityIds();
@@ -58,20 +57,23 @@ class EntityUpdateOrchestratorService implements EntityUpdateOrchestratorService
             storeIds: $entityUpdate->getStoreIds(),
         );
         $entitySubtypes = $entityUpdate->getEntitySubtypes();
-        $response = $this->discoveryOrchestratorService->execute(
+        $responsesGenerator = $this->discoveryOrchestratorService->execute(
             entityTypes: [$entityType],
             apiKeys: $apiKeys,
             entityIds: $entityIds,
             entitySubtypes: $entitySubtypes,
         );
-        $this->eventManager->dispatch(
-            'klevu_indexing_entity_update_after',
-            [
-                'entityUpdate' => $entityUpdate,
-                'updatedIds' => $response->hasProcessedIds() ? $response->getProcessedIds() : [],
-            ],
-        );
-
-        return $response;
+        foreach ($responsesGenerator as $responses) {
+            foreach ($responses as $response) {
+                $this->eventManager->dispatch(
+                    'klevu_indexing_entity_update_after',
+                    [
+                        'entityUpdate' => $entityUpdate,
+                        'success' => $response->isSuccess(),
+                        'response' => $response,
+                    ],
+                );
+            }
+        }
     }
 }
