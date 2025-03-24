@@ -22,25 +22,30 @@ class RemoveGeneratedIndexingPipelineYaml implements DataPatchInterface
      */
     private ?WriteInterface $directory = null;
     /**
-     * @var GeneratedConfigurationOverridesFilepathProviderInterface
+     * @var GeneratedConfigurationOverridesFilepathProviderInterface[]
      */
-    private readonly GeneratedConfigurationOverridesFilepathProviderInterface $generatedConfigurationOverridesFilepathProvider; // phpcs:ignore Generic.Files.LineLength.TooLong
+    private array $generatedConfigurationOverridesFilepathProviders = []; // phpcs:ignore Generic.Files.LineLength.TooLong
 
+    // phpcs:disable Generic.Files.LineLength.TooLong
     /**
      * @param Filesystem $filesystem
-     * @param GeneratedConfigurationOverridesFilepathProviderInterface $generatedConfigurationOverridesFilepathProvider
+     * @param GeneratedConfigurationOverridesFilepathProviderInterface[] $generatedConfigurationOverridesFilepathProviders
      */
     public function __construct(
         Filesystem $filesystem,
-        GeneratedConfigurationOverridesFilepathProviderInterface $generatedConfigurationOverridesFilepathProvider,
+        array $generatedConfigurationOverridesFilepathProviders = [],
     ) {
         try {
             $this->directory = $filesystem->getDirectoryWrite(directoryCode: DirectoryList::VAR_DIR);
         } catch (FileSystemException) {
             // invalid directoryCode
         }
-        $this->generatedConfigurationOverridesFilepathProvider = $generatedConfigurationOverridesFilepathProvider;
+        array_walk(
+            array: $generatedConfigurationOverridesFilepathProviders,
+            callback: [$this, 'addGeneratedConfigurationOverridesFilepathProvider'],
+        );
     }
+    // phpcs:enable Generic.Files.LineLength.TooLong
 
     /**
      * @return string[]
@@ -55,8 +60,16 @@ class RemoveGeneratedIndexingPipelineYaml implements DataPatchInterface
      */
     public function apply(): DataPatchInterface
     {
-        $directoryPath = $this->generatedConfigurationOverridesFilepathProvider->get();
-        if ($this->directory && $this->directory->isExist(path: $directoryPath)) {
+        if (!$this->directory) {
+            return $this;
+        }
+
+        foreach ($this->generatedConfigurationOverridesFilepathProviders as $generatedConfigurationOverridesFilepathProvider) { // phpcs:ignore Generic.Files.LineLength.TooLong
+            $directoryPath = $generatedConfigurationOverridesFilepathProvider->get();
+            if (!$directoryPath || !$this->directory->isExist(path: $directoryPath)) {
+                continue;
+            }
+
             try {
                 $this->directory->delete(path: $directoryPath);
             } catch (FileSystemException) {
@@ -73,5 +86,19 @@ class RemoveGeneratedIndexingPipelineYaml implements DataPatchInterface
     public static function getDependencies(): array
     {
         return [];
+    }
+
+    /**
+     * @param GeneratedConfigurationOverridesFilepathProviderInterface $generatedConfigurationOverridesFilepathProvider
+     * @param string $identifier
+     *
+     * @return void
+     */
+    private function addGeneratedConfigurationOverridesFilepathProvider(
+        GeneratedConfigurationOverridesFilepathProviderInterface $generatedConfigurationOverridesFilepathProvider,
+        string $identifier,
+    ): void {
+        $this->generatedConfigurationOverridesFilepathProviders[$identifier]
+            = $generatedConfigurationOverridesFilepathProvider;
     }
 }
