@@ -1,0 +1,175 @@
+<?php
+
+/**
+ * Copyright © Klevu Oy. All rights reserved. See LICENSE.txt for license details.
+ */
+
+declare(strict_types=1);
+
+use Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset;
+use Klevu\IndexingApi\ViewModel\Config\Information\KlevuAttributesInterface;
+
+/**
+ * @var KlevuFieldset $block
+ * @var KlevuAttributesInterface $viewModel
+ */
+$viewModel = $block->getViewModel();
+$escaper = $block->getEscaper();
+
+$attributesByApiKey = $viewModel->getAttributesByApiKey();
+
+$escapedYesString = $escaper->escapeHtml(__('Yes')->render());
+$escapedNoString = $escaper->escapeHtml(__('No')->render());
+?>
+
+<p>
+    <?= $escaper->escapeHtml(
+            data: __("Attributes which exist in Klevu's indexes and their current configuration")->render(),
+    ) ?>
+</p>
+<?php if ($attributesByApiKey): ?>
+    <?php foreach ($attributesByApiKey as $apiKey => $attributes): ?>
+        <table class="klevu-attributes">
+            <thead>
+                <tr>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Attribute Name')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Data Type')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Label')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Searchable')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Filterable')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Returnable')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Abbreviate')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Rangeable')->render()) ?></th>
+                    <th scope="col"><?= $escaper->escapeHtml(__('Immutable')->render()) ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ($attributes): ?>
+                    <?php
+                        // phpcs:ignore SlevomatCodingStandard.Commenting.InlineDocCommentDeclaration.MissingVariable
+                        /** @var \Klevu\PhpSDK\Model\Indexing\Attribute $attribute */
+                    ?>
+                    <?php foreach ($attributes as $attribute): ?>
+                        <tr>
+                            <td>
+                                <kbd><?= $escaper->escapeHtml($attribute->getAttributeName()); ?></kbd>
+                            </td>
+                            <td>
+                                <span><?= $escaper->escapeHtml($attribute->getDatatype()); ?></span>
+                            </td>
+                            <td>
+                                <ul>
+                                    <?php foreach ($attribute->getLabel() as $channel => $label): ?>
+                                        <li>
+                                            <span><?= $escaper->escapeHtml($channel . ' : ' . $label); ?></span>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </td>
+                            <?php // phpcs:disable Generic.Files.LineLength.TooLong ?>
+                            <td class="klevu-attribute-bool klevu-attribute-bool_<?= $attribute->isSearchable() ? 'yes' : 'no' ?>">
+                                <span><?= ($attribute->isSearchable()) ? $escapedYesString : $escapedNoString; ?></span>
+                            </td>
+                            <td class="klevu-attribute-bool klevu-attribute-bool_<?= $attribute->isFilterable() ? 'yes' : 'no' ?>">
+                                <span><?= ($attribute->isFilterable()) ? $escapedYesString : $escapedNoString; ?></span>
+                            </td>
+                            <td class="klevu-attribute-bool klevu-attribute-bool_<?= $attribute->isReturnable() ? 'yes' : 'no' ?>">
+                                <span><?= ($attribute->isReturnable()) ? $escapedYesString : $escapedNoString; ?></span>
+                            </td>
+                            <td class="klevu-attribute-bool klevu-attribute-bool_<?= $attribute->isAbbreviate() ? 'yes' : 'no' ?>">
+                                <span><?= ($attribute->isAbbreviate()) ? $escapedYesString : $escapedNoString; ?></span>
+                            </td>
+                            <td class="klevu-attribute-bool klevu-attribute-bool_<?= $attribute->isRangeable() ? 'yes' : 'no' ?>">
+                                <span><?= ($attribute->isRangeable()) ? $escapedYesString : $escapedNoString; ?></span>
+                            </td>
+                            <td class="klevu-attribute-bool klevu-attribute-bool_<?= $attribute->isImmutable() ? 'yes' : 'no' ?>">
+                                <span><?= ($attribute->isImmutable()) ? $escapedYesString : $escapedNoString; ?></span>
+                            </td>
+                            <?php // phpcs:enable Generic.Files.LineLength.TooLong ?>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="9">
+                            <?= $escaper->escapeHtml(
+                                    data: __('Could not retrieve attributes from Klevu indexes')->render(),
+                                ) ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th scope="row" colspan="9">
+                        <?= $escaper->escapeHtml($apiKey) ?>
+                    </th>
+                </tr>
+        </table>
+    <?php endforeach; ?>
+    <style>
+        table.klevu-attributes {
+            width: 100%;
+            border-collapse: collapse;
+            border: solid 1px #f5f5f5;
+            background-color: #fff;
+            margin-bottom: 30px;
+        }
+
+        .klevu-attributes thead tr,
+        .klevu-attributes tfoot tr {
+            border: solid 1px #f5f5f5;
+        }
+
+        .klevu-attributes thead th {
+            background-color: #000;
+            color: #fff;
+            text-align: left;
+            border: 0.1rem solid #666666;
+        }
+
+        .klevu-attributes tfoot th,
+        .klevu-attributes tr:nth-child(2n) {
+            background-color: #fff;
+        }
+
+        .klevu-attributes tr:nth-child(2n-1) {
+            background-color: #f5f5f5;
+        }
+
+        .klevu-attributes tbody tr:hover {
+            background-color: #e5f7fe;
+        }
+
+        .klevu-attributes tbody td {
+            border-left: 0.1rem dashed #d6d6d6;
+            border-right: 0.1rem dashed #d6d6d6;
+        }
+
+        .klevu-attributes tbody td ul {
+            margin: 0 10px
+        }
+
+        .klevu-attributes tbody td:nth-child(1) {
+            text-align: left;
+        }
+
+        .klevu-attributes tbody td.klevu-attribute-bool {
+            text-align: center;
+        }
+        .klevu-attributes tbody td.klevu-attribute-bool_yes {
+            background-color: #d4edda;
+        }
+        .klevu-attributes tbody td.klevu-attribute-bool_no {
+            background-color: #f8d7da;
+        }
+
+        .accordion .form-inline .config .klevu-attributes th,
+        .accordion .form-inline .config .klevu-attributes td {
+            padding: 1.5rem;
+        }
+    </style>
+<?php else: ?>
+    <p>
+        <?= $escaper->escapeHtml(__("No API keys configured")->render()) ?>
+    </p>
+<?php endif; ?>

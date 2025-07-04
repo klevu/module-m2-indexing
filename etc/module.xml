@@ -10,6 +10,7 @@
             <module name="Klevu_IndexingApi"/>
             <module name="Klevu_LoggerApi"/>
             <module name="Klevu_PlatformPipelines"/>
+            <module name="Magento_Ui"/>
         </sequence>
     </module>
 </config>
