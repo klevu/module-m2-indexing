@@ -17,7 +17,8 @@ $escaperViewModel = $block->getData('escaper_view_model');
 $escaper = $escaperViewModel->getEscaper();
 ?>
 <section class="admin__page-section">
-    <div class="admin__page-section-content" style="display: flex; gap: 20px; margin-left: -10px; margin-right: -10px; margin-bottom: 20px;">
+    <div class="admin__page-section-content"
+         style="display: flex; gap: 20px; margin-left: -10px; margin-right: -10px; margin-bottom: 20px;">
         <section style="width: 50%;">
             <h2><?= $escaper->escapeHtml(__('Attribute Discovery and Sync')->render()) ?></h2>
             <p>
@@ -65,7 +66,8 @@ $escaper = $escaperViewModel->getEscaper();
             </p>
         </section>
     </div>
-    <div class="admin__page-section-content" style="display: flex; gap: 20px; margin-left: -10px; margin-right: -10px; margin-top: 20px;">
+    <div class="admin__page-section-content"
+         style="display: flex; gap: 20px; margin-left: -10px; margin-right: -10px; margin-top: 20px;">
         <section style="flex-basis: 50%;">
             <h2><?= $escaper->escapeHtml(__('Configuration')->render()) ?></h2>
             <p>

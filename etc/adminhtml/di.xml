@@ -27,6 +27,17 @@
         </arguments>
     </virtualType>
 
+    <virtualType name="Klevu\Indexing\Block\Adminhtml\Config\Information\KlevuAttributes"
+                 type="Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset">
+        <arguments>
+            <argument name="blockName" xsi:type="string">klevu_attributes</argument>
+            <argument name="template"
+                      xsi:type="string">Klevu_Indexing::system/config/information/klevu_attributes.phtml</argument>
+            <argument name="viewModel"
+                      xsi:type="object">Klevu\Indexing\ViewModel\Config\Information\KlevuAttributes</argument>
+        </arguments>
+    </virtualType>
+
     <virtualType name="Klevu\Configuration\ViewModel\Config\Information\KnowledgeBase"
                  type="Klevu\Configuration\ViewModel\Config\Information\ArticleList">
         <arguments>

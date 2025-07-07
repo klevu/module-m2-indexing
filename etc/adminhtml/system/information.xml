@@ -29,6 +29,21 @@
             -->
             <frontend_model>Klevu\Indexing\Block\Adminhtml\Config\Information\IndexingAttributes</frontend_model>
         </field>
+        <group id="klevu_attributes_group"
+               translate="label"
+               sortOrder="30"
+               showInDefault="1"
+               showInWebsite="1"
+               showInStore="1">
+            <label>Klevu Attributes</label>
+            <field id="klevu_attributes" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <!--
+                frontend_model is a virtualType based on \Klevu\Configuration\Block\Adminhtml\Config\Form\KlevuFieldset
+                see etc/adminhtml/di.xml for config
+                -->
+                <frontend_model>Klevu\Indexing\Block\Adminhtml\Config\Information\KlevuAttributes</frontend_model>
+            </field>
+        </group>
         <group id="pipeline_configuration"
                translate="label"
                sortOrder="100"
