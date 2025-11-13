@@ -19,6 +19,7 @@ use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
+use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\Api\SortOrderBuilder;
 use Magento\Framework\Exception\AlreadyExistsException;
@@ -409,9 +410,13 @@ class SyncHistoryEntityConsolidationRepositoryTest extends TestCase
         $this->assertSame($searchCriteria, $searchResult->getSearchCriteria());
     }
 
+    /**
+     * @group wip
+     */
     public function testGetList_withResults(): void
     {
         $apiKey = 'klevu-js-api-key';
+        $this->cleanSyncHistoryEntityConsolidationEntities($apiKey);
 
         $this->createSyncHistoryConsolidationRecord([
             SyncHistoryEntityConsolidationRecord::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
@@ -554,5 +559,33 @@ class SyncHistoryEntityConsolidationRepositoryTest extends TestCase
         return $this->objectManager->get(
             type: ConsolidationResourceModel::class,
         );
+    }
+
+    /**
+     * @param string $apiKey
+     *
+     * @return void
+     */
+    private function cleanSyncHistoryEntityConsolidationEntities(string $apiKey): void
+    {
+        $searchCriteriaBuilderFactory = $this->objectManager->get(SearchCriteriaBuilderFactory::class);
+        /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
+        $searchCriteriaBuilder = $searchCriteriaBuilderFactory->create();
+        $searchCriteriaBuilder->addFilter(
+            field: SyncHistoryEntityConsolidationRecord::API_KEY,
+            value: $apiKey,
+            conditionType: 'like',
+        );
+        $searchCriteria = $searchCriteriaBuilder->create();
+        /** @var SyncHistoryEntityConsolidationRepositoryInterface $repository */
+        $repository = $this->objectManager->get(SyncHistoryEntityConsolidationRepositoryInterface::class);
+        $consolidationEntitiesToDelete = $repository->getList($searchCriteria);
+        foreach ($consolidationEntitiesToDelete->getItems() as $consolidationEntity) {
+            try {
+                $repository->delete($consolidationEntity);
+            } catch (LocalizedException) {
+                // this is fine, consolidationEntity already deleted
+            }
+        }
     }
 }

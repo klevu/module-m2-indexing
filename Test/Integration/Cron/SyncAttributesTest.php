@@ -171,17 +171,41 @@ class SyncAttributesTest extends TestCase
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
-        $mockLogger->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockLogger->expects($expectation)
             ->method('info')
-            ->withConsecutive(
-                ['Starting sync of attributes.'],
-                [
-                    sprintf(
-                        'Sync of attributes for apiKey: %s, KLEVU_PRODUCT::add %s: completed successfully.',
-                        $apiKey,
-                        $attributeFixture->getAttributeCode(),
-                    ),
-                ],
+            ->willReturnCallback(
+                callback: function (string $message) use ($expectation, $apiKey, $attributeFixture): void {
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'Starting sync of attributes.',
+                                actual: $message,
+                            );
+                            break;
+
+                        case 2:
+                            $this->assertSame(
+                                expected: sprintf(
+                                    'Sync of attributes for apiKey: %s, KLEVU_PRODUCT::add %s: completed successfully.',
+                                    $apiKey,
+                                    $attributeFixture->getAttributeCode(),
+                                ),
+                                actual: $message,
+                            );
+                            break;
+
+                        default:
+                            $this->fail(message: 'Logger::info called more than expected');
+                            break;
+                    }
+                },
             );
 
         $this->mockSdkAttributePutApiCall(isCalled: true, isSuccessful: true);
@@ -225,17 +249,41 @@ class SyncAttributesTest extends TestCase
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
-        $mockLogger->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockLogger->expects($expectation)
             ->method('info')
-            ->withConsecutive(
-                ['Starting sync of attributes.'],
-                [
-                    sprintf(
-                        'Sync of attributes for apiKey: %s, KLEVU_PRODUCT::update %s: completed with failures. See logs for more details.', // phpcs:ignore Generic.Files.LineLength.TooLong
-                        $apiKey,
-                        $attributeFixture->getAttributeCode(),
-                    ),
-                ],
+            ->willReturnCallback(
+                callback: function (string $message) use ($expectation, $apiKey, $attributeFixture): void {
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'Starting sync of attributes.',
+                                actual: $message,
+                            );
+                            break;
+
+                        case 2:
+                            $this->assertSame(
+                                expected: sprintf(
+                                    'Sync of attributes for apiKey: %s, KLEVU_PRODUCT::update %s: completed with failures. See logs for more details.', // phpcs:ignore Generic.Files.LineLength.TooLong
+                                    $apiKey,
+                                    $attributeFixture->getAttributeCode(),
+                                ),
+                                actual: $message,
+                            );
+                            break;
+
+                        default:
+                            $this->fail(message: 'Logger::info called more than expected');
+                            break;
+                    }
+                },
             );
 
         $this->mockSdkAttributePutApiCall(isCalled: true, isSuccessful: false);

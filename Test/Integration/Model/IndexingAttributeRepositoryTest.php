@@ -551,12 +551,11 @@ class IndexingAttributeRepositoryTest extends TestCase
         $this->assertCount(0, $result);
     }
 
-    public function testGetUniqueAttribiuteTypes_ReturnsArrayOfTypesForApiKey(): void
+    public function testGetUniqueAttributeTypes_ReturnsArrayOfTypesForApiKey(): void
     {
         $apiKey = 'klevu-test-api-key';
         $this->cleanIndexingAttributes(apiKey: $apiKey);
-        $apiKey = 'klevu-test-api-key';
-        $this->cleanIndexingAttributes(apiKey: $apiKey);
+        $this->cleanIndexingAttributes(apiKey: $apiKey . '2');
 
         $this->createIndexingAttribute([
             IndexingAttribute::API_KEY => $apiKey,

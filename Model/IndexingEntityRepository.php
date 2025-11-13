@@ -57,6 +57,10 @@ class IndexingEntityRepository implements IndexingEntityRepositoryInterface
      * @var LoggerInterface
      */
     private readonly LoggerInterface $logger;
+    /**
+     * @var array<IndexingEntityInterface>
+     */
+    private array $batchSaveEntities = [];
 
     /**
      * @param IndexingEntityInterfaceFactory $indexingEntityFactory
@@ -198,6 +202,83 @@ class IndexingEntityRepository implements IndexingEntityRepositoryInterface
         return $this->getById(
             indexingEntityId: (int)$indexingEntity->getId(),
         );
+    }
+
+    /**
+     * @param IndexingEntityInterface $indexingEntity
+     *
+     * @return void
+     */
+    public function addForBatchSave(IndexingEntityInterface $indexingEntity): void
+    {
+        if (
+            $indexingEntity->getId()
+            && !!array_filter(
+                array: $this->batchSaveEntities,
+                callback: static fn (IndexingEntityInterface $batchedEntity) => (
+                    $batchedEntity->getId() === $indexingEntity->getId()
+                ),
+            )
+        ) {
+            return;
+        }
+
+        $this->batchSaveEntities[] = $indexingEntity;
+    }
+
+    /**
+     * @param int $minimumBatchSize
+     *
+     * @return void
+     * @throws CouldNotSaveException
+     */
+    public function saveBatch(int $minimumBatchSize): void
+    {
+        $entityCount = count($this->batchSaveEntities);
+        if ($entityCount < $minimumBatchSize) {
+            return;
+        }
+
+        $validationErrors = [];
+        foreach ($this->batchSaveEntities as $indexingEntity) {
+            if ($this->indexingEntityValidator->isValid(value: $indexingEntity)) {
+                continue;
+            }
+            
+            $entityIdPrefix = $indexingEntity->getId() 
+                ? sprintf('#%d', $indexingEntity->getId()) 
+                : '(new)';
+            
+            $validationErrors[] = sprintf(
+                '%s: %s',
+                $entityIdPrefix,
+                implode('; ', $this->indexingEntityValidator->getMessages()),
+            );
+        }
+        if ($validationErrors) {
+            throw new CouldNotSaveException(
+                phrase: __(
+                    'Could not bulk save Indexing Entities: %1',
+                    implode(';; ', $validationErrors),
+                ),
+            );
+        }
+
+        try {
+            $this->indexingEntityResourceModel->saveMultiple(
+                objects: $this->batchSaveEntities,
+            );
+            $this->batchSaveEntities = [];
+        } catch (\Exception $exception) {
+            throw new CouldNotSaveException(
+                phrase: __(
+                    'Could not bulk save Indexing Entities: %1',
+                    $exception->getMessage(),
+                ),
+                cause: $exception,
+                code: $exception->getCode(),
+            );
+        }
     }
 
     //phpcs:disable Security.BadFunctions.FilesystemFunctions.WarnFilesystem

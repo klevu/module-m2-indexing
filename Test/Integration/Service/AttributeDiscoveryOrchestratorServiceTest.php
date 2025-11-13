@@ -51,6 +51,7 @@ use Psr\Log\LoggerInterface;
  * @covers \Klevu\Indexing\Service\AttributeDiscoveryOrchestratorService::class
  * @method AttributeDiscoveryOrchestratorServiceInterface instantiateTestObject(?array $arguments = null)
  * @method AttributeDiscoveryOrchestratorServiceInterface instantiateTestObjectFromInterface(?array $arguments = null)
+ * @runTestsInSeparateProcesses
  */
 class AttributeDiscoveryOrchestratorServiceTest extends TestCase
 {
@@ -246,7 +247,13 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         $mockIndexingAttributeRepository->expects($matcher)
             ->method('save')
             ->willReturnCallback(callback: function () use ($matcher): IndexingAttributeInterface {
-                if ($matcher->getInvocationCount() === 1) {
+                $invocationCount = match (true) {
+                    method_exists($matcher, 'getInvocationCount') => $matcher->getInvocationCount(),
+                    method_exists($matcher, 'numberOfInvocations') => $matcher->numberOfInvocations(),
+                    default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                };
+
+                if ($invocationCount === 1) {
                     throw new \Exception('Could not Save Attribute');
                 }
                 return $this->objectManager->create(IndexingAttributeInterface::class);
@@ -338,7 +345,13 @@ class AttributeDiscoveryOrchestratorServiceTest extends TestCase
         $mockIndexingAttributeRepository->expects($matcher)
             ->method('save')
             ->willReturnCallback(callback: function () use ($matcher): IndexingAttributeInterface {
-                if ($matcher->getInvocationCount() === 1) {
+                $invocationCount = match (true) {
+                    method_exists($matcher, 'getInvocationCount') => $matcher->getInvocationCount(),
+                    method_exists($matcher, 'numberOfInvocations') => $matcher->numberOfInvocations(),
+                    default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                };
+
+                if ($invocationCount === 1) {
                     throw new \Exception('Could not Save Attribute');
                 }
                 return $this->objectManager->create(IndexingAttributeInterface::class);

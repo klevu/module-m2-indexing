@@ -244,12 +244,20 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->willReturn(
                 $this->objectManager->create(IndexingEntityInterface::class),
             );
-        $matcher = $this->exactly(2);
+        $mockIndexingEntityRepository->expects($this->never())
+            ->method('save');
+        $matcher = $this->exactly(3);
         $mockIndexingEntityRepository->expects($matcher)
-            ->method('save')
+            ->method('saveBatch')
             ->willReturnCallback(callback: function () use ($matcher): IndexingEntityInterface {
-                if ($matcher->getInvocationCount() === 1) {
-                    throw new \Exception('Could not Save Entity');
+                $invocationCount = match (true) {
+                    method_exists($matcher, 'getInvocationCount') => $matcher->getInvocationCount(),
+                    method_exists($matcher, 'numberOfInvocations') => $matcher->numberOfInvocations(),
+                    default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                };
+
+                if ($invocationCount === 3) {
+                    throw new \Exception('Could not Save batch');
                 }
                 return $this->objectManager->create(IndexingEntityInterface::class);
             });
@@ -279,7 +287,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $messages = $result->getMessages();
         $this->assertCount(expectedCount: 1, haystack: $messages, message: 'Message Count');
         $this->assertContains(
-            needle: 'Failed to save Indexing Entities for Magento Entity IDs (1). See log for details.',
+            needle: 'Failed to save Indexing Entities for Magento Entities. See log for details.',
             haystack: $messages,
             message: 'Expected Message Exists',
         );
@@ -373,11 +381,19 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->method('getList')
             ->willReturn($mockSearchResult);
 
-        $matcher = $this->exactly(2);
+        $mockIndexingEntityRepository->expects($this->never())
+            ->method('save');
+        $matcher = $this->exactly(3);
         $mockIndexingEntityRepository->expects($matcher)
-            ->method('save')
+            ->method('saveBatch')
             ->willReturnCallback(callback: function () use ($matcher): IndexingEntityInterface {
-                if ($matcher->getInvocationCount() === 1) {
+                $invocationCount = match (true) {
+                    method_exists($matcher, 'getInvocationCount') => $matcher->getInvocationCount(),
+                    method_exists($matcher, 'numberOfInvocations') => $matcher->numberOfInvocations(),
+                    default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                };
+
+                if ($invocationCount === 3) {
                     throw new \Exception('Could not Save Entity');
                 }
                 return $this->objectManager->create(IndexingEntityInterface::class);
@@ -415,7 +431,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $this->assertTrue(condition: $result->hasMessages(), message: 'Has Messages');
         $messages = $result->getMessages();
         $this->assertContains(
-            needle: 'Indexing entities (1) failed to save. See log for details.',
+            needle: 'Indexing entities failed to save. See log for details.',
             haystack: $messages,
             message: 'Expected Message Exists',
         );
@@ -502,6 +518,8 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
 
         $mockIndexingEntityRepository->expects($this->never())
             ->method('save');
+        $mockIndexingEntityRepository->expects($this->exactly(1))
+            ->method('saveBatch');
 
         $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
@@ -808,9 +826,23 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->method('getList')
             ->willReturn($mockSearchResult);
 
-        $mockIndexingEntityRepository->expects($this->exactly(2))
-            ->method('save')
-            ->willThrowException(new \Exception('Some Exception'));
+        $mockIndexingEntityRepository->expects($this->never())
+            ->method('save');
+        $matcher = $this->exactly(3);
+        $mockIndexingEntityRepository->expects($matcher)
+            ->method('saveBatch')
+            ->willReturnCallback(callback: function () use ($matcher): IndexingEntityInterface {
+                $invocationCount = match (true) {
+                    method_exists($matcher, 'getInvocationCount') => $matcher->getInvocationCount(),
+                    method_exists($matcher, 'numberOfInvocations') => $matcher->numberOfInvocations(),
+                    default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                };
+
+                if ($invocationCount === 3) {
+                    throw new \Exception('Some Exception');
+                }
+                return $this->objectManager->create(IndexingEntityInterface::class);
+            });
 
         $setIndexingEntitiesToUpdateAction = $this->objectManager->create(
             type: SetIndexingEntitiesToUpdateActionInterface::class,
@@ -849,7 +881,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $messages = $result->getMessages();
         $this->assertCount(expectedCount: 1, haystack: $messages, message: 'Message Count');
         $this->assertContains(
-            needle: 'Indexing entities (1, 2) failed to save. See log for details.',
+            needle: 'Indexing entities failed to save. See log for details.',
             haystack: $messages,
             message: 'Expected Message Exists',
         );
@@ -961,6 +993,9 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $this->assertCount(expectedCount: 0, haystack: $messages, message: 'Message Count');
     }
 
+    /**
+     * @group wip
+     */
     public function WhenIndexingEntitySaveExceptionThrown_forChangeOfIndexableStatus(): void
     {
         $apiKey = 'klevu-api-key';
@@ -1021,9 +1056,23 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
             ->method('getList')
             ->willReturn($mockSearchResult);
 
-        $mockIndexingEntityRepository->expects($this->exactly(2))
-            ->method('save')
-            ->willThrowException(new \Exception('Some Exception'));
+        $mockIndexingEntityRepository->expects($this->never())
+            ->method('save');
+        $matcher = $this->exactly(3);
+        $mockIndexingEntityRepository->expects($matcher)
+            ->method('saveBatch')
+            ->willReturnCallback(callback: function () use ($matcher): IndexingEntityInterface {
+                $invocationCount = match (true) {
+                    method_exists($matcher, 'getInvocationCount') => $matcher->getInvocationCount(),
+                    method_exists($matcher, 'numberOfInvocations') => $matcher->numberOfInvocations(),
+                    default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                };
+
+                if ($invocationCount === 3) {
+                    throw new \Exception('Some Exception');
+                }
+                return $this->objectManager->create(IndexingEntityInterface::class);
+            });
 
         $this->createIndexingEntity(data: [
             IndexingEntity::API_KEY => $apiKey,
@@ -1087,7 +1136,7 @@ class EntityDiscoveryOrchestratorServiceTest extends TestCase
         $messages = $result->getMessages();
         $this->assertCount(expectedCount: 1, haystack: $messages, message: 'Message Count');
         $this->assertContains(
-            needle: 'Indexing entities (1, 2) failed to save. See log for details.',
+            needle: 'Indexing entities failed to save. See log for details.',
             haystack: $messages,
             message: 'Expected Message Exists',
         );

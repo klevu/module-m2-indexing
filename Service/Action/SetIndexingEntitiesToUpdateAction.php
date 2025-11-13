@@ -31,20 +31,27 @@ class SetIndexingEntitiesToUpdateAction implements SetIndexingEntitiesToUpdateAc
      * @var LoggerInterface
      */
     private readonly LoggerInterface $logger;
+    /**
+     * @var int
+     */
+    private readonly int $batchSize;
 
     /**
      * @param IndexingEntityRepositoryInterface $indexingEntityRepository
      * @param SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory
      * @param LoggerInterface $logger
+     * @param int $batchSize
      */
     public function __construct(
         IndexingEntityRepositoryInterface $indexingEntityRepository,
         SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
         LoggerInterface $logger,
+        int $batchSize = 2500,
     ) {
         $this->indexingEntityRepository = $indexingEntityRepository;
         $this->searchCriteriaBuilderFactory = $searchCriteriaBuilderFactory;
         $this->logger = $logger;
+        $this->batchSize = $batchSize;
     }
 
     /**
@@ -55,41 +62,52 @@ class SetIndexingEntitiesToUpdateAction implements SetIndexingEntitiesToUpdateAc
      */
     public function execute(array $entityIds): void
     {
-        $failed = [];
         $indexingEntities = $this->getIndexingEntities($entityIds);
-        foreach ($indexingEntities as $indexingEntity) {
-            if (!$indexingEntity->getIsIndexable() || $indexingEntity->getNextAction() === Actions::ADD) {
-                continue;
-            }
-            try {
+        try {
+            $indexingEntityIds = [];
+            foreach ($indexingEntities as $indexingEntity) {
+                if (
+                    !$indexingEntity->getIsIndexable()
+                    || $indexingEntity->getNextAction() === Actions::ADD
+                ) {
+                    continue;
+                }
+
+                $indexingEntityIds[] = $indexingEntity->getId();
                 $indexingEntity->setNextAction(nextAction: Actions::UPDATE);
-                $this->indexingEntityRepository->save(indexingEntity: $indexingEntity);
-            } catch (\Exception $exception) {
-                $failed[] = $indexingEntity->getId();
-                $this->logger->error(
-                    message: 'Method: {method} - Entity ID: {entity_id} - Error: {exception}',
-                    context: [
-                        'method' => __METHOD__,
-                        'entity_id' => $indexingEntity->getId(),
-                        'exception' => $exception->getMessage(),
-                    ],
+
+                $this->indexingEntityRepository->addForBatchSave(
+                    indexingEntity: $indexingEntity,
+                );
+                $this->indexingEntityRepository->saveBatch(
+                    minimumBatchSize: $this->batchSize,
                 );
             }
+
+            $this->indexingEntityRepository->saveBatch(
+                minimumBatchSize: 1,
+            );
+        } catch (\Exception $exception) {
+            $this->logger->error(
+                message: 'Method: {method} - Error: {exception}',
+                context: [
+                    'method' => __METHOD__,
+                    'exception' => $exception->getMessage(),
+                    'indexingEntityIds' => $indexingEntityIds,
+                ],
+            );
+
+            throw new IndexingEntitySaveException(
+                phrase: __('Indexing entities failed to save. See log for details.'),
+            );
         }
+
         foreach ($indexingEntities as $indexingEntity) {
             if (method_exists($indexingEntity, 'clearInstance')) {
                 $indexingEntity->clearInstance();
             }
         }
         unset($indexingEntities);
-        if ($failed) {
-            throw new IndexingEntitySaveException(
-                phrase: __(
-                    'Indexing entities (%1) failed to save. See log for details.',
-                    implode(', ', $failed),
-                ),
-            );
-        }
     }
 
     /**

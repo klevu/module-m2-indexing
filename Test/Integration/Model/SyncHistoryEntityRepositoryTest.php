@@ -18,6 +18,7 @@ use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
 use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
+use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
 use Magento\Framework\Api\SortOrderBuilder;
 use Magento\Framework\Exception\AlreadyExistsException;
@@ -381,6 +382,7 @@ class SyncHistoryEntityRepositoryTest extends TestCase
     public function testGetList_withResults(): void
     {
         $apiKey = 'klevu-js-api-key';
+        $this->cleanSyncHistoryEntities($apiKey);
 
         $this->createSyncHistoryRecord([
             SyncHistoryEntityRecord::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
@@ -501,5 +503,33 @@ class SyncHistoryEntityRepositoryTest extends TestCase
         return $this->objectManager->get(
             type: SyncHistoryEntityRecordResourceModel::class,
         );
+    }
+
+    /**
+     * @param string $apiKey
+     *
+     * @return void
+     */
+    private function cleanSyncHistoryEntities(string $apiKey): void
+    {
+        $searchCriteriaBuilderFactory = $this->objectManager->get(SearchCriteriaBuilderFactory::class);
+        /** @var SearchCriteriaBuilder $searchCriteriaBuilder */
+        $searchCriteriaBuilder = $searchCriteriaBuilderFactory->create();
+        $searchCriteriaBuilder->addFilter(
+            field: SyncHistoryEntityRecord::API_KEY,
+            value: $apiKey,
+            conditionType: 'like',
+        );
+        $searchCriteria = $searchCriteriaBuilder->create();
+        /** @var SyncHistoryEntityRepositoryInterface $repository */
+        $repository = $this->objectManager->get(SyncHistoryEntityRepositoryInterface::class);
+        $recordsToDelete = $repository->getList($searchCriteria);
+        foreach ($recordsToDelete->getItems() as $record) {
+            try {
+                $repository->delete(syncHistoryEntityRecord: $record);
+            } catch (LocalizedException) {
+                // do nothing
+            }
+        }
     }
 }

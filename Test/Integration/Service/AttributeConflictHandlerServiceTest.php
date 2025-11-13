@@ -362,13 +362,19 @@ Attribute "description" mapped 2 time(s)
             ->with(
                 $this->callback(
                     function (mixed $eventName) use ($expectation, $expectedEvents): bool {
+                        $invocationCount = match (true) {
+                            method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                            method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                            default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                        };
+
                         $this->assertIsString($eventName);
                         $this->assertArrayHasKey(
-                            key: $expectation->getInvocationCount(),
+                            key: $invocationCount,
                             array: $expectedEvents,
                         );
                         $this->assertSame(
-                            expected: $expectedEvents[$expectation->getInvocationCount()],
+                            expected: $expectedEvents[$invocationCount],
                             actual: $eventName,
                         );
 
@@ -377,26 +383,31 @@ Attribute "description" mapped 2 time(s)
                 ),
                 $this->callback(
                     function (mixed $data) use ($expectation, $expectedData): bool {
+                        $invocationCount = match (true) {
+                            method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                            method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                            default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                        };
+
                         $this->assertIsArray($data);
                         $this->assertArrayHasKey('notification_data', $data);
                         $this->assertIsArray($data['notification_data']);
 
-                        $invocation = $expectation->getInvocationCount();
                         $this->assertArrayHasKey(
-                            key: $invocation,
+                            key: $invocationCount,
                             array: $expectedData,
                         );
 
                         $dataDate = $data['notification_data']['date'] ?? null;
-                        $expectedDataDate = $expectedData[$invocation]['notification_data']['date'] ?? null;
+                        $expectedDataDate = $expectedData[$invocationCount]['notification_data']['date'] ?? null;
 
                         unset(
                             $data['notification_data']['date'],
-                            $expectedData[$invocation]['notification_data']['date'],
+                            $expectedData[$invocationCount]['notification_data']['date'],
                         );
 
                         $this->assertSame(
-                            expected: $expectedData[$invocation],
+                            expected: $expectedData[$invocationCount],
                             actual: $data,
                         );
                         if ($dataDate && $expectedDataDate) {

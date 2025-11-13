@@ -49,6 +49,7 @@ class IndexingAttributeProviderTest extends TestCase
         $this->interfaceFqcn = IndexingAttributeProviderInterface::class;
         $this->objectManager = Bootstrap::getObjectManager();
         $this->cleanIndexingAttributes('klevu-js-api-key');
+        $this->cleanIndexingAttributes('klevu-js-api-key2');
     }
 
     /**
@@ -59,6 +60,7 @@ class IndexingAttributeProviderTest extends TestCase
         parent::tearDown();
 
         $this->cleanIndexingAttributes('klevu-js-api-key');
+        $this->cleanIndexingAttributes('klevu-js-api-key2');
     }
 
     public function testGet_ReturnsIndexingAttributes_FilteredByType(): void
@@ -350,7 +352,7 @@ class IndexingAttributeProviderTest extends TestCase
 
     public function testCount_ReturnsZero_WhenNotAttributesFound(): void
     {
-        $apiKey = 'klevu-test-api-key';
+        $apiKey = 'klevu-js-api-key';
         $this->cleanIndexingAttributes(apiKey: $apiKey);
 
         $provider = $this->instantiateTestObject();
@@ -360,15 +362,15 @@ class IndexingAttributeProviderTest extends TestCase
     }
 
     /**
-     * @testWith [8, null, "klevu-test-api-key", null, null]
-     *           [1, null, "klevu-test-api-key2", null, null]
-     *           [6, null, "klevu-test-api-key", null, true]
-     *           [2, null, "klevu-test-api-key", null, false]
-     *           [4, "KLEVU_PRODUCT", "klevu-test-api-key", null, null]
-     *           [1, "KLEVU_PRODUCT", "klevu-test-api-key", "Add", null]
-     *           [1, "KLEVU_CATEGORY", "klevu-test-api-key", "Delete", true]
-     *           [2, null, "klevu-test-api-key", "Add", null]
-     *           [0, null, "klevu-test-api-key", "Update", false]
+     * @testWith [8, null, "klevu-js-api-key", null, null]
+     *           [1, null, "klevu-js-api-key2", null, null]
+     *           [6, null, "klevu-js-api-key", null, true]
+     *           [2, null, "klevu-js-api-key", null, false]
+     *           [4, "KLEVU_PRODUCT", "klevu-js-api-key", null, null]
+     *           [1, "KLEVU_PRODUCT", "klevu-js-api-key", "Add", null]
+     *           [1, "KLEVU_CATEGORY", "klevu-js-api-key", "Delete", true]
+     *           [2, null, "klevu-js-api-key", "Add", null]
+     *           [0, null, "klevu-js-api-key", "Update", false]
      */
     public function testCount_ReturnsCount_WhenFiltered(
         int $count,
@@ -377,7 +379,7 @@ class IndexingAttributeProviderTest extends TestCase
         ?string $nextAction = null,
         ?bool $isIndexable = null,
     ): void {
-        $apiKey = 'klevu-test-api-key';
+        $apiKey = 'klevu-js-api-key';
         $this->cleanIndexingAttributes(apiKey: $apiKey);
         $this->cleanIndexingAttributes(apiKey: $apiKeyToFilter);
 
@@ -458,7 +460,7 @@ class IndexingAttributeProviderTest extends TestCase
 
     public function testGetTypes_ReturnsEmptyArray_WhenNoAttributesFound(): void
     {
-        $apiKey = 'klevu-test-api-key';
+        $apiKey = 'klevu-js-api-key';
         $this->cleanIndexingAttributes(apiKey: $apiKey);
 
         $provider = $this->instantiateTestObject();
@@ -469,7 +471,7 @@ class IndexingAttributeProviderTest extends TestCase
 
     public function testGetTypes_ReturnsArrayOfTypes(): void
     {
-        $apiKey = 'klevu-test-api-key';
+        $apiKey = 'klevu-js-api-key';
         $this->cleanIndexingAttributes(apiKey: $apiKey);
 
         $this->createIndexingAttribute([

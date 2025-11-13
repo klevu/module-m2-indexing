@@ -26,17 +26,24 @@ class AddIndexingEntitiesAction implements AddIndexingEntitiesActionInterface
      * @var LoggerInterface
      */
     private readonly LoggerInterface $logger;
+    /**
+     * @var int
+     */
+    private readonly int $batchSize;
 
     /**
      * @param IndexingEntityRepositoryInterface $indexingEntityRepository
      * @param LoggerInterface $logger
+     * @param int $batchSize
      */
     public function __construct(
         IndexingEntityRepositoryInterface $indexingEntityRepository,
         LoggerInterface $logger,
+        int $batchSize = 2500,
     ) {
         $this->indexingEntityRepository = $indexingEntityRepository;
         $this->logger = $logger;
+        $this->batchSize = $batchSize;
     }
 
     /**
@@ -48,31 +55,33 @@ class AddIndexingEntitiesAction implements AddIndexingEntitiesActionInterface
      */
     public function execute(string $type, \Generator $magentoEntities): void
     {
-        $failed = [];
+        try {
+            $magentoEntityIds = [];
+            foreach ($magentoEntities as $magentoEntity) {
+                $magentoEntityIds[] = $magentoEntity->getEntityId();
 
-        foreach ($magentoEntities as $magentoEntity) {
-            try {
                 $indexingEntity = $this->createIndexingEntity(type: $type, magentoEntity: $magentoEntity);
-                $this->indexingEntityRepository->save(indexingEntity: $indexingEntity);
-                unset($indexingEntity);
-            } catch (\Exception $exception) {
-                $failed[] = $magentoEntity->getEntityId();
-                $this->logger->error(
-                    message: 'Method: {method} - Entity ID: {entity_id} - Error: {exception}',
-                    context: [
-                        'method' => __METHOD__,
-                        'entity_id' => $magentoEntity->getEntityId(),
-                        'exception' => $exception->getMessage(),
-                    ],
+                $this->indexingEntityRepository->addForBatchSave(indexingEntity: $indexingEntity);
+                $this->indexingEntityRepository->saveBatch(
+                    minimumBatchSize: $this->batchSize,
                 );
+                unset($indexingEntity);
             }
-        }
-        if ($failed) {
+            $this->indexingEntityRepository->saveBatch(
+                minimumBatchSize: 1,
+            );
+        } catch (\Exception $exception) {
+            $this->logger->error(
+                message: 'Method: {method} - Error: {exception}',
+                context: [
+                    'method' => __METHOD__,
+                    'exception' => $exception->getMessage(),
+                    'magentoEntityIds' => $magentoEntityIds,
+                ],
+            );
+
             throw new IndexingEntitySaveException(
-                phrase: __(
-                    'Failed to save Indexing Entities for Magento Entity IDs (%1). See log for details.',
-                    implode(', ', $failed),
-                ),
+                phrase: __('Failed to save Indexing Entities for Magento Entities. See log for details.'),
             );
         }
     }

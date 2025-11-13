@@ -682,7 +682,7 @@ class IndexingEntityProviderTest extends TestCase
     }
 
     /**
-     * @dataProvider testGet_ReturnsIndexingEntities_ForFinalPage_DataProvider
+     * @dataProvider dataProvider_testGet_ReturnsIndexingEntities_ForFinalPage
      */
     public function testGet_ReturnsIndexingEntities_ForFinalPage(
         ?int $pageSize,
@@ -764,7 +764,7 @@ class IndexingEntityProviderTest extends TestCase
     /**
      * @return int[][]
      */
-    public function testGet_ReturnsIndexingEntities_ForFinalPage_DataProvider(): array
+    public function dataProvider_testGet_ReturnsIndexingEntities_ForFinalPage(): array
     {
         return[
             [3, 9, 1],
