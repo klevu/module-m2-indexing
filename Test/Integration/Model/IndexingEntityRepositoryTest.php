@@ -27,6 +27,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\TestFramework\Helper\Bootstrap;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -569,36 +570,6 @@ class IndexingEntityRepositoryTest extends TestCase
         $this->cleanIndexingEntities($apiKey);
     }
 
-    /**
-     * @param mixed[] $data
-     *
-     * @return IndexingEntityInterface
-     * @throws AlreadyExistsException
-     */
-    private function createIndexingEntity(array $data = []): IndexingEntityInterface
-    {
-        // use objectManager::create to stop caching between tests
-        /** @var IndexingEntityInterface $indexingEntity */
-        $indexingEntity = $this->objectManager->create(type: IndexingEntityInterface::class);
-        $indexingEntity->setTargetEntityType(entityType: $data['target_entity_type'] ?? 'KLEVU_PRODUCT');
-        $indexingEntity->setTargetEntitySubtype(entitySubtype: $data['target_entity_subtype'] ?? null);
-        $indexingEntity->setTargetId(targetId: $data['target_id'] ?? 1);
-        $indexingEntity->setTargetParentId(targetParentId: $data['target_parent_id'] ?? null);
-        $indexingEntity->setApiKey(
-            apiKey: $data['api_key'] ?? 'klevu-js-api-key-' . random_int(min: 0, max: 999999999),
-        );
-        $indexingEntity->setNextAction(nextAction: $data['next_action'] ?? Actions::UPDATE);
-        $indexingEntity->setLockTimestamp(lockTimestamp: $data['lock_timestamp'] ?? null);
-        $indexingEntity->setLastAction(lastAction: $data['last_action'] ?? Actions::ADD);
-        $indexingEntity->setLastActionTimestamp(lastActionTimestamp: $data['last_action_timestamp'] ?? null);
-        $indexingEntity->setIsIndexable(isIndexable: $data['is_indexable'] ?? true);
-
-        $resourceModel = $this->objectManager->get(type: IndexingEntityResourceModel::class);
-        $resourceModel->save(object: $indexingEntity);
-
-        return $indexingEntity;
-    }
-
     public function testGetUniqueEntityTypes_ReturnsEmptyArray_WhenTableIsEmpty(): void
     {
         $apiKey = 'klevu-test-api-key';
@@ -614,8 +585,7 @@ class IndexingEntityRepositoryTest extends TestCase
     {
         $apiKey = 'klevu-test-api-key';
         $this->cleanIndexingEntities(apiKey: $apiKey);
-        $apiKey = 'klevu-test-api-key';
-        $this->cleanIndexingEntities(apiKey: $apiKey);
+        $this->cleanIndexingEntities(apiKey: $apiKey . '2');
 
         $this->createIndexingEntity([
             IndexingEntity::API_KEY => $apiKey,
@@ -697,5 +667,199 @@ class IndexingEntityRepositoryTest extends TestCase
         $this->assertNotContains(needle: 'KLEVU_PRODUCT', haystack: $result);
         $this->assertNotContains(needle: 'CUSTOM_TYPE', haystack: $result);
         $this->assertContains(needle: 'OTHER_CUSTOM_TYPE', haystack: $result);
+    }
+
+    public function testSaveBatch_RespectsMinimumBatchSize(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+
+        $repository = $this->instantiateTestObject();
+
+        $searchCriteriaBuilderFactory = $this->objectManager->get(SearchCriteriaBuilderFactory::class);
+        $searchCriteriaBuilder = $searchCriteriaBuilderFactory->create();
+        $searchCriteriaBuilder->addFilter(
+            field: 'api_key',
+            value: $apiKey,
+            conditionType: 'eq',
+        );
+        $searchCriteria = $searchCriteriaBuilder->create();
+
+        $existingEntities = $repository->getList($searchCriteria);
+        $this->assertSame(
+            expected: 0,
+            actual: $existingEntities->getTotalCount(),
+            message: 'Count before saveBatch',
+        );
+
+        for ($i = 1; $i <= 3; $i++) {
+            $repository->addForBatchSave(
+                indexingEntity: $this->createIndexingEntity(
+                    data: [
+                        IndexingEntity::API_KEY => $apiKey,
+                        IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+                        IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+                        IndexingEntity::TARGET_ID => $i,
+                        IndexingEntity::NEXT_ACTION => Actions::ADD,
+                        IndexingEntity::IS_INDEXABLE => true,
+                    ],
+                    save: false,
+                ),
+            );
+        }
+
+        $repository->saveBatch(
+            minimumBatchSize: 5,
+        );
+
+        $existingEntitiesAfterSave = $repository->getList($searchCriteria);
+        $this->assertSame(
+            expected: 0,
+            actual: $existingEntitiesAfterSave->getTotalCount(),
+            message: 'Count after first saveBatch with minimumBatchSize 5',
+        );
+
+        $repository->saveBatch(
+            minimumBatchSize: 1,
+        );
+
+        $existingEntitiesAfterSecondSave = $repository->getList($searchCriteria);
+        $this->assertSame(
+            expected: 3,
+            actual: $existingEntitiesAfterSecondSave->getTotalCount(),
+            message: 'Count after second saveBatch with minimumBatchSize 1',
+        );
+
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+    }
+
+    public function testSaveBatch_ThrowsValidationException(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+
+        $repository = $this->instantiateTestObject();
+
+        // use objectManager::create to stop caching between tests
+        /** @var IndexingEntityInterface $indexingEntity */
+        $indexingEntity = $this->objectManager->create(type: IndexingEntityInterface::class);
+        $indexingEntity->setData([
+            IndexingEntity::API_KEY => 42,
+            IndexingEntity::TARGET_ENTITY_TYPE => 3.14,
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => '1',
+            IndexingEntity::NEXT_ACTION => 'no-such-action',
+            IndexingEntity::IS_INDEXABLE => 1,
+        ]);
+        $repository->addForBatchSave($indexingEntity);
+
+        $indexingEntity = $this->objectManager->create(type: IndexingEntityInterface::class);
+        $indexingEntity->setData([
+            IndexingEntity::API_KEY => 42,
+            IndexingEntity::TARGET_ENTITY_TYPE => 3.14,
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => '1',
+            IndexingEntity::NEXT_ACTION => 'no-such-action',
+            IndexingEntity::IS_INDEXABLE => 1,
+        ]);
+        $repository->addForBatchSave($indexingEntity);
+
+        $indexingEntity = $this->objectManager->create(type: IndexingEntityInterface::class);
+        $indexingEntity->setData([
+            IndexingEntity::ENTITY_ID => 999999,
+            IndexingEntity::API_KEY => str_repeat(string: 'A', times: 32),
+            IndexingEntity::TARGET_ENTITY_TYPE => str_repeat(string: 'B', times: 64),
+            IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::NEXT_ACTION => Actions::ADD,
+            IndexingEntity::IS_INDEXABLE => true,
+        ]);
+        $repository->addForBatchSave($indexingEntity);
+
+        $this->expectException(CouldNotSaveException::class);
+        $this->expectExceptionMessageMatches(
+            regularExpression: '/Could not bulk save Indexing Entities: \(new\): (.*);; #999999: (.*)/',
+        );
+        $repository->saveBatch(
+            minimumBatchSize: 1,
+        );
+    }
+
+    public function testSaveBatch_ThrowsCouldNotSaveException(): void
+    {
+        $apiKey = 'klevu-test-api-key';
+        $this->cleanIndexingEntities(apiKey: $apiKey);
+
+        $mockIndexingEntityResource = $this->getMockIndexingEntityResource();
+        $mockIndexingEntityResource->method('saveMultiple')
+            ->willThrowException(
+                exception: new LocalizedException(__('Test Exception Message')),
+            );
+
+        $repository = $this->instantiateTestObject([
+            'indexingEntityResourceModel' => $mockIndexingEntityResource,
+        ]);
+
+        $indexingEntity = $this->createIndexingEntity(
+            data: [
+                IndexingEntity::API_KEY => $apiKey,
+                IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+                IndexingEntity::TARGET_ENTITY_SUBTYPE => 'simple',
+                IndexingEntity::TARGET_ID => 1,
+                IndexingEntity::NEXT_ACTION => Actions::ADD,
+                IndexingEntity::IS_INDEXABLE => true,
+            ],
+            save: false,
+        );
+        $repository->addForBatchSave($indexingEntity);
+
+        $this->expectException(CouldNotSaveException::class);
+        $this->expectExceptionMessage('Could not bulk save Indexing Entities: Test Exception Message');
+        $repository->saveBatch(
+            minimumBatchSize: 1,
+        );
+    }
+
+    /**
+     * @param mixed[] $data
+     * @param bool $save
+     *
+     * @return IndexingEntityInterface
+     * @throws AlreadyExistsException
+     */
+    private function createIndexingEntity(array $data = [], bool $save = true): IndexingEntityInterface
+    {
+        // use objectManager::create to stop caching between tests
+        /** @var IndexingEntityInterface $indexingEntity */
+        $indexingEntity = $this->objectManager->create(type: IndexingEntityInterface::class);
+        $indexingEntity->setTargetEntityType(entityType: $data['target_entity_type'] ?? 'KLEVU_PRODUCT');
+        $indexingEntity->setTargetEntitySubtype(entitySubtype: $data['target_entity_subtype'] ?? null);
+        $indexingEntity->setTargetId(targetId: $data['target_id'] ?? 1);
+        $indexingEntity->setTargetParentId(targetParentId: $data['target_parent_id'] ?? null);
+        $indexingEntity->setApiKey(
+            apiKey: $data['api_key'] ?? 'klevu-js-api-key-' . random_int(min: 0, max: 999999999),
+        );
+        $indexingEntity->setNextAction(nextAction: $data['next_action'] ?? Actions::UPDATE);
+        $indexingEntity->setLockTimestamp(lockTimestamp: $data['lock_timestamp'] ?? null);
+        $indexingEntity->setLastAction(lastAction: $data['last_action'] ?? Actions::ADD);
+        $indexingEntity->setLastActionTimestamp(lastActionTimestamp: $data['last_action_timestamp'] ?? null);
+        $indexingEntity->setIsIndexable(isIndexable: $data['is_indexable'] ?? true);
+
+        if ($save) {
+            $resourceModel = $this->objectManager->get(type: IndexingEntityResourceModel::class);
+            $resourceModel->save(object: $indexingEntity);
+        }
+
+        return $indexingEntity;
+    }
+
+    /**
+     * @return MockObject|IndexingEntityResourceModel
+     */
+    private function getMockIndexingEntityResource(): MockObject
+    {
+        return $this->getMockBuilder(IndexingEntityResourceModel::class)
+            ->disableOriginalConstructor()
+            ->getMock();
     }
 }

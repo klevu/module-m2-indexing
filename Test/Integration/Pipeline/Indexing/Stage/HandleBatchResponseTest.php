@@ -425,29 +425,54 @@ class HandleBatchResponseTest extends TestCase
         $mockEventManager = $this->getMockBuilder(ManagerInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockEventManager->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockEventManager->expects($expectation)
             ->method('dispatch')
-            ->withConsecutive(
-                [
-                    'klevu_indexing_handle_batch_response_before',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::ADD,
-                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
-                [
-                    'klevu_indexing_handle_batch_response_after',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::ADD,
-                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
+            ->willReturnCallback(
+                callback: function (string $eventName, array $data = []) use ($expectation, $mockApiResult, $indexingEntity, $apiKey): void { // phpcs:ignore Generic.Files.LineLength.TooLong
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_before',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::ADD,
+                                    'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        case 2:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_after',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::ADD,
+                                    'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        default:
+                            $this->fail(message: 'Unexpected number of invocations');
+                    }
+                },
             );
 
         $mockUpdateEntitiesAction = $this->getMockBuilder(UpdateIndexingEntitiesActionsActionInterface::class)
@@ -521,29 +546,54 @@ class HandleBatchResponseTest extends TestCase
         $mockEventManager = $this->getMockBuilder(ManagerInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockEventManager->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockEventManager->expects($expectation)
             ->method('dispatch')
-            ->withConsecutive(
-                [
-                    'klevu_indexing_handle_batch_response_before',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::ADD,
-                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
-                [
-                    'klevu_indexing_handle_batch_response_after',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::ADD,
-                        'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
+            ->willReturnCallback(
+                callback: function (string $eventName, array $data = []) use ($expectation, $mockApiResult, $indexingEntity, $apiKey): void { // phpcs:ignore Generic.Files.LineLength.TooLong
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_before',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::ADD,
+                                    'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        case 2:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_after',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::ADD,
+                                    'indexingEntities' => [$indexingEntity->getId() => $indexingEntity],
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        default:
+                            $this->fail(message: 'Unexpected number of invocations');
+                    }
+                },
             );
 
         $pipeline = $this->instantiateTestObject([
@@ -569,8 +619,10 @@ class HandleBatchResponseTest extends TestCase
         $this->cleanIndexingEntities($apiKey);
     }
 
-    public function testExecute_UpdatesCorrectEntity_WhenMultipleEntitiesWithSameIdExist_OnPipelineSuccess_ForDelete(
-    ): void {
+    /**
+     * @group wip
+     */
+    public function testExecute_UpdatesCorrectEntity_WhenMultipleEntitiesWithSameIdExist_OnPipelineSuccess_ForDelete(): void { // phpcs:ignore Generic.Files.LineLength.TooLong
         $apiKey = 'klevu-test-api-key';
 
         $this->createProduct();
@@ -625,29 +677,55 @@ class HandleBatchResponseTest extends TestCase
         $mockEventManager = $this->getMockBuilder(ManagerInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockEventManager->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockEventManager->expects($expectation)
             ->method('dispatch')
-            ->withConsecutive(
-                [
-                    'klevu_indexing_handle_batch_response_before',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::DELETE,
-                        'indexingEntities' => $eventDataIndexingEntities,
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
-                [
-                    'klevu_indexing_handle_batch_response_after',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::DELETE,
-                        'indexingEntities' => $eventDataIndexingEntities,
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
+            ->willReturnCallback(
+                callback: function (string $eventName, array $data = []) use ($expectation, $mockApiResult, $eventDataIndexingEntities, $apiKey): void { // phpcs:ignore Generic.Files.LineLength.TooLong
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_before',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::DELETE,
+                                    'indexingEntities' => $eventDataIndexingEntities,
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        case 2:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_after',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::DELETE,
+                                    'indexingEntities' => $eventDataIndexingEntities,
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        default:
+                            $this->fail(message: 'Unexpected number of invocations');
+                            break;
+                    }
+                },
             );
 
         $pipeline = $this->instantiateTestObject([
@@ -782,29 +860,54 @@ class HandleBatchResponseTest extends TestCase
         $mockEventManager = $this->getMockBuilder(ManagerInterface::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockEventManager->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockEventManager->expects($expectation)
             ->method('dispatch')
-            ->withConsecutive(
-                [
-                    'klevu_indexing_handle_batch_response_before',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::ADD,
-                        'indexingEntities' => $eventDataIndexingEntities,
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
-                [
-                    'klevu_indexing_handle_batch_response_after',
-                    [
-                        'apiPipelineResult' => $mockApiResult,
-                        'action' => Actions::ADD,
-                        'indexingEntities' => $eventDataIndexingEntities,
-                        'entityType' => 'KLEVU_PRODUCT',
-                        'apiKey' => $apiKey,
-                    ],
-                ],
+            ->willReturnCallback(
+                callback: function (string $eventName, array $data = []) use ($expectation, $mockApiResult, $eventDataIndexingEntities, $apiKey): void { // phpcs:ignore Generic.Files.LineLength.TooLong
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_before',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::ADD,
+                                    'indexingEntities' => $eventDataIndexingEntities,
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        case 2:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_after',
+                                actual: $eventName,
+                            );
+                            $this->assertEquals(
+                                expected: [
+                                    'apiPipelineResult' => $mockApiResult,
+                                    'action' => Actions::ADD,
+                                    'indexingEntities' => $eventDataIndexingEntities,
+                                    'entityType' => 'KLEVU_PRODUCT',
+                                    'apiKey' => $apiKey,
+                                ],
+                                actual: $data,
+                            );
+                            break;
+                        default:
+                            $this->fail(message: 'Unexpected number of invocations');
+                    }
+                },
             );
 
         $pipeline = $this->instantiateTestObject([

@@ -267,14 +267,14 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
                         type: $type,
                         apiKeys: $apiKeys,
                         entityIds: $entityIds,
-                        entitySubtypes: $entitySubtypes,
+                        entitySubtypes: [$entitySubtype],
                     );
                 }
                 $this->setNewlyNonIndexableEntitiesToNotIndexable(
                     klevuIndexingEntities: $klevuIndexingEntities,
                     entityType: $type,
                     apiKeys: $apiKeys,
-                    entitySubtypes: $entitySubtypes,
+                    entitySubtypes: [$entitySubtype],
                 );
                 unset($klevuIndexingEntities);
                 yield $this->discoveryResultFactory->create(data: [

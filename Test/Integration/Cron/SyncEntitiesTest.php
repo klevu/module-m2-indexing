@@ -241,11 +241,39 @@ class SyncEntitiesTest extends TestCase
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
-        $mockLogger->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockLogger->expects($expectation)
             ->method('info')
-            ->withConsecutive(
-                ['Starting sync of entities.'],
-                ['Sync of entities for apiKey: klevu-js-api-key, KLEVU_PRODUCT::add batch 0: completed successfully. Job ID: 12345678-1234-1234-1234-123456789ab'], // phpcs:ignore Generic.Files.LineLength.TooLong
+            ->willReturnCallback(
+                callback: function (string $message) use ($expectation): void {
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'Starting sync of entities.',
+                                actual: $message,
+                            );
+                            break;
+
+                        case 2:
+                            $this->assertSame(
+                                expected: 'Sync of entities for apiKey: klevu-js-api-key, '
+                                    . 'KLEVU_PRODUCT::add batch 0: completed successfully. '
+                                    . 'Job ID: 12345678-1234-1234-1234-123456789ab',
+                                actual: $message,
+                            );
+                            break;
+
+                        default:
+                            $this->fail(message: 'Logger::info called more than expected');
+                            break;
+                    }
+                },
             );
 
         $cron = $this->instantiateTestObject([
@@ -374,11 +402,39 @@ class SyncEntitiesTest extends TestCase
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
-        $mockLogger->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockLogger->expects($expectation)
             ->method('info')
-            ->withConsecutive(
-                ['Starting sync of entities.'],
-                ['Sync of entities for apiKey: klevu-js-api-key, KLEVU_PRODUCT::add batch 0: completed with failures. See logs for more details. Job ID: N/A'], // phpcs:ignore Generic.Files.LineLength.TooLong
+            ->willReturnCallback(
+                callback: function (string $message) use ($expectation): void {
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'Starting sync of entities.',
+                                actual: $message,
+                            );
+                            break;
+
+                        case 2:
+                            $this->assertSame(
+                                expected: 'Sync of entities for apiKey: klevu-js-api-key, '
+                                    . 'KLEVU_PRODUCT::add batch 0: completed with failures. See logs for more details. '
+                                    . 'Job ID: N/A',
+                                actual: $message,
+                            );
+                            break;
+
+                        default:
+                            $this->fail(message: 'Logger::info called more than expected');
+                            break;
+                    }
+                },
             );
 
         $cron = $this->instantiateTestObject([

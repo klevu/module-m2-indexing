@@ -119,7 +119,7 @@ class AddIndexingEntitiesActionTest extends TestCase
         $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
             ->getMock();
         $mockIndexingEntityRepository->expects($this->once())
-            ->method('save')
+            ->method('saveBatch')
             ->willThrowException(new \Exception('Exception thrown by repo'));
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
@@ -128,10 +128,7 @@ class AddIndexingEntitiesActionTest extends TestCase
 
         $this->expectException(IndexingEntitySaveException::class);
         $this->expectExceptionMessage(
-            sprintf(
-                'Failed to save Indexing Entities for Magento Entity IDs (%s). See log for details.',
-                $magentoEntity->getEntityId(),
-            ),
+            message: 'Failed to save Indexing Entities for Magento Entities. See log for details.',
         );
 
         $action = $this->instantiateTestObject([
@@ -139,6 +136,79 @@ class AddIndexingEntitiesActionTest extends TestCase
             'logger' => $mockLogger,
         ]);
         $action->execute(type: 'KLEVU_PRODUCT', magentoEntities: $this->generate($magentoEntities));
+    }
+
+    public function testExecute_UtilisesBatching(): void
+    {
+        $apiKey = 'klevu-api-key-' . random_int(1, 999999);
+
+        /** @var MagentoEntityInterface[] $magentoEntities */
+        $magentoEntities = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $magentoEntities[] = $this->objectManager->create(MagentoEntityInterface::class, [
+                'entityId' => $i,
+                'apiKey' => $apiKey,
+                'isIndexable' => true,
+            ]);
+        }
+
+        $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
+            ->getMock();
+        $mockIndexingEntityRepository->expects($this->exactly(3))
+            ->method('addForBatchSave');
+        $invocationRule = $this->exactly(4);
+        $mockIndexingEntityRepository->expects($invocationRule)
+            ->method('saveBatch')
+            ->willReturnCallback(
+                callback: function (int $minimumBatchSize) use ($invocationRule): void {
+                    $invocationCount = match (true) {
+                        method_exists($invocationRule, 'getInvocationCount') => $invocationRule->getInvocationCount(),
+                        method_exists($invocationRule, 'numberOfInvocations') => $invocationRule->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                        case 2:
+                        case 3:
+                            $this->assertSame(
+                                expected: 2,
+                                actual: $minimumBatchSize,
+                                message: sprintf(
+                                    'saveBatch for invocation %d',
+                                    $invocationCount,
+                                ),
+                            );
+                            break;
+                        case 4:
+                            $this->assertSame(
+                                expected: 1,
+                                actual: $minimumBatchSize,
+                                message: sprintf(
+                                    'saveBatch for invocation %d',
+                                    $invocationCount,
+                                ),
+                            );
+                            break;
+                    }
+                },
+            );
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->getMock();
+        $mockLogger->expects($this->never())
+            ->method('error');
+
+        $action = $this->instantiateTestObject([
+            'indexingEntityRepository' => $mockIndexingEntityRepository,
+            'logger' => $mockLogger,
+            'batchSize' => 2,
+        ]);
+        $action->execute(
+            type: 'KLEVU_PRODUCT',
+            magentoEntities: $this->generate(
+                yieldValues: $magentoEntities,
+            ),
+        );
     }
 
     /**

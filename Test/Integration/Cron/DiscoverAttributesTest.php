@@ -73,11 +73,37 @@ class DiscoverAttributesTest extends TestCase
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
-        $mockLogger->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockLogger->expects($expectation)
             ->method('info')
-            ->withConsecutive(
-                ['Starting discovery of attributes.'],
-                ['Discovery of attributes completed successfully.'],
+            ->willReturnCallback(
+                callback: function (string $message) use ($expectation): void {
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'Starting discovery of attributes.',
+                                actual: $message,
+                            );
+                            break;
+
+                        case 2:
+                            $this->assertSame(
+                                expected: 'Discovery of attributes completed successfully.',
+                                actual: $message,
+                            );
+                            break;
+
+                        default:
+                            $this->fail(message: 'Logger::info called more than twice');
+                            break;
+                    }
+                },
             );
 
         $cron = $this->instantiateTestObject([
@@ -105,11 +131,37 @@ class DiscoverAttributesTest extends TestCase
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
-        $mockLogger->expects($this->exactly(2))
+        $expectation = $this->exactly(2);
+        $mockLogger->expects($expectation)
             ->method('info')
-            ->withConsecutive(
-                ['Starting discovery of attributes.'],
-                ['Discovery of attributes completed with failures. See logs for more details.'],
+            ->willReturnCallback(
+                callback: function (string $message) use ($expectation): void {
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'Starting discovery of attributes.',
+                                actual: $message,
+                            );
+                            break;
+
+                        case 2:
+                            $this->assertSame(
+                                expected: 'Discovery of attributes completed with failures. See logs for more details.',
+                                actual: $message,
+                            );
+                            break;
+
+                        default:
+                            $this->fail(message: 'Logger::info called more than twice');
+                            break;
+                    }
+                },
             );
 
         $cron = $this->instantiateTestObject([

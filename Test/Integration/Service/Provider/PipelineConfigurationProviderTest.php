@@ -75,6 +75,9 @@ class PipelineConfigurationProviderTest extends TestCase
         $this->assertNull(actual: $provider->get('foo'));
     }
 
+    /**
+     * @group wip
+     */
     public function testGet_ReturnsPipelineConfiguration(): void
     {
         $provider = $this->instantiateTestObject([
@@ -82,14 +85,11 @@ class PipelineConfigurationProviderTest extends TestCase
                 'foo' => $this->getEntityIndexerService(),
             ],
         ]);
-        $this->assertSame(
+        $this->assertEquals(
             expected: [
-                'pipeline' => 'Pipeline',
-                'args' => [],
                 'stages' => [
                     'createRecord' => [
                         'pipeline' => 'Pipeline\CreateRecord',
-                        'args' => [],
                         'stages' => [
                             'foo' => [
                                 'pipeline' => 'Stage\Extract',

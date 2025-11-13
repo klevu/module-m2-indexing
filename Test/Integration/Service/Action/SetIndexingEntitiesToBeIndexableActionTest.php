@@ -169,21 +169,18 @@ class SetIndexingEntitiesToBeIndexableActionTest extends TestCase
         $mockIndexingEntityRepository->expects($this->once())
             ->method('getList')
             ->willReturn($mockSearchResult);
-        $mockIndexingEntityRepository->expects($this->exactly(2))
-            ->method('save')
+        $mockIndexingEntityRepository->expects($this->once())
+            ->method('saveBatch')
             ->willThrowException(new \Exception('Exception thrown by repo'));
 
         $mockLogger = $this->getMockBuilder(LoggerInterface::class)
             ->getMock();
-        $mockLogger->expects($this->exactly(2))
+        $mockLogger->expects($this->once())
             ->method('error');
 
         $this->expectException(IndexingEntitySaveException::class);
         $this->expectExceptionMessage(
-            sprintf(
-                'Indexing entities (%s) failed to save. See log for details.',
-                implode(', ', [$indexingEntity1->getId(), $indexingEntity2->getId()]),
-            ),
+            message: 'Indexing entities failed to save. See log for details.',
         );
 
         $action = $this->instantiateTestObject([
@@ -193,7 +190,96 @@ class SetIndexingEntitiesToBeIndexableActionTest extends TestCase
         $action->execute($this->generate([$entityIds]));
     }
 
-        /**
+    /**
+     * @group wip
+     */
+    public function testExecute_UtilisesBatching(): void
+    {
+        $apiKey = 'klevu-api-key-' . random_int(1, 999999);
+
+        $indexingEntities = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $indexingEntities[] = $this->createIndexingEntity([
+                IndexingEntity::TARGET_ID => $i,
+                IndexingEntity::IS_INDEXABLE => true,
+                IndexingEntity::API_KEY => $apiKey,
+                IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+                IndexingEntity::NEXT_ACTION => Actions::DELETE,
+                IndexingEntity::LAST_ACTION => Actions::ADD,
+            ]);
+        }
+
+        $mockSearchResult = $this->getMockBuilder(IndexingEntitySearchResultsInterface::class)
+            ->getMock();
+        $mockSearchResult->expects($this->once())
+            ->method('getItems')
+            ->willReturn($indexingEntities);
+        $mockIndexingEntityRepository = $this->getMockBuilder(IndexingEntityRepositoryInterface::class)
+            ->getMock();
+        $mockIndexingEntityRepository->expects($this->once())
+            ->method('getList')
+            ->willReturn($mockSearchResult);
+        $mockIndexingEntityRepository->expects($this->exactly(3))
+            ->method('addForBatchSave');
+        $invocationRule = $this->exactly(4);
+        $mockIndexingEntityRepository->expects($invocationRule)
+            ->method('saveBatch')
+            ->willReturnCallback(function (int $minimumBatchSize) use ($invocationRule): void {
+                $invocationCount = match (true) {
+                    method_exists($invocationRule, 'getInvocationCount') => $invocationRule->getInvocationCount(),
+                    method_exists($invocationRule, 'numberOfInvocations') => $invocationRule->numberOfInvocations(),
+                    default => throw new \RuntimeException('Cannot determine invocation count'),
+                };
+
+                switch ($invocationCount) {
+                    case 1:
+                    case 2:
+                    case 3:
+                        $this->assertSame(
+                            expected: 2,
+                            actual: $minimumBatchSize,
+                            message: sprintf(
+                                'saveBatch for invocation %d',
+                                $invocationCount,
+                            ),
+                        );
+                        break;
+                    case 4:
+                        $this->assertSame(
+                            expected: 1,
+                            actual: $minimumBatchSize,
+                            message: sprintf(
+                                'saveBatch for invocation %d',
+                                $invocationCount,
+                            ),
+                        );
+                        break;
+                }
+            });
+
+        $mockLogger = $this->getMockBuilder(LoggerInterface::class)
+            ->getMock();
+        $mockLogger->expects($this->never())
+            ->method('error');
+
+        $action = $this->instantiateTestObject([
+            'indexingEntityRepository' => $mockIndexingEntityRepository,
+            'logger' => $mockLogger,
+            'batchSize' => 2,
+        ]);
+        $action->execute(
+            entityIds: $this->generate(
+                yieldValues: [
+                    array_map(
+                        callback: static fn (IndexingEntityInterface $indexingEntity): int => $indexingEntity->getId(),
+                        array: $indexingEntities,
+                    ),
+                ],
+            ),
+        );
+    }
+
+    /**
      * @param string $apiKey
      * @param string $type
      *

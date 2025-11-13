@@ -194,15 +194,21 @@ class ConsolidateEntitySyncCronConfigSettingsActionTest extends TestCase
                 ->method('save')
                 ->willReturnCallback(
                     function (string $path, mixed $value) use ($matcher, $expectedPathValues): void {
+                        $invocationCount = match (true) {
+                            method_exists($matcher, 'getInvocationCount') => $matcher->getInvocationCount(),
+                            method_exists($matcher, 'numberOfInvocations') => $matcher->numberOfInvocations(),
+                            default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                        };
+
                         $paths = array_keys($expectedPathValues);
                         $this->assertSame(
-                            expected: $paths[$matcher->getInvocationCount() - 1],
+                            expected: $paths[$invocationCount - 1],
                             actual: $path,
                         );
 
                         $values = array_values($expectedPathValues);
                         $this->assertSame(
-                            expected: $values[$matcher->getInvocationCount() - 1],
+                            expected: $values[$invocationCount - 1],
                             actual: $value,
                         );
                     },

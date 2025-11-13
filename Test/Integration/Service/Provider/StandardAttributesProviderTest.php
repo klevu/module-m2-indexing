@@ -23,10 +23,7 @@ use Klevu\PhpSDK\Model\Indexing\DataType;
 use Klevu\PhpSDK\Service\Indexing\AttributesService;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
 use Klevu\TestFixtures\Store\StoreTrait;
-use Klevu\TestFixtures\Traits\ObjectInstantiationTrait;
 use Klevu\TestFixtures\Traits\SetAuthKeysTrait;
-use Klevu\TestFixtures\Traits\TestImplementsInterfaceTrait;
-use Klevu\TestFixtures\Traits\TestInterfacePreferenceTrait;
 use Magento\Framework\App\Cache\StateInterface;
 use Magento\Framework\App\Cache\TypeList;
 use Magento\Framework\ObjectManagerInterface;
@@ -35,17 +32,29 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * @covers StandardAttributesProvider::class
- * @method StandardAttributesProviderInterface instantiateTestObject(?array $arguments = null)
- * @method StandardAttributesProviderInterface instantiateTestObjectFromInterface(?array $arguments = null)
+ * @runTestsInSeparateProcesses
  */
 class StandardAttributesProviderTest extends TestCase
 {
-    use ObjectInstantiationTrait;
     use SetAuthKeysTrait;
     use StoreTrait;
-    use TestImplementsInterfaceTrait;
-    use TestInterfacePreferenceTrait;
 
+    /**
+     * @var string|null
+     */
+    private ?string $implementationFqcn = null;
+    /**
+     * @var string|null
+     */
+    private ?string $interfaceFqcn = null;
+    /**
+     * @var mixed[]|null
+     */
+    private ?array $constructorArgumentDefaults = null;
+    /**
+     * @var string|null
+     */
+    private ?string $implementationForVirtualType = null;
     /**
      * @var ObjectManagerInterface|null
      */
@@ -637,9 +646,42 @@ class StandardAttributesProviderTest extends TestCase
         $mockAttributesService = $this->getMockBuilder(AttributesService::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockAttributesService->method('get')
-            ->withConsecutive([$accountCredentials1], [$accountCredentials2])
-            ->willReturnOnConsecutiveCalls($attributeIterator1, $attributeIterator2);
+        $expectation = $this->atLeast(2);
+        $mockAttributesService->expects($expectation)
+            ->method('get')
+            ->willReturnCallBack(
+                callback: function (AccountCredentials $accountCredentials) use ($expectation, $accountCredentials1, $accountCredentials2, $attributeIterator1, $attributeIterator2): AttributeIterator { // phpcs:ignore Generic.Files.LineLength.TooLong
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertEquals(
+                                expected: $accountCredentials1,
+                                actual: $accountCredentials,
+                            );
+                            $return = $attributeIterator1;
+                            break;
+
+                        case 2:
+                            $this->assertEquals(
+                                expected: $accountCredentials2,
+                                actual: $accountCredentials,
+                            );
+                            $return = $attributeIterator2;
+                            break;
+
+                        default:
+                            $this->fail('AttributesService::get called more than expected');
+                            break;
+                    }
+
+                    return $return;
+                },
+            );
 
         $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
             'attributesService' => $mockAttributesService,
@@ -764,9 +806,42 @@ class StandardAttributesProviderTest extends TestCase
         $mockAttributesService = $this->getMockBuilder(AttributesService::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $mockAttributesService->method('get')
-            ->withConsecutive([$accountCredentials1], [$accountCredentials2])
-            ->willReturnOnConsecutiveCalls($attributeIterator1, $attributeIterator2);
+        $expectation = $this->atLeast(2);
+        $mockAttributesService->expects($expectation)
+            ->method('get')
+            ->willReturnCallBack(
+                callback: function (AccountCredentials $accountCredentials) use ($expectation, $accountCredentials1, $accountCredentials2, $attributeIterator1, $attributeIterator2): AttributeIterator { // phpcs:ignore Generic.Files.LineLength.TooLong
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertEquals(
+                                expected: $accountCredentials1,
+                                actual: $accountCredentials,
+                            );
+                            $return = $attributeIterator1;
+                            break;
+
+                        case 2:
+                            $this->assertEquals(
+                                expected: $accountCredentials2,
+                                actual: $accountCredentials,
+                            );
+                            $return = $attributeIterator2;
+                            break;
+
+                        default:
+                            $this->fail('AttributesService::get called more than expected');
+                            break;
+                    }
+
+                    return $return;
+                },
+            );
 
         $attributesProvider = $this->objectManager->create(AttributesProviderInterface::class, [
             'attributesService' => $mockAttributesService,
@@ -784,6 +859,30 @@ class StandardAttributesProviderTest extends TestCase
         $this->assertContains(needle: 'my_standard_attribute_2', haystack: $results);
         $this->assertContains(needle: 'my_standard_attribute_3', haystack: $results);
         $this->assertNotContains(needle: 'my_custom_attribute_4', haystack: $results);
+    }
+
+    /**
+     * @param mixed[]|null $arguments
+     *
+     * @return object
+     * @throws \LogicException
+     *
+     * @todo Reinstate object instantiation and interface traits. Removed as causing serialization of Closure error
+     *  in phpunit Standard input code
+     */
+    private function instantiateTestObject(
+        ?array $arguments = null,
+    ): object {
+        if (!$this->implementationFqcn) {
+            throw new \LogicException('Cannot instantiate test object: no implementationFqcn defined');
+        }
+        if (null === $arguments) {
+            $arguments = $this->constructorArgumentDefaults;
+        }
+
+        return (null === $arguments)
+            ? $this->objectManager->get($this->implementationFqcn)
+            : $this->objectManager->create($this->implementationFqcn, $arguments);
     }
 
     /**
