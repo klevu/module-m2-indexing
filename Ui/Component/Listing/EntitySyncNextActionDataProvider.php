@@ -122,6 +122,7 @@ class EntitySyncNextActionDataProvider extends DataProvider
             );
         }
         $return[IndexingEntity::IS_INDEXABLE] = (int)$return[IndexingEntity::IS_INDEXABLE];
+        $return[IndexingEntity::REQUIRES_UPDATE] = (int)$return[IndexingEntity::REQUIRES_UPDATE];
 
         return $return;
     }

@@ -28,6 +28,10 @@ class IndexingEntity extends AbstractModel implements IndexingEntityInterface
     public const LAST_ACTION = 'last_action';
     public const LAST_ACTION_TIMESTAMP = 'last_action_timestamp';
     public const IS_INDEXABLE = 'is_indexable';
+    public const REQUIRES_UPDATE = 'requires_update';
+    public const REQUIRES_UPDATE_ORIG_VALUES = 'requires_update_orig_values';
+    public const CREATED_AT = 'created_at';
+    public const UPDATED_AT = 'updated_at';
 
     /**
      * @return void
@@ -228,7 +232,106 @@ class IndexingEntity extends AbstractModel implements IndexingEntityInterface
      */
     public function setIsIndexable(bool $isIndexable): void
     {
-        $this->setData(key: static::IS_INDEXABLE, value: (bool)$isIndexable);
+        $this->setData(key: static::IS_INDEXABLE, value: $isIndexable);
+    }
+
+    /**
+     * @return bool
+     */
+    public function getRequiresUpdate(): bool
+    {
+        return (bool)$this->getData(key: static::REQUIRES_UPDATE);
+    }
+
+    /**
+     * @param bool $requiresUpdate
+     *
+     * @return void
+     */
+    public function setRequiresUpdate(bool $requiresUpdate): void
+    {
+        $this->setData(key: static::REQUIRES_UPDATE, value: $requiresUpdate);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getRequiresUpdateOrigValues(): array
+    {
+        return is_array($this->getData(key: static::REQUIRES_UPDATE_ORIG_VALUES))
+            ? $this->getData(key: static::REQUIRES_UPDATE_ORIG_VALUES)
+            : [];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @return void
+     */
+    public function setRequiresUpdateOrigValues(array $values): void
+    {
+        $this->setData(
+            key: static::REQUIRES_UPDATE_ORIG_VALUES,
+            value: $values,
+        );
+    }
+
+    /**
+     * @param string $criteria
+     * @param mixed $value
+     *
+     * @return void
+     */
+    public function addRequiresUpdateOrigValue(string $criteria, mixed $value): void
+    {
+        $requiredUpdateOrigValues = $this->getRequiresUpdateOrigValues();
+        $requiredUpdateOrigValues[$criteria] = $value;
+
+        $this->setRequiresUpdateOrigValues($requiredUpdateOrigValues);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getCreatedAt(): ?string
+    {
+        $createdAt = $this->getData(key: static::CREATED_AT);
+
+        return $createdAt
+            ? (string)$createdAt
+            : null;
+    }
+
+    /**
+     * @param string|null $createdAt
+     *
+     * @return void
+     */
+    public function setCreatedAt(?string $createdAt = null): void
+    {
+        $this->setData(key: static::CREATED_AT, value: $createdAt);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getUpdatedAt(): ?string
+    {
+        $updatedAt = $this->getData(key: static::UPDATED_AT);
+
+        return $updatedAt
+            ? (string)$updatedAt
+            : null;
+    }
+
+    /**
+     * @param string|null $updatedAt
+     *
+     * @return void
+     */
+    public function setUpdatedAt(?string $updatedAt = null): void
+    {
+        $this->setData(key: static::UPDATED_AT, value: $updatedAt);
     }
 
     /**

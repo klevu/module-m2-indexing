@@ -10,11 +10,14 @@ namespace Klevu\Indexing\Service\Action;
 
 use Klevu\Indexing\Exception\IndexingEntitySaveException;
 use Klevu\Indexing\Model\IndexingEntity;
+use Klevu\Indexing\Validator\BatchSizeValidator;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToUpdateActionInterface;
+use Klevu\IndexingApi\Validator\ValidatorInterface;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
+use Magento\Framework\App\ObjectManager;
 use Psr\Log\LoggerInterface;
 
 class SetIndexingEntitiesToUpdateAction implements SetIndexingEntitiesToUpdateActionInterface
@@ -41,16 +44,29 @@ class SetIndexingEntitiesToUpdateAction implements SetIndexingEntitiesToUpdateAc
      * @param SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory
      * @param LoggerInterface $logger
      * @param int $batchSize
+     * @param ValidatorInterface|null $batchSizeValidator
      */
     public function __construct(
         IndexingEntityRepositoryInterface $indexingEntityRepository,
         SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
         LoggerInterface $logger,
         int $batchSize = 2500,
+        ?ValidatorInterface $batchSizeValidator = null,
     ) {
         $this->indexingEntityRepository = $indexingEntityRepository;
         $this->searchCriteriaBuilderFactory = $searchCriteriaBuilderFactory;
         $this->logger = $logger;
+
+        $objectManager = ObjectManager::getInstance();
+        $batchSizeValidator = $batchSizeValidator ?: $objectManager->get(BatchSizeValidator::class);
+        if (!$batchSizeValidator->isValid($batchSize)) {
+            throw new \InvalidArgumentException(
+                message: sprintf(
+                    'Invalid Batch Size: %s',
+                    implode(', ', $batchSizeValidator->getMessages()),
+                ),
+            );
+        }
         $this->batchSize = $batchSize;
     }
 
@@ -66,16 +82,19 @@ class SetIndexingEntitiesToUpdateAction implements SetIndexingEntitiesToUpdateAc
         try {
             $indexingEntityIds = [];
             foreach ($indexingEntities as $indexingEntity) {
-                if (
-                    !$indexingEntity->getIsIndexable()
-                    || $indexingEntity->getNextAction() === Actions::ADD
-                ) {
+                if ($indexingEntity->getIsIndexable()) {
+                    if ($indexingEntity->getNextAction() !== Actions::ADD) {
+                        $indexingEntity->setNextAction(Actions::UPDATE);
+                    }
+                    $indexingEntity->setRequiresUpdate(requiresUpdate: false);
+                    $indexingEntity->setRequiresUpdateOrigValues(values: []);
+                }
+
+                if (!$indexingEntity->hasDataChanges()) {
                     continue;
                 }
 
                 $indexingEntityIds[] = $indexingEntity->getId();
-                $indexingEntity->setNextAction(nextAction: Actions::UPDATE);
-
                 $this->indexingEntityRepository->addForBatchSave(
                     indexingEntity: $indexingEntity,
                 );

@@ -24,6 +24,7 @@ use Klevu\IndexingApi\Validator\ValidatorInterface;
 use Magento\Cms\Api\Data\PageInterface;
 use Magento\Framework\Api\ExtensibleDataInterface;
 use Magento\Framework\App\ObjectManager;
+use Magento\Framework\Event\ManagerInterface as EventManagerInterface;
 use Magento\Store\Api\Data\StoreInterface;
 use Psr\Log\LoggerInterface;
 
@@ -58,6 +59,10 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      */
     private readonly EntityProviderProviderInterface $entityProviderProvider;
     /**
+     * @var EventManagerInterface
+     */
+    private readonly EventManagerInterface $eventManager;
+    /**
      * @var Actions
      */
     private Actions $action;
@@ -82,6 +87,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
      * @param string $action
      * @param int|null $batchSize
      * @param ValidatorInterface|null $batchSizeValidator
+     * @param EventManagerInterface|null $eventManager
      *
      * @throws \InvalidArgumentException
      */
@@ -97,6 +103,7 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
         string $action,
         ?int $batchSize = null,
         ?ValidatorInterface $batchSizeValidator = null,
+        ?EventManagerInterface $eventManager = null,
     ) {
         $this->indexingEntityProvider = $indexingEntityProvider;
         $this->indexingRecordCreatorService = $indexingRecordCreatorService;
@@ -119,6 +126,8 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
             );
         }
         $this->batchSize = $batchSize;
+
+        $this->eventManager = $eventManager ?: $objectManager->get(EventManagerInterface::class);
     }
 
     /**
@@ -141,10 +150,21 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
             if (!$entityIds) {
                 break;
             }
+
             $entitiesCache = $this->getEntities(
                 store: $store,
                 entityIds: $entityIds,
             );
+            $this->eventManager->dispatch(
+                eventName: 'klevu_indexing_entityrecordprovider_aftergetentities',
+                data: [
+                    'action' => $this->action,
+                    'apiKey' => $apiKey,
+                    'store' => $store,
+                    'entities' => $entitiesCache,
+                ],
+            );
+
             $return = [];
             foreach ($entityIds as $entity) {
                 try {
@@ -159,6 +179,18 @@ class EntityIndexingRecordProvider implements EntityIndexingRecordProviderInterf
                     );
                 }
             }
+
+            $this->eventManager->dispatch(
+                eventName: 'klevu_indexing_entityrecordprovider_beforereturn',
+                data: [
+                    'action' => $this->action,
+                    'apiKey' => $apiKey,
+                    'store' => $store,
+                    'entities' => $entitiesCache,
+                    'indexing_records' => $return,
+                ],
+            );
+
             yield $return;
             unset($return);
             foreach ($entitiesCache as $entity) {

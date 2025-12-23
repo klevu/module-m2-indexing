@@ -5,14 +5,17 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
 
+    <preference for="Klevu\IndexingApi\Api\Data\EntitySyncConditionsValuesInterface"
+                type="Klevu\Indexing\Model\EntitySyncConditionsValues"/>
+
     <preference for="Klevu\IndexingApi\Api\Data\IndexingAttributeInterface"
-                type="\Klevu\Indexing\Model\IndexingAttribute"/>
+                type="Klevu\Indexing\Model\IndexingAttribute"/>
 
     <preference for="Klevu\IndexingApi\Api\IndexingAttributeRepositoryInterface"
-                type="\Klevu\Indexing\Model\IndexingAttributeRepository"/>
+                type="Klevu\Indexing\Model\IndexingAttributeRepository"/>
 
     <preference for="Klevu\IndexingApi\Api\Data\IndexingEntityInterface"
-                type="\Klevu\Indexing\Model\IndexingEntity"/>
+                type="Klevu\Indexing\Model\IndexingEntity"/>
 
     <preference for="Klevu\IndexingApi\Api\Data\IndexerResultInterface"
                 type="Klevu\Indexing\Model\IndexerResult"/>
@@ -33,7 +36,7 @@
                 type="Klevu\Indexing\Model\IndexingEntityRepository"/>
 
     <preference for="Klevu\IndexingApi\Api\SyncHistoryEntityRepositoryInterface"
-                type="\Klevu\Indexing\Model\SyncHistoryEntityRepository"/>
+                type="Klevu\Indexing\Model\SyncHistoryEntityRepository"/>
 
     <preference for="Klevu\IndexingApi\Model\EntityIndexingDeleteRecordInterface"
                 type="Klevu\Indexing\Model\EntityIndexingDeleteRecord"/>
@@ -89,6 +92,12 @@
     <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToUpdateActionInterface"
                 type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToUpdateAction"/>
 
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToNotRequireUpdateActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToNotRequireUpdateAction"/>
+
+    <preference for="Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToRequireUpdateActionInterface"
+                type="Klevu\Indexing\Service\Action\SetIndexingEntitiesToRequireUpdateAction"/>
+
     <preference for="Klevu\IndexingApi\Service\Action\UpdateIndexingEntitiesActionsActionInterface"
                 type="Klevu\Indexing\Service\Action\UpdateIndexingEntitiesActionsAction"/>
 
@@ -118,6 +127,9 @@
 
     <preference for="Klevu\IndexingApi\Service\ConsolidateSyncHistoryServiceInterface"
                 type="Klevu\Indexing\Service\ConsolidateSyncHistoryService"/>
+
+    <preference for="Klevu\IndexingApi\Service\Determiner\RequiresUpdateDeterminerInterface"
+                type="Klevu\Indexing\Service\Determiner\RequiresUpdateDeterminer"/>
 
     <preference for="Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface"
                 type="Klevu\Indexing\Service\EntityDiscoveryOrchestratorService"/>
@@ -161,6 +173,9 @@
     <preference for="Klevu\IndexingApi\Service\FilterEntitiesToUpdateServiceInterface"
                 type="Klevu\Indexing\Service\FilterEntitiesToUpdateService"/>
 
+    <preference for="Klevu\IndexingApi\Service\FilterEntitiesRequireUpdateServiceInterface"
+                type="Klevu\Indexing\Service\FilterEntitiesRequireUpdateService"/>
+
     <preference for="Klevu\IndexingApi\Service\Provider\AccountCredentialsProviderInterface"
                 type="Klevu\Indexing\Service\Provider\AccountCredentialsProvider"/>
 
@@ -173,11 +188,20 @@
     <preference for="Klevu\IndexingApi\Service\Provider\DuplicateAttributeMappingProviderInterface"
                 type="Klevu\Indexing\Service\Provider\DuplicateAttributeMappingProvider"/>
 
+    <preference for="Klevu\IndexingApi\Service\Provider\EntitySyncConditionsValuesProviderInterface"
+                type="Klevu\Indexing\Service\Provider\EntitySyncConditionsValuesProvider"/>
+
     <preference for="Klevu\IndexingApi\Service\Provider\IndexingAttributeProviderInterface"
                 type="Klevu\Indexing\Service\Provider\IndexingAttributeProvider"/>
 
     <preference for="Klevu\IndexingApi\Service\Provider\IndexingEntityProviderInterface"
                 type="Klevu\Indexing\Service\Provider\IndexingEntityProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\IndexingEntityTargetIdsProviderInterface"
+                type="Klevu\Indexing\Service\Provider\IndexingEntityTargetIdsProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\IndexingEntityTargetIdsRequireUpdateProviderInterface"
+                type="Klevu\Indexing\Service\Provider\IndexingEntityTargetIdsRequireUpdateProvider"/>
 
     <preference for="Klevu\IndexingApi\Service\Provider\MagentoToKlevuAttributeMapperProviderInterface"
                 type="Klevu\Indexing\Service\Provider\MagentoToKlevuAttributeMapperProvider"/>
@@ -199,6 +223,9 @@
 
     <preference for="Klevu\IndexingApi\Service\Provider\SyncHistoryEntityConsolidatedByDateProviderInterface"
                 type="Klevu\Indexing\Service\Provider\SyncHistoryEntityConsolidatedByDateProvider"/>
+
+    <preference for="Klevu\IndexingApi\Service\Provider\TargetParentIdsProviderInterface"
+                type="Klevu\Indexing\Service\Provider\TargetParentIdsProvider"/>
 
     <type name="Klevu\Indexing\Model\IndexingAttributeRepository">
         <arguments>
@@ -229,6 +256,12 @@
             <argument name="syncHistoryConsolidationRecordValidator"
                       xsi:type="object">Klevu\Indexing\Validator\SyncHistoryConsolidationRecordValidator</argument>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Model\ResourceModel\IndexingEntity\Collection">
+        <arguments>
+            <argument name="serializer" xsi:type="object">Magento\Framework\Serialize\Serializer\Json</argument>
         </arguments>
     </type>
 
@@ -294,6 +327,12 @@
         </arguments>
     </type>
 
+    <type name="Klevu\Indexing\Service\Determiner\RequiresUpdateDeterminer">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
     <type name="Klevu\Indexing\Service\Action\AddIndexingAttributesAction">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
@@ -340,24 +379,35 @@
     <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToBeIndexableAction">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
         </arguments>
     </type>
 
     <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToNotBeIndexableAction">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
         </arguments>
     </type>
 
     <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToDeleteAction">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
         </arguments>
     </type>
 
     <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToUpdateAction">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Action\SetIndexingEntitiesToRequireUpdateAction">
+        <arguments>
+            <argument name="serializer"
+                      xsi:type="object">Magento\Framework\Serialize\Serializer\Json</argument>
         </arguments>
     </type>
 
@@ -398,10 +448,26 @@
         </arguments>
     </type>
 
+    <virtualType name="Klevu\Indexing\Service\Provider\CronExecutionDataProvider\EntitySyncInformation"
+                 type="Klevu\Configuration\Service\Provider\CronExecutionDataProvider">
+        <arguments>
+            <argument name="jobCodes" xsi:type="array">
+                <item name="klevu_indexing_discover_entities" xsi:type="string">klevu_indexing_discover_entities</item>
+                <item name="klevu_indexing_sync_entities" xsi:type="string">klevu_indexing_sync_entities</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
     <type name="Klevu\Indexing\Service\Provider\Sdk\AttributesProvider">
         <arguments>
             <argument name="attributesService"
                       xsi:type="object">Klevu\Indexing\Service\Indexing\AttributesService</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\Provider\TargetParentIdsProvider">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
 
@@ -512,6 +578,12 @@
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
         </arguments>
     </type>
+    <type name="Klevu\Indexing\Cron\ProcessRequireUpdateEntities">
+        <arguments>
+            <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
+        </arguments>
+    </type>
     <type name="Klevu\Indexing\Cron\SyncAttributes">
         <arguments>
             <argument name="logger" xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
@@ -550,6 +622,14 @@
                       xsi:type="object">Klevu\Indexing\Service\EntityDiscoveryOrchestratorService\Proxy</argument>
         </arguments>
     </type>
+    <type name="Klevu\Indexing\Console\Command\EntitySyncInformationCommand">
+        <arguments>
+            <argument name="serializer"
+                      xsi:type="object">Magento\Framework\Serialize\Serializer\Json</argument>
+            <argument name="cronExecutionDataProvider"
+                      xsi:type="object">Klevu\Indexing\Service\Provider\CronExecutionDataProvider\EntitySyncInformation</argument>
+        </arguments>
+    </type>
     <type name="Klevu\Indexing\Console\Command\SyncAttributesCommand">
         <arguments>
             <argument name="syncOrchestratorService"
@@ -572,6 +652,8 @@
         <arguments>
             <argument name="discoveryOrchestratorService"
                       xsi:type="object">Klevu\Indexing\Service\EntityDiscoveryOrchestratorService\Proxy</argument>
+            <argument name="indexingEntityTargetIdsRequireUpdateProvider"
+                      xsi:type="object">Klevu\Indexing\Service\Provider\IndexingEntityTargetIdsRequireUpdateProvider\Proxy</argument>
         </arguments>
     </type>
     <type name="Magento\Framework\Console\CommandList">
@@ -583,6 +665,8 @@
                       xsi:type="object">Klevu\Indexing\Console\Command\DiscoverEntitiesCommand\Proxy</item>
                 <item name="klevu_indexing_dump_pipeline_configuration"
                       xsi:type="object">Klevu\Indexing\Console\Command\ConfigurationDumpPipelineCommand\Proxy</item>
+                <item name="klevu_indexing_entity_sync_information"
+                      xsi:type="object">Klevu\Indexing\Console\Command\EntitySyncInformationCommand\Proxy</item>
                 <item name="klevu_indexing_regenerate_configuration_overrides"
                       xsi:type="object">Klevu\Indexing\Console\Command\ConfigurationOverridesRegenerateCommand\Proxy</item>
                 <item name="klevu_indexing_sync_attributes"
@@ -757,7 +841,7 @@
 
     <type name="Klevu\Indexing\Service\AttributeConflictHandlerService">
         <arguments>
-            <argument name="serializer" xsi:type="object">\Magento\Framework\Serialize\Serializer\Json</argument>
+            <argument name="serializer" xsi:type="object">Magento\Framework\Serialize\Serializer\Json</argument>
         </arguments>
     </type>
 
@@ -836,6 +920,12 @@
     </type>
 
     <type name="Klevu\Indexing\Service\FilterEntitiesToUpdateService">
+        <arguments>
+            <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Service\FilterEntitiesRequireUpdateService">
         <arguments>
             <argument name="batchSizeValidator" xsi:type="object">Klevu\Indexing\Validator\BatchSizeValidator</argument>
         </arguments>

@@ -61,6 +61,39 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
     }
 
     /**
+     * @testWith [1]
+     *           [2500]
+     *           [9999999]
+     *
+     * @param int $batchSize
+     *
+     * @return void
+     */
+    public function testConstruct_ValidBatchSize(int $batchSize): void
+    {
+        $this->instantiateTestObject([
+            'batchSize' => $batchSize,
+        ]);
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * @testWith [0]
+     *           [10000000]
+     *
+     * @param int $batchSize
+     *
+     * @return void
+     */
+    public function testConstruct_InvalidBatchSize(int $batchSize): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->instantiateTestObject([
+            'batchSize' => $batchSize,
+        ]);
+    }
+
+    /**
      * @testWith ["KLEVU_CATEGORY"]
      *           ["KLEVU_CMS"]
      *           ["KLEVU_PRODUCT"]
@@ -76,6 +109,7 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
             IndexingEntity::TARGET_ENTITY_TYPE => $type,
             IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
             IndexingEntity::LAST_ACTION => Actions::ADD,
+            IndexingEntity::REQUIRES_UPDATE => true,
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ID => 2,
@@ -84,6 +118,7 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
             IndexingEntity::TARGET_ENTITY_TYPE => $type,
             IndexingEntity::NEXT_ACTION => Actions::NO_ACTION,
             IndexingEntity::LAST_ACTION => Actions::UPDATE,
+            IndexingEntity::REQUIRES_UPDATE => false,
         ]);
         $this->createIndexingEntity([
             IndexingEntity::TARGET_ID => 3,
@@ -92,6 +127,7 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
             IndexingEntity::TARGET_ENTITY_TYPE => $type,
             IndexingEntity::NEXT_ACTION => Actions::ADD,
             IndexingEntity::LAST_ACTION => Actions::NO_ACTION,
+            IndexingEntity::REQUIRES_UPDATE => true,
         ]);
 
         $indexingEntities = $this->getIndexingEntities($apiKey, $type);
@@ -108,16 +144,19 @@ class SetIndexingEntitiesToDeleteActionTest extends TestCase
         $indexingEntity1 = array_shift($indexingEntityArray1);
         $this->assertTrue($indexingEntity1->getIsIndexable());
         $this->assertSame(expected: Actions::DELETE, actual: $indexingEntity1->getNextAction());
+        $this->assertFalse(condition: $indexingEntity1->getRequiresUpdate());
 
         $indexingEntityArray2 = $this->filterIndexEntities($indexingEntities, 2);
         $indexingEntity2 = array_shift($indexingEntityArray2);
         $this->assertFalse($indexingEntity2->getIsIndexable());
         $this->assertSame(expected: Actions::DELETE, actual: $indexingEntity2->getNextAction());
+        $this->assertFalse(condition: $indexingEntity2->getRequiresUpdate());
 
         $indexingEntityArray3 = $this->filterIndexEntities($indexingEntities, 3);
         $indexingEntity3 = array_shift($indexingEntityArray3);
         $this->assertFalse($indexingEntity3->getIsIndexable());
         $this->assertSame(expected: Actions::NO_ACTION, actual: $indexingEntity3->getNextAction());
+        $this->assertFalse(condition: $indexingEntity3->getRequiresUpdate());
     }
 
     public function testExecute_LogsError_WhenSaveExceptionIsThrown(): void

@@ -181,6 +181,26 @@ class IndexingEntity extends AbstractDb implements BatchSaveAwareResourceInterfa
             );
         }
 
+        $serializer = $this->getSerializer();
+        $object->setData(
+            key: IndexingEntityModel::REQUIRES_UPDATE_ORIG_VALUES,
+            value: $serializer->serialize(
+                data: $object->getRequiresUpdateOrigValues(),
+            ),
+        );
+
+        $createdAt = $object->getData(IndexingEntityModel::CREATED_AT);
+        if (!$createdAt) {
+            $object->setData(
+                key: IndexingEntityModel::CREATED_AT,
+                value: (new \DateTime())->format('Y-m-d H:i:s'),
+            );
+        }
+        $object->setData(
+            key: IndexingEntityModel::UPDATED_AT,
+            value: (new \DateTime())->format('Y-m-d H:i:s'),
+        );
+
         return parent::_beforeSave($object);
     }
 

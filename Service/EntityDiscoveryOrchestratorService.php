@@ -276,13 +276,17 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
                     apiKeys: $apiKeys,
                     entitySubtypes: [$entitySubtype],
                 );
-                unset($klevuIndexingEntities);
                 yield $this->discoveryResultFactory->create(data: [
                     'isSuccess' => $this->success,
                     'action' => Actions::UPDATE->value,
                     'entityType' => $type,
                     'messages' => $this->messages,
+                    'processedIds' => array_map(
+                        callback: static fn (IndexingEntityInterface $entity) => $entity->getId(),
+                        array: $klevuIndexingEntities,
+                    ),
                 ]);
+                unset($klevuIndexingEntities);
                 $this->success = true;
                 $this->messages = [];
             }

@@ -11,6 +11,7 @@ namespace Klevu\Indexing\Traits;
 use Klevu\Indexing\Model\IndexingEntity;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
+use Magento\Framework\Serialize\SerializerInterface;
 
 trait CastIndexingEntityPropertiesToCorrectType
 {
@@ -56,5 +57,28 @@ trait CastIndexingEntityPropertiesToCorrectType
             $lastActionTimestamp ?: null,
         );
         $object->setIsIndexable($object->getIsIndexable());
+        $object->setRequiresUpdate($object->getRequiresUpdate());
+
+        $requiresUpdateOrigValues = $object->getData(IndexingEntity::REQUIRES_UPDATE_ORIG_VALUES);
+        if (!is_array($requiresUpdateOrigValues)) {
+            $serializer = match (true) {
+                method_exists($this, 'getSerializer') => $this->getSerializer(),
+                property_exists($this, 'serializer') => $this->serializer,
+                default => null,
+            };
+
+            if (!($serializer instanceof SerializerInterface)) {
+                throw new \RuntimeException(
+                    'Serializer instance not available in resource model to unserialize requires_update_orig_values',
+                );
+            }
+
+            $requiresUpdateOrigValues = match (true) {
+                empty($requiresUpdateOrigValues) => [],
+                is_string($requiresUpdateOrigValues) => $this->serializer->unserialize($requiresUpdateOrigValues),
+                default => $requiresUpdateOrigValues,
+            };
+            $object->setRequiresUpdateOrigValues($requiresUpdateOrigValues);
+        }
     }
 }

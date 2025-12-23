@@ -3,6 +3,7 @@
         "column": {
             "entity_id": true,
             "target_entity_type": true,
+            "target_entity_subtype": true,
             "target_id": true,
             "target_parent_id": true,
             "api_key": true,
@@ -11,7 +12,10 @@
             "last_action": true,
             "last_action_timestamp": true,
             "is_indexable": true,
-            "target_entity_subtype": true
+            "requires_update": true,
+            "requires_update_orig_values": true,
+            "created_at": true,
+            "updated_at": true
         },
         "constraint": {
             "PRIMARY": true,
@@ -30,7 +34,9 @@
             "lock_timestamp": true,
             "last_action": true,
             "last_action_timestamp": true,
-            "is_indexable": true
+            "is_indexable": true,
+            "created_at": true,
+            "updated_at": true
         },
         "constraint": {
             "PRIMARY": true,
