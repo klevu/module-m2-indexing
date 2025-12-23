@@ -27,6 +27,8 @@ class IndexingAttribute extends AbstractModel implements IndexingAttributeInterf
     public const LAST_ACTION = 'last_action';
     public const LAST_ACTION_TIMESTAMP = 'last_action_timestamp';
     public const IS_INDEXABLE = 'is_indexable';
+    public const CREATED_AT = 'created_at';
+    public const UPDATED_AT = 'updated_at';
 
     /**
      * @return void
@@ -206,5 +208,49 @@ class IndexingAttribute extends AbstractModel implements IndexingAttributeInterf
     public function setIsIndexable(bool $isIndexable): void
     {
         $this->setData(key: static::IS_INDEXABLE, value: (bool)$isIndexable);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getCreatedAt(): ?string
+    {
+        $createdAt = $this->getData(key: static::CREATED_AT);
+
+        return $createdAt
+            ? (string)$createdAt
+            : null;
+    }
+
+    /**
+     * @param string|null $createdAt
+     *
+     * @return void
+     */
+    public function setCreatedAt(?string $createdAt = null): void
+    {
+        $this->setData(key: static::CREATED_AT, value: $createdAt);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getUpdatedAt(): ?string
+    {
+        $updatedAt = $this->getData(key: static::UPDATED_AT);
+
+        return $updatedAt
+            ? (string)$updatedAt
+            : null;
+    }
+
+    /**
+     * @param string|null $updatedAt
+     *
+     * @return void
+     */
+    public function setUpdatedAt(?string $updatedAt = null): void
+    {
+        $this->setData(key: static::UPDATED_AT, value: $updatedAt);
     }
 }

@@ -69,6 +69,28 @@
                 identity="false"
                 default="1"
                 comment="Is record indexable"/>
+        <column xsi:type="tinyint"
+                name="requires_update"
+                unsigned="true"
+                nullable="false"
+                identity="false"
+                default="0"
+                comment="Does record require indexable checks re-running"/>
+        <column xsi:type="text"
+                name="requires_update_orig_values"
+                nullable="false"
+                comment="Original values to compare when running requires_update checks"/>
+        <column xsi:type="timestamp"
+                name="created_at"
+                nullable="true"
+                default="CURRENT_TIMESTAMP"
+                comment="Indexing Entity Record Created Date"/>
+        <column xsi:type="timestamp"
+                name="updated_at"
+                on_update="true"
+                nullable="true"
+                default="CURRENT_TIMESTAMP"
+                comment="Indexing Entity Record Updated Date"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="entity_id"/>
         </constraint>
@@ -135,6 +157,17 @@
                 identity="false"
                 default="1"
                 comment="Is record indexable"/>
+        <column xsi:type="timestamp"
+                name="created_at"
+                nullable="true"
+                default="CURRENT_TIMESTAMP"
+                comment="Indexing Attribute Record Created Date"/>
+        <column xsi:type="timestamp"
+                name="updated_at"
+                on_update="true"
+                nullable="true"
+                default="CURRENT_TIMESTAMP"
+                comment="Indexing Attribute Record Updated Date"/>
         <constraint xsi:type="primary" referenceId="PRIMARY">
             <column name="entity_id"/>
         </constraint>

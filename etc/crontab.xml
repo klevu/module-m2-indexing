@@ -12,6 +12,11 @@
              method="execute">
             <schedule>0 2 * * *</schedule>
         </job>
+        <job name="klevu_indexing_process_require_update_entities"
+             instance="Klevu\Indexing\Cron\ProcessRequireUpdateEntities"
+             method="execute">
+            <config_path>klevu/indexing/process_require_update_entities_cron_expr</config_path>
+        </job>
         <job name="klevu_indexing_sync_attributes"
              instance="Klevu\Indexing\Cron\SyncAttributes"
              method="execute">

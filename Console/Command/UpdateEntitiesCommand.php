@@ -9,6 +9,8 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Console\Command;
 
 use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
+use Klevu\IndexingApi\Service\Provider\IndexingEntityTargetIdsRequireUpdateProviderInterface;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Console\Cli;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -19,6 +21,7 @@ class UpdateEntitiesCommand extends Command
 {
     public const COMMAND_NAME = 'klevu:indexing:entity-update';
     public const ENTITY_IDS_ALL = 'all';
+    public const ENTITY_IDS_REQUIRE_UPDATE = 'require-update';
     public const OPTION_API_KEYS = 'api-keys';
     public const OPTION_ENTITY_TYPES = 'entity-types';
     public const OPTION_ENTITY_IDS = 'entity-ids';
@@ -27,16 +30,26 @@ class UpdateEntitiesCommand extends Command
      * @var EntityDiscoveryOrchestratorServiceInterface
      */
     private EntityDiscoveryOrchestratorServiceInterface $discoveryOrchestratorService;
+    /**
+     * @var IndexingEntityTargetIdsRequireUpdateProviderInterface|mixed
+     */
+    private IndexingEntityTargetIdsRequireUpdateProviderInterface $indexingEntityTargetIdsRequireUpdateProvider;
 
     /**
      * @param EntityDiscoveryOrchestratorServiceInterface $discoveryOrchestratorService
      * @param string|null $name
+     * @param IndexingEntityTargetIdsRequireUpdateProviderInterface|null $indexingEntityTargetIdsRequireUpdateProvider
      */
     public function __construct(
         EntityDiscoveryOrchestratorServiceInterface $discoveryOrchestratorService,
         ?string $name = null,
+        ?IndexingEntityTargetIdsRequireUpdateProviderInterface $indexingEntityTargetIdsRequireUpdateProvider = null,
     ) {
         $this->discoveryOrchestratorService = $discoveryOrchestratorService;
+
+        $objectManager = ObjectManager::getInstance();
+        $this->indexingEntityTargetIdsRequireUpdateProvider = $indexingEntityTargetIdsRequireUpdateProvider
+            ?? $objectManager->get(IndexingEntityTargetIdsRequireUpdateProviderInterface::class);
 
         parent::__construct($name);
     }
@@ -58,8 +71,10 @@ class UpdateEntitiesCommand extends Command
             name: static::OPTION_ENTITY_IDS,
             mode: InputOption::VALUE_REQUIRED,
             description: (string)__(
-                'Update only these entities. Comma separate list e.g. --entity-ids 1,2,3 or --entity-ids %1',
+                'Update only these entities. Comma separate list e.g. --%1 1,2,3, --%1 %2, or --%1 %3',
+                static::OPTION_ENTITY_IDS,
                 static::ENTITY_IDS_ALL,
+                static::ENTITY_IDS_REQUIRE_UPDATE,
             ),
         );
         $this->addOption(
@@ -67,7 +82,8 @@ class UpdateEntitiesCommand extends Command
             mode: InputOption::VALUE_OPTIONAL,
             description: (string)__(
                 'Update Entities only for these API Keys (optional). Comma separated list '
-                . 'e.g. --api-keys api-key-1,api-key-2',
+                . 'e.g. --%1 api-key-1,api-key-2',
+                static::OPTION_API_KEYS,
             ),
         );
         $this->addOption(
@@ -75,8 +91,8 @@ class UpdateEntitiesCommand extends Command
             mode: InputOption::VALUE_OPTIONAL,
             description: (string)__(
                 'Update entities only for these Entity Types (optional). '
-                . 'Comma separated list e.g. --entity-types KLEVU_CMS,KLEVU_PRODUCTS',
-
+                . 'Comma separated list e.g. --%1 KLEVU_CMS,KLEVU_PRODUCTS',
+                static::OPTION_ENTITY_TYPES,
             ),
         );
     }
@@ -111,11 +127,72 @@ class UpdateEntitiesCommand extends Command
             );
             return Cli::RETURN_FAILURE;
         }
-        $responsesGenerator = $this->discoveryOrchestratorService->execute(
-            entityTypes: $this->getEntityTypes($input),
-            apiKeys: $this->getApiKeys($input),
-            entityIds: $this->formatEntityIds($entityIds),
+
+        $entityTypes = $this->getEntityTypes($input);
+        $apiKeys = $this->getApiKeys($input);
+        foreach ($this->getChunkedEntityIds($input) as $entityIdsChunk) {
+            $return = $this->processEntityIdsChunk(
+                entityTypes: $entityTypes,
+                apiKeys: $apiKeys,
+                entityIds: $entityIdsChunk,
+                output: $output,
+            );
+        }
+        $output->writeln(
+            messages: sprintf(
+                '<comment>%s</comment>',
+                __('Entity Update Completed.'),
+            ),
         );
+
+        $endTime = microtime(true);
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        'Update operations complete in %1 seconds.',
+                        number_format($endTime - $startTime, 2),
+                    )),
+            );
+        }
+        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
+            $output->writeln(
+                messages: sprintf('<comment>%s</comment>',
+                    __(
+                        "Peak memory usage during update: %1Mb",
+                        number_format(
+                            num: memory_get_peak_usage(real_usage: true) / (1024 * 1024),
+                            decimals: 2,
+                        ),
+                    ),
+                ),
+            );
+        }
+
+        return $return;
+    }
+
+    /**
+     * @param string[] $entityTypes
+     * @param string[] $apiKeys
+     * @param int[] $entityIds
+     * @param OutputInterface $output
+     *
+     * @return void
+     */
+    private function processEntityIdsChunk(
+        array $entityTypes,
+        array $apiKeys,
+        array $entityIds,
+        OutputInterface $output,
+    ): int {
+        $responsesGenerator = $this->discoveryOrchestratorService->execute(
+            entityTypes: $entityTypes,
+            apiKeys: $apiKeys,
+            entityIds: $entityIds,
+        );
+
+        $return = Cli::RETURN_SUCCESS;
         foreach ($responsesGenerator as $responses) {
             $count = 1;
             foreach ($responses as $response) {
@@ -170,36 +247,6 @@ class UpdateEntitiesCommand extends Command
                 $output->writeln(messages: '  ...');
             }
         }
-        $output->writeln(
-            messages: sprintf(
-                '<comment>%s</comment>',
-                __('Entity Update Completed.'),
-            ),
-        );
-
-        $endTime = microtime(true);
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-            $output->writeln(
-                messages: sprintf('<comment>%s</comment>',
-                    __(
-                        'Update operations complete in %1 seconds.',
-                        number_format($endTime - $startTime, 2),
-                    )),
-            );
-        }
-        if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERY_VERBOSE) {
-            $output->writeln(
-                messages: sprintf('<comment>%s</comment>',
-                    __(
-                        "Peak memory usage during update: %1Mb",
-                        number_format(
-                            num: memory_get_peak_usage(real_usage: true) / (1024 * 1024),
-                            decimals: 2,
-                        ),
-                    ),
-                ),
-            );
-        }
 
         return $return;
     }
@@ -233,22 +280,60 @@ class UpdateEntitiesCommand extends Command
     }
 
     /**
-     * @param mixed $entityIds
+     * @param InputInterface $input
      *
-     * @return int[]
+     * @return \Generator<array<int>>
      */
-    private function formatEntityIds(mixed $entityIds): array
-    {
-        if ($entityIds === static::ENTITY_IDS_ALL) {
-            return [];
+    private function getChunkedEntityIds(
+        InputInterface $input,
+    ): \Generator {
+        $entityIds = $input->getOption(static::OPTION_ENTITY_IDS);
+
+        switch (true) {
+            case $entityIds === static::ENTITY_IDS_ALL:
+                $chunkedEntityIds = [
+                    [],
+                ];
+                break;
+
+            case $entityIds === static::ENTITY_IDS_REQUIRE_UPDATE:
+                $entityTypes = $this->getEntityTypes(input: $input);
+                $apiKeys = $this->getApiKeys(input: $input) ?: null;
+
+                $allEntityIds = [];
+                foreach ($entityTypes ?: [null] as $entityType) {
+                    $allEntityIds[] = $this->indexingEntityTargetIdsRequireUpdateProvider->get(
+                        entityType: $entityType,
+                        apiKeys: $apiKeys,
+                    );
+                }
+                $allEntityIds = array_unique(
+                    array: array_merge([], ...$allEntityIds),
+                );
+
+                $chunkedEntityIds = array_chunk(
+                    array: $allEntityIds,
+                    length: 100,
+                );
+                break;
+
+            default:
+                $entityIdsArray = array_map(
+                    callback: 'trim',
+                    array: explode(separator: ',', string: $entityIds),
+                );
+                $chunkedEntityIds = array_chunk(
+                    array: $entityIdsArray,
+                    length: 100,
+                );
+                break;
         }
 
-        return array_map(
-            callback: 'intval',
-            array: array_map(
-                callback: 'trim',
-                array: explode(separator: ',', string: $entityIds),
-            ),
-        );
+        foreach ($chunkedEntityIds as $entityIdsChunk) {
+            yield array_map(
+                callback: 'intval',
+                array: $entityIdsChunk,
+            );
+        }
     }
 }

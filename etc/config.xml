@@ -11,6 +11,8 @@
                 <exclude_record_types_from_sync/>
                 <attribute_cron_frequency>*/10 * * * *</attribute_cron_frequency>
                 <attribute_cron_expr>*/10 * * * *</attribute_cron_expr>
+                <process_require_update_entities_cron_frequency>*/15 * * * *</process_require_update_entities_cron_frequency>
+                <process_require_update_entities_cron_expr>*/15 * * * *</process_require_update_entities_cron_expr>
                 <entity_cron_frequency>*/30 * * * *</entity_cron_frequency>
                 <entity_cron_expr>*/30 * * * *</entity_cron_expr>
                 <remove_indexing_history_after_days>7</remove_indexing_history_after_days>

@@ -120,7 +120,7 @@ class FilterEntitiesToUpdateServiceTest extends TestCase
             IndexingEntity::IS_INDEXABLE => true,
         ]);
         $indexingEntity5 = $this->createIndexingEntity([
-            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGROIES',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
             IndexingEntity::TARGET_ENTITY_SUBTYPE => null,
             IndexingEntity::API_KEY => $apiKey,
             IndexingEntity::TARGET_ID => 4,

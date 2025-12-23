@@ -130,6 +130,10 @@ class IndexingEntityTest extends TestCase
             condition: $indexingEntity->getIsIndexable(),
             message: 'Is Indexable',
         );
+        $this->assertFalse(
+            condition: $indexingEntity->getRequiresUpdate(),
+            message: 'Requires Update',
+        );
         $this->assertSame(
             expected: $indexingEntity->getIsIndexable(),
             actual: $indexingEntityToLoad->getIsIndexable(),
@@ -144,6 +148,7 @@ class IndexingEntityTest extends TestCase
             'target_entity_subtype' => 'virtual',
             'lock_timestamp' => date(format: 'Y-m-d H:i:s', timestamp: time()),
             'last_action_timestamp' => date(format: 'Y-m-d H:i:s', timestamp: time() - 3600),
+            'requires_update' => true,
         ]);
         /** @var AbstractModel $indexingEntityToLoad */
         $indexingEntityToLoad = $this->instantiateTestObject();
@@ -227,6 +232,11 @@ class IndexingEntityTest extends TestCase
         );
         $this->assertTrue(
             condition: $indexingEntity->getIsIndexable(),
+            message: 'Is Indexable',
+        );
+        $this->assertTrue(
+            condition: $indexingEntity->getRequiresUpdate(),
+            message: 'Requires Update',
         );
         $this->assertSame(
             expected: $indexingEntity->getIsIndexable(),
@@ -246,6 +256,7 @@ class IndexingEntityTest extends TestCase
             'lock_timestamp' => date(format: 'Y-m-d H:i:s', timestamp: time()),
             'last_action' => Actions::NO_ACTION,
             'last_action_timestamp' => date(format: 'Y-m-d H:i:s', timestamp: time() - 3600),
+            'requires_update' => true,
         ]);
 
         $collection = $this->objectManager->get(type: IndexingEntityCollection::class);
@@ -281,6 +292,7 @@ class IndexingEntityTest extends TestCase
         $indexingEntity->setLastAction(lastAction: $data['last_action'] ?? Actions::ADD);
         $indexingEntity->setLastActionTimestamp(lastActionTimestamp: $data['last_action_timestamp'] ?? null);
         $indexingEntity->setIsIndexable(isIndexable: $data['is_indexable'] ?? true);
+        $indexingEntity->setRequiresUpdate(requiresUpdate: $data['requires_update'] ?? false);
 
         $resourceModel = $this->instantiateSyncResourceModel();
         /** @var AbstractModel $indexingEntity */

@@ -10,11 +10,14 @@ namespace Klevu\Indexing\Service\Action;
 
 use Klevu\Indexing\Exception\IndexingEntitySaveException;
 use Klevu\Indexing\Model\IndexingEntity;
+use Klevu\Indexing\Validator\BatchSizeValidator;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
 use Klevu\IndexingApi\Service\Action\SetIndexingEntitiesToBeIndexableActionInterface;
+use Klevu\IndexingApi\Validator\ValidatorInterface;
 use Magento\Framework\Api\SearchCriteriaBuilderFactory;
+use Magento\Framework\App\ObjectManager;
 use Psr\Log\LoggerInterface;
 
 class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeIndexableActionInterface
@@ -41,16 +44,29 @@ class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeI
      * @param SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory
      * @param LoggerInterface $logger
      * @param int $batchSize
+     * @param ValidatorInterface|null $batchSizeValidator
      */
     public function __construct(
         IndexingEntityRepositoryInterface $indexingEntityRepository,
         SearchCriteriaBuilderFactory $searchCriteriaBuilderFactory,
         LoggerInterface $logger,
         int $batchSize = 2500,
+        ?ValidatorInterface $batchSizeValidator = null,
     ) {
         $this->indexingEntityRepository = $indexingEntityRepository;
         $this->searchCriteriaBuilderFactory = $searchCriteriaBuilderFactory;
         $this->logger = $logger;
+
+        $objectManager = ObjectManager::getInstance();
+        $batchSizeValidator = $batchSizeValidator ?: $objectManager->get(BatchSizeValidator::class);
+        if (!$batchSizeValidator->isValid($batchSize)) {
+            throw new \InvalidArgumentException(
+                message: sprintf(
+                    'Invalid Batch Size: %s',
+                    implode(', ', $batchSizeValidator->getMessages()),
+                ),
+            );
+        }
         $this->batchSize = $batchSize;
     }
 
@@ -67,25 +83,31 @@ class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeI
             try {
                 $indexingEntityIds = [];
                 foreach ($indexingEntities as $indexingEntity) {
-                    if (
-                        $indexingEntity->getIsIndexable()
-                        && $indexingEntity->getNextAction() !== Actions::DELETE
-                    ) {
+                    if (!($indexingEntity->getIsIndexable() && $indexingEntity->getNextAction() !== Actions::DELETE)) {
+                        $isNextActionUpdateRequired = in_array(
+                            needle: $indexingEntity->getLastAction(),
+                            haystack: [Actions::NO_ACTION, Actions::DELETE],
+                            strict: true,
+                        );
+                        $indexingEntity->setNextAction(
+                            nextAction: $isNextActionUpdateRequired
+                                ? Actions::ADD
+                                : Actions::NO_ACTION,
+                        );
+
+                        $indexingEntity->setRequiresUpdate(requiresUpdate: false);
+                        $indexingEntity->setRequiresUpdateOrigValues(values: []);
+                    }
+
+                    if (!$indexingEntity->getIsIndexable()) {
+                        $indexingEntity->setIsIndexable(isIndexable: true);
+                    }
+
+                    if (!$indexingEntity->hasDataChanges()) {
                         continue;
                     }
 
                     $indexingEntityIds[] = $indexingEntity->getId();
-                    $isNextActionUpdateRequired = in_array(
-                        needle: $indexingEntity->getLastAction(),
-                        haystack: [Actions::NO_ACTION, Actions::DELETE],
-                        strict: true,
-                    );
-                    $indexingEntity->setNextAction(
-                        nextAction: $isNextActionUpdateRequired
-                            ? Actions::ADD
-                            : Actions::NO_ACTION,
-                    );
-                    $indexingEntity->setIsIndexable(isIndexable: true);
 
                     $this->indexingEntityRepository->addForBatchSave(
                         indexingEntity: $indexingEntity,
@@ -94,7 +116,6 @@ class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeI
                         minimumBatchSize: $this->batchSize,
                     );
                 }
-
                 $this->indexingEntityRepository->saveBatch(
                     minimumBatchSize: 1,
                 );
@@ -112,6 +133,7 @@ class SetIndexingEntitiesToBeIndexableAction implements SetIndexingEntitiesToBeI
                     phrase: __('Indexing entities failed to save. See log for details.'),
                 );
             }
+
             foreach ($indexingEntities as $indexingEntity) {
                 if (method_exists($indexingEntity, 'clearInstance')) {
                     $indexingEntity->clearInstance();

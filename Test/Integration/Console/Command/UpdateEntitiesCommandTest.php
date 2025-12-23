@@ -9,6 +9,9 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Console\Command;
 
 use Klevu\Indexing\Console\Command\UpdateEntitiesCommand;
+use Klevu\Indexing\Model\DiscoveryResult;
+use Klevu\Indexing\Model\IndexingEntity;
+use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Service\EntityDiscoveryOrchestratorServiceInterface;
 use Klevu\IndexingApi\Service\Provider\EntityDiscoveryProviderInterface;
 use Klevu\TestFixtures\Store\StoreFixturesPool;
@@ -20,14 +23,17 @@ use Magento\TestFramework\Helper\Bootstrap;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
+use TddWizard\Fixtures\Core\ConfigFixture;
 
 /**
  * @covers \Klevu\Indexing\Console\Command\UpdateEntitiesCommand::class
  * @method UpdateEntitiesCommand instantiateTestObject(?array $arguments = null)
+ * @runTestsInSeparateProcesses
  */
 class UpdateEntitiesCommandTest extends TestCase
 {
     use GeneratorTrait;
+    use IndexingEntitiesTrait;
     use ObjectInstantiationTrait;
     use StoreTrait;
 
@@ -83,11 +89,11 @@ class UpdateEntitiesCommandTest extends TestCase
             ],
         ]);
 
-        $discoverAttributesCommand = $this->instantiateTestObject([
+        $updateEntitiesCommand = $this->instantiateTestObject([
             'discoveryOrchestratorService' => $discoveryOrchestrator,
         ]);
         $tester = new CommandTester(
-            command: $discoverAttributesCommand,
+            command: $updateEntitiesCommand,
         );
         $isFailure = $tester->execute(
             input: [],
@@ -116,9 +122,9 @@ class UpdateEntitiesCommandTest extends TestCase
     {
         $this->createStore();
 
-        $discoverAttributesCommand = $this->instantiateTestObject();
+        $updateEntitiesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
-            command: $discoverAttributesCommand,
+            command: $updateEntitiesCommand,
         );
         $isFailure = $tester->execute(
             input: [
@@ -158,9 +164,9 @@ class UpdateEntitiesCommandTest extends TestCase
     {
         $this->createStore();
 
-        $discoverAttributesCommand = $this->instantiateTestObject();
+        $updateEntitiesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
-            command: $discoverAttributesCommand,
+            command: $updateEntitiesCommand,
         );
         $isFailure = $tester->execute(
             input: [
@@ -202,9 +208,30 @@ class UpdateEntitiesCommandTest extends TestCase
             'code' => 'klevu_test_store_2',
         ]);
 
-        $discoverAttributesCommand = $this->instantiateTestObject();
+        ConfigFixture::setForStore(
+            path: 'klevu_configuration/auth_keys/js_api_key',
+            value: 'klevu-js-api-key-1',
+            storeCode: 'klevu_test_store_1',
+        );
+        ConfigFixture::setForStore(
+            path: 'klevu_configuration/auth_keys/rest_auth_key',
+            value: 'klevu-rest-auth-key-1',
+            storeCode: 'klevu_test_store_1',
+        );
+        ConfigFixture::setForStore(
+            path: 'klevu_configuration/auth_keys/js_api_key',
+            value: 'klevu-js-api-key-2',
+            storeCode: 'klevu_test_store_2',
+        );
+        ConfigFixture::setForStore(
+            path: 'klevu_configuration/auth_keys/rest_auth_key',
+            value: 'klevu-rest-auth-key-2',
+            storeCode: 'klevu_test_store_2',
+        );
+
+        $updateEntitiesCommand = $this->instantiateTestObject();
         $tester = new CommandTester(
-            command: $discoverAttributesCommand,
+            command: $updateEntitiesCommand,
         );
         $isFailure = $tester->execute(
             input: [
@@ -240,7 +267,7 @@ class UpdateEntitiesCommandTest extends TestCase
      * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/js_api_key klevu-js-api-key
      * @magentoConfigFixture klevu_test_store_1_store klevu_configuration/auth_keys/rest_auth_key klevu-rest-auth-key
      */
-    public function testExecute_Succeeds_WithAttributeType(): void
+    public function testExecute_Succeeds_ForAllEntityIds(): void
     {
         $this->createStore();
 
@@ -258,11 +285,11 @@ class UpdateEntitiesCommandTest extends TestCase
             ],
         ]);
 
-        $discoverAttributesCommand = $this->instantiateTestObject([
+        $updateEntitiesCommand = $this->instantiateTestObject([
             'discoveryOrchestratorService' => $discoveryOrchestrator,
         ]);
         $tester = new CommandTester(
-            command: $discoverAttributesCommand,
+            command: $updateEntitiesCommand,
         );
         $isFailure = $tester->execute(
             input: [
@@ -273,6 +300,124 @@ class UpdateEntitiesCommandTest extends TestCase
                 'verbosity' => OutputInterface::VERBOSITY_DEBUG,
             ],
         );
+
+        $this->assertSame(expected: 0, actual: $isFailure, message: 'Update Failed');
+        $this->assertStringContainsString(
+            needle: 'Begin Entity Update.',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: '...',
+            haystack: $tester->getDisplay(),
+        );
+        $this->assertStringContainsString(
+            needle: 'Entity Update Completed.',
+            haystack: $tester->getDisplay(),
+        );
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     */
+    public function testExecute_Succeeds_ForRequireUpdateEntityIds(): void
+    {
+        $this->createStore();
+
+        $this->cleanIndexingEntities('klevu-1234567890');
+        $this->cleanIndexingEntities('klevu-1111111111');
+        $this->cleanIndexingEntities('klevu-9876543210');
+
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ID => 1,
+            IndexingEntity::API_KEY => 'klevu-1234567890',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::REQUIRES_UPDATE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ID => 2,
+            IndexingEntity::API_KEY => 'klevu-1234567890',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::REQUIRES_UPDATE => false,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ID => 3,
+            IndexingEntity::API_KEY => 'klevu-9876543210',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_PRODUCT',
+            IndexingEntity::REQUIRES_UPDATE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ID => 4,
+            IndexingEntity::API_KEY => 'klevu-1234567890',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::REQUIRES_UPDATE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ID => 5,
+            IndexingEntity::API_KEY => 'klevu-1111111111',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::REQUIRES_UPDATE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ID => 6,
+            IndexingEntity::API_KEY => 'klevu-9876543210',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CMS',
+            IndexingEntity::REQUIRES_UPDATE => true,
+        ]);
+        $this->createIndexingEntity([
+            IndexingEntity::TARGET_ID => 7,
+            IndexingEntity::API_KEY => 'klevu-9876543210',
+            IndexingEntity::TARGET_ENTITY_TYPE => 'KLEVU_CATEGORY',
+            IndexingEntity::REQUIRES_UPDATE => true,
+        ]);
+
+        $mockDiscoveryOrchestrator = $this->getMockBuilder(EntityDiscoveryOrchestratorServiceInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockDiscoveryOrchestrator->expects($this->once())
+            ->method('execute')
+            ->with(
+                ['KLEVU_PRODUCT', 'KLEVU_CMS'],
+                ['klevu-1234567890', 'klevu-9876543210'],
+                [1, 3, 4, 6],
+            )
+            ->willReturn($this->generate([
+                new DiscoveryResult(
+                    isSuccess: true,
+                    action: 'UPDATE',
+                    entityType: 'KLEVU_PRODUCT',
+                    messages: ['Test Result'],
+                    processedIds: [1, 3],
+                ),
+                new DiscoveryResult(
+                    isSuccess: true,
+                    action: 'UPDATE',
+                    entityType: 'CUSTOM_ENTITY',
+                    messages: ['Test Result'],
+                    processedIds: [4, 6],
+                ),
+            ]));
+
+        $updateEntitiesCommand = $this->instantiateTestObject([
+            'discoveryOrchestratorService' => $mockDiscoveryOrchestrator,
+        ]);
+        $tester = new CommandTester(
+            command: $updateEntitiesCommand,
+        );
+
+        $isFailure = $tester->execute(
+            input: [
+                '--entity-ids' => 'require-update',
+                '--entity-types' => 'KLEVU_PRODUCT,KLEVU_CMS',
+                '--api-keys' => 'klevu-1234567890,klevu-9876543210',
+            ],
+            options: [
+                'verbosity' => OutputInterface::VERBOSITY_DEBUG,
+            ],
+        );
+
+        $this->cleanIndexingEntities('klevu-1234567890');
+        $this->cleanIndexingEntities('klevu-1111111111');
+        $this->cleanIndexingEntities('klevu-9876543210');
 
         $this->assertSame(expected: 0, actual: $isFailure, message: 'Update Failed');
         $this->assertStringContainsString(

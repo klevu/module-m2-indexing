@@ -35,6 +35,8 @@ trait IndexingEntitiesTrait
     private function createIndexingEntity(array $data): IndexingEntityInterface
     {
         $repository = $this->objectManager->get(IndexingEntityRepositoryInterface::class);
+
+        /** @var IndexingEntityInterface $indexingEntity */
         $indexingEntity = $repository->create();
         $indexingEntity->setTargetId((int)$data[IndexingEntity::TARGET_ID]);
         $indexingEntity->setTargetParentId(
@@ -50,6 +52,8 @@ trait IndexingEntitiesTrait
         $indexingEntity->setLastActionTimestamp($data[IndexingEntity::LAST_ACTION_TIMESTAMP] ?? null);
         $indexingEntity->setLockTimestamp($data[IndexingEntity::LOCK_TIMESTAMP] ?? null);
         $indexingEntity->setIsIndexable($data[IndexingEntity::IS_INDEXABLE] ?? true);
+        $indexingEntity->setRequiresUpdate($data[IndexingEntity::REQUIRES_UPDATE] ?? false);
+        $indexingEntity->setRequiresUpdateOrigValues($data[IndexingEntity::REQUIRES_UPDATE_ORIG_VALUES] ?? []);
 
         return $repository->save($indexingEntity);
     }
@@ -99,7 +103,7 @@ trait IndexingEntitiesTrait
             array: $productIndexingEntities,
             callback: static fn (IndexingEntityInterface $indexingEntity) => (
                 (int)$indexingEntity->getTargetId() === (int)$entity->getId()
-            )
+            ),
         );
 
         return array_shift($productIndexingEntityArray);
@@ -125,7 +129,7 @@ trait IndexingEntitiesTrait
             callback: static fn (IndexingEntityInterface $indexingEntity) => (
                 (int)$indexingEntity->getTargetId() === (int)$entity->getId()
                 && (int)$indexingEntity->getTargetParentId() === (int)$parentEntity->getId()
-            )
+            ),
         );
 
         return array_shift($productIndexingEntityArray);
