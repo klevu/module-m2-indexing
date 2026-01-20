@@ -35,6 +35,9 @@
     <preference for="Klevu\IndexingApi\Api\IndexingEntityRepositoryInterface"
                 type="Klevu\Indexing\Model\IndexingEntityRepository"/>
 
+    <preference for="Klevu\IndexingApi\Api\KlevuToMagentoEntityTypeMapInterface"
+                type="Klevu\Indexing\Service\KlevuToMagentoEntityTypeMap"/>
+
     <preference for="Klevu\IndexingApi\Api\SyncHistoryEntityRepositoryInterface"
                 type="Klevu\Indexing\Model\SyncHistoryEntityRepository"/>
 
@@ -796,6 +799,25 @@
             <argument name="createCronScheduleAction"
                       xsi:type="object">Klevu\Indexing\Service\Action\Cron\CreateCronScheduleForEntityDiscoveryAction</argument>
         </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Observer\AttributeSetSaveCommitAfterObserver">
+        <arguments>
+            <argument name="logger"
+                      xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Klevu\Indexing\Plugin\Eav\Model\ResourceModel\Entity\Attribute\AddAttributeToSetPlugin">
+        <arguments>
+            <argument name="logger"
+                      xsi:type="object">Klevu\Indexing\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Magento\Eav\Model\ResourceModel\Entity\Attribute">
+        <plugin name="Klevu_Indexing::AddAttributeToSetPlugin"
+                type="Klevu\Indexing\Plugin\Eav\Model\ResourceModel\Entity\Attribute\AddAttributeToSetPlugin"/>
     </type>
 
     <type name="Klevu\Indexing\Service\Action\ConsolidateSyncCronConfigSettingsAction">

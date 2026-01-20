@@ -367,7 +367,7 @@ class EntityDiscoveryOrchestratorService implements EntityDiscoveryOrchestratorS
                         type: $type,
                         magentoEntities: $magentoEntities,
                         apiKey: $apiKey,
-                        entitySubtypes: $entitySubtypes,
+                        entitySubtypes: $entitySubtypes ?? [],
                     );
                     unset($magentoEntities);
                     yield $this->discoveryResultFactory->create(data: [

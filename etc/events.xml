@@ -50,4 +50,8 @@
                   instance="Klevu\Indexing\Observer\ClearCacheAfterSuccessfulAttributeApiCallObserver" />
     </event>
 
+    <event name="eav_entity_attribute_set_save_commit_after">
+        <observer name="Klevu_Indexing_AttributeSetSaveCommitAfter"
+                  instance="Klevu\Indexing\Observer\AttributeSetSaveCommitAfterObserver"/>
+    </event>
 </config>

@@ -14,7 +14,6 @@ use Klevu\LoggerApi\Service\IsLoggingEnabledServiceInterface;
 use Magento\Cms\Api\Data\PageInterface;
 use Magento\Framework\Api\ExtensibleDataInterface;
 use Magento\Store\Api\Data\StoreInterface;
-// phpcs:ignore SlevomatCodingStandard.Namespaces.UseOnlyWhitelistedNamespaces.NonFullyQualified
 use Monolog\Logger;
 
 class IsIndexableDeterminer implements IsIndexableDeterminerInterface
