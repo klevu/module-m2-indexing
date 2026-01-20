@@ -13,7 +13,6 @@ use Klevu\IndexingApi\Service\Determiner\IsAttributeIndexableDeterminerInterface
 use Klevu\LoggerApi\Service\IsLoggingEnabledServiceInterface;
 use Magento\Eav\Api\Data\AttributeInterface;
 use Magento\Store\Api\Data\StoreInterface;
-// phpcs:ignore SlevomatCodingStandard.Namespaces.UseOnlyWhitelistedNamespaces.NonFullyQualified
 use Monolog\Logger;
 
 class IsAttributeIndexableDeterminer implements IsAttributeIndexableDeterminerInterface

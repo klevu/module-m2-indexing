@@ -126,7 +126,7 @@ class EntityDiscoveryProvider implements EntityDiscoveryProviderInterface
                 stores: $stores,
                 apiKey: $storeApiKey,
                 entityIds: $entityIds,
-                entitySubtypes: $entitySubtypes,
+                entitySubtypes: $entitySubtypes ?? [],
             );
             yield $storeApiKey => $magentoEntities;
             unset ($magentoEntities);
