@@ -649,12 +649,20 @@ class HandleBatchResponse implements PipelineInterface
      */
     private function stripEntityPrefixFromId(string $recordId): string
     {
-        $return = $recordId;
-        if (str_contains(haystack: $recordId, needle: '_')) {
-            $idParts = explode(separator: '_', string: $recordId);
-            $return = $idParts[1];
+        if (!str_contains(haystack: $recordId, needle: '_')) {
+            return $recordId;
         }
 
-        return $return;
+        $matches = [];
+        $validRecordId = !!preg_match(
+            pattern: '/^(.+_)(?<recordIdPart>(\d+(-\d+)?))$/',
+            subject: $recordId,
+            matches: $matches,
+        );
+        if (!$validRecordId) {
+            return $recordId;
+        }
+
+        return $matches['recordIdPart'];
     }
 }

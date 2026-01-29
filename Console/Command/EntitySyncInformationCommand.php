@@ -177,10 +177,23 @@ class EntitySyncInformationCommand extends Command
             return self::SUCCESS;
         }
 
-        $entitySyncConditionsValues = $this->entitySyncConditionsValuesProvider->get(
-            targetEntityType: (string)$input->getOption(static::OPTION_ENTITY_TYPE),
-            targetEntityId: (int)$input->getOption(static::OPTION_TARGET_ENTITY_ID),
-        );
+        try {
+            $entitySyncConditionsValues = $this->entitySyncConditionsValuesProvider->get(
+                targetEntityType: (string)$input->getOption(static::OPTION_ENTITY_TYPE),
+                targetEntityId: (int)$input->getOption(static::OPTION_TARGET_ENTITY_ID),
+            );
+        } catch (\Exception $exception) {
+            $output->writeln(
+                messages: [
+                    __('[!] Encountered exception retrieving entity sync values')->render(),
+                    $exception->getMessage(),
+                    '',
+                ],
+            );
+
+            return self::FAILURE;
+        }
+
         foreach ($entitySyncConditionsValues as $index => $conditionsValuesData) {
             $output->writeln(
                 messages: [

@@ -9,7 +9,9 @@ declare(strict_types=1);
 namespace Klevu\Indexing\Test\Integration\Pipeline\Indexing\Stage;
 
 use Klevu\Indexing\Model\IndexingEntity;
+use Klevu\Indexing\Model\ResourceModel\IndexingEntity\Collection as IndexingEntityCollection;
 use Klevu\Indexing\Pipeline\Indexing\Stage\HandleBatchResponse;
+use Klevu\Indexing\Service\Provider\IndexingEntityProvider;
 use Klevu\Indexing\Test\Integration\Traits\IndexingEntitiesTrait;
 use Klevu\IndexingApi\Api\Data\IndexingEntityInterface;
 use Klevu\IndexingApi\Model\Source\Actions;
@@ -17,8 +19,10 @@ use Klevu\IndexingApi\Service\Action\UpdateIndexingEntitiesActionsActionInterfac
 use Klevu\PhpSDK\Model\Indexing\Record as IndexingRecord;
 use Klevu\PhpSDK\Model\Indexing\RecordIterator;
 use Klevu\PhpSDKPipelines\Model\ApiPipelineResult;
+use Klevu\Pipelines\Exception\ExtractionExceptionInterface;
 use Klevu\Pipelines\Exception\Pipeline\InvalidPipelineArgumentsException;
 use Klevu\Pipelines\Exception\Pipeline\InvalidPipelinePayloadException;
+use Klevu\Pipelines\Exception\TransformationExceptionInterface;
 use Klevu\Pipelines\Model\Extraction;
 use Klevu\Pipelines\Pipeline\Context;
 use Klevu\Pipelines\Pipeline\PipelineInterface;
@@ -619,9 +623,6 @@ class HandleBatchResponseTest extends TestCase
         $this->cleanIndexingEntities($apiKey);
     }
 
-    /**
-     * @group wip
-     */
     public function testExecute_UpdatesCorrectEntity_WhenMultipleEntitiesWithSameIdExist_OnPipelineSuccess_ForDelete(): void { // phpcs:ignore Generic.Files.LineLength.TooLong
         $apiKey = 'klevu-test-api-key';
 
@@ -801,8 +802,8 @@ class HandleBatchResponseTest extends TestCase
         $this->cleanIndexingEntities($apiKey);
     }
 
-    public function testExecute_UpdatesCorrectEntity_WhenMultipleEntitiesWithSameIdExist_OnPipelineSuccess_ForAdd(
-    ): void {
+    public function testExecute_UpdatesCorrectEntity_WhenMultipleEntitiesWithSameIdExist_OnPipelineSuccess_ForAdd(): void // phpcs:ignore Generic.Files.LineLength.TooLong
+    {
         $apiKey = 'klevu-test-api-key';
 
         $this->createProduct();
@@ -981,5 +982,162 @@ class HandleBatchResponseTest extends TestCase
         $this->assertNotNull(actual: $configurableResult->getLastActionTimestamp());
 
         $this->cleanIndexingEntities($apiKey);
+    }
+
+    /**
+     * @testWith ["123", 123, null]
+     *           ["categoryid_1", 1, null]
+     *           ["vendor_custom_entity_42", 42, null]
+     *           ["456-789", 789, 456] 
+     *           ["categoryid_1-234", 234, 1]
+     *           ["vendor_custom_entity_99999-1", 1, 99999]
+     * @group wip
+     */
+    public function testExecute_HandlesIdsWithMultipleUnderscores_RecordIterator(
+        string $recordIdentifier,
+        int $expectedTargetId,
+        ?int $expectedTargetParentId,
+    ): void {
+        $this->doTestExecute_HandleIdsWithMultipleUnderscores(
+            mockApiResult: $this->objectManager->create(ApiPipelineResult::class, [
+                'success' => true,
+                'message' => 'Batch accepted successfully',
+                'payload' => $this->objectManager->create(RecordIterator::class, [
+                    'data' => [
+                        $this->objectManager->create(IndexingRecord::class, [
+                            'id' => $recordIdentifier,
+                            'type' => 'KLEVU_PRODUCT',
+                            'relations' => [],
+                            'attributes' => [],
+                            'display' => [],
+                        ]),
+                    ],
+                ]),
+            ]),
+            recordIdentifier: $recordIdentifier,
+            expectedTargetId: $expectedTargetId,
+            expectedTargetParentId: $expectedTargetParentId,
+        );
+    }
+
+    /**
+     * @testWith ["123", 123, null]
+     *           ["categoryid_1", 1, null]
+     *           ["vendor_custom_entity_42", 42, null]
+     *           ["456-789", 789, 456] 
+     *           ["categoryid_1-234", 234, 1]
+     *           ["vendor_custom_entity_99999-1", 1, 99999]
+     * @group wip
+     */
+    public function testExecute_HandleIdsWithMultipleUnderscores_Array(
+        string $recordIdentifier,
+        int $expectedTargetId,
+        ?int $expectedTargetParentId,
+    ): void {
+        $this->doTestExecute_HandleIdsWithMultipleUnderscores(
+            mockApiResult: $this->objectManager->create(ApiPipelineResult::class, [
+                'success' => true,
+                'message' => 'Batch accepted successfully',
+                'payload' => [
+                    $recordIdentifier,
+                ],
+            ]),
+            recordIdentifier: $recordIdentifier,
+            expectedTargetId: $expectedTargetId,
+            expectedTargetParentId: $expectedTargetParentId,
+        );
+    }
+
+    /**
+     * @param ApiPipelineResult $mockApiResult
+     *
+     * @return void
+     * @throws ExtractionExceptionInterface
+     * @throws TransformationExceptionInterface
+     */
+    private function doTestExecute_HandleIdsWithMultipleUnderscores(
+        ApiPipelineResult $mockApiResult,
+        string $recordIdentifier,
+        int $expectedTargetId,
+        ?int $expectedTargetParentId,
+    ): void {
+        $mockEventManager = $this->getMockBuilder(ManagerInterface::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $expectation = $this->exactly(2);
+        $mockEventManager->expects($expectation)
+            ->method('dispatch')
+            ->willReturnCallback(
+                callback: function (string $eventName, array $data = []) use ($expectation, $mockApiResult): void {
+                    $invocationCount = match (true) {
+                        method_exists($expectation, 'getInvocationCount') => $expectation->getInvocationCount(),
+                        method_exists($expectation, 'numberOfInvocations') => $expectation->numberOfInvocations(),
+                        default => throw new \RuntimeException('Cannot determine invocation count from matcher'),
+                    };
+
+                    switch ($invocationCount) {
+                        case 1:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_before',
+                                actual: $eventName,
+                            );
+                            break;
+                        case 2:
+                            $this->assertSame(
+                                expected: 'klevu_indexing_handle_batch_response_after',
+                                actual: $eventName,
+                            );
+                            break;
+                        default:
+                            $this->fail(message: 'Unexpected number of invocations');
+                            break;
+                    }
+
+                    $this->assertArrayHasKey(
+                        key: 'indexingEntities',
+                        array: $data,
+                    );
+                    $this->assertIsArray($data['indexingEntities']);
+                    $this->assertCount(1, $data['indexingEntities']);
+                },
+            );
+
+        $mockIndexingEntityResult = $this->getMockBuilder(IndexingEntityCollection::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockIndexingEntityResult->method('getItems')
+            ->willReturn([
+                $this->getMockBuilder(IndexingEntityInterface::class)->getMock(),
+            ]);
+        $mockIndexingEntityProvider = $this->getMockBuilder(IndexingEntityProvider::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $mockIndexingEntityProvider->expects($this->once())
+            ->method('getForTargetParentPairs')
+            ->with(
+                'KLEVU_PRODUCT',
+                'klevu-1234567890',
+                [
+                    $recordIdentifier => [
+                        'target_id' => $expectedTargetId,
+                        'target_parent_id' => $expectedTargetParentId,
+                    ],
+                ],
+            )
+            ->willReturn($mockIndexingEntityResult);
+
+        $pipeline = $this->instantiateTestObject([
+            'eventManager' => $mockEventManager,
+            'indexingEntityProvider' => $mockIndexingEntityProvider,
+            'args' => [
+                HandleBatchResponse::ARGUMENT_KEY_API_KEY => 'klevu-1234567890',
+                HandleBatchResponse::ARGUMENT_KEY_ENTITY_TYPE => 'KLEVU_PRODUCT',
+                HandleBatchResponse::ARGUMENT_KEY_ACTION => Actions::ADD->value,
+            ],
+        ]);
+        $pipeline->execute(
+            payload: $mockApiResult,
+            context: new Context([]),
+        );
     }
 }
