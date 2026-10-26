@@ -240,13 +240,14 @@ class MagentoToKlevuAttributeMapper implements MagentoToKlevuAttributeMapperInte
      */
     private function getStandardAttributes(?string $apiKey = null): array
     {
-        if (!($this->standardAttributes[$apiKey] ?? null)) {
-            $this->standardAttributes[$apiKey] = $this->standardAttributesProvider->getAttributeCodes(
+        $cacheKey = $apiKey ?? '';
+        if (!($this->standardAttributes[$cacheKey] ?? null)) {
+            $this->standardAttributes[$cacheKey] = $this->standardAttributesProvider->getAttributeCodes(
                 apiKey: $apiKey,
                 includeAliases: true,
             );
         }
 
-        return $this->standardAttributes[$apiKey];
+        return $this->standardAttributes[$cacheKey];
     }
 }
