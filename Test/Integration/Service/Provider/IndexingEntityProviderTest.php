@@ -754,7 +754,7 @@ class IndexingEntityProviderTest extends TestCase
         $results = $provider->get(
             apiKeys: [$apiKey],
             pageSize: $pageSize,
-            startFrom: $entityIds[$startFrom] ?? null,
+            startFrom: null !== $startFrom ? ($entityIds[$startFrom] ?? null) : null,
         );
         $this->assertCount(expectedCount: $expectedCount, haystack: $results);
 
